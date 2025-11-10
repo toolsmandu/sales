@@ -110,7 +110,7 @@
 
             <div class="card">
                 <div class="qr-toolbar">
-                    <h2>Payment QR</h2>
+                    <h2>Payment QRs</h2>
                     <button type="button" id="qr-toggle">Add QR</button>
                 </div>
                 <p class="helper-text" style="margin-bottom: 0.75rem;">
