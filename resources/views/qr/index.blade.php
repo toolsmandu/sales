@@ -110,11 +110,11 @@
 
             <div class="card">
                 <div class="qr-toolbar">
-                    <h2>Payment QR Codes</h2>
-                    <button type="button" id="qr-toggle">Add QRs</button>
+                    <h2>Available QR</h2>
+                    <button type="button" id="qr-toggle">Add QR</button>
                 </div>
                 <p class="helper-text" style="margin-bottom: 0.75rem;">
-                    Please write your Whatsapp number in Payment remarks to track your payment quickly.
+                    Attention: Please write your Whatsapp number in Payment remarks to track your payment quickly.
                 </p>
 
                 <div id="qr-form-wrapper" class="qr-form is-hidden">
