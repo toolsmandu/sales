@@ -47,10 +47,14 @@
         </form>
 
         <footer>
-            <p>
-                Need an account?
-                <a href="{{ route('register') }}">Register now</a>.
-            </p>
+            @if (Route::has('register'))
+                <p>
+                    Need an account?
+                    <a href="{{ route('register') }}">Register now</a>.
+                </p>
+            @else
+                <p>New registrations are disabled. Contact an administrator to create an account.</p>
+            @endif
         </footer>
     </article>
 @endsection

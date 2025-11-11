@@ -14,8 +14,7 @@
             <div class="chatbot-grid">
                 <section class="card chatbot-simulator">
                     <header>
-                        <h2>Chatbot Simulator</h2>
-                        <p class="muted">Preview how customers experience the assistant. Pick a product, ask a question, and review the reply.</p>
+                        <h2>Chatbot</h2>
                     </header>
 
                     @php

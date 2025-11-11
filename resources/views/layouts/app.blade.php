@@ -236,9 +236,7 @@
                                 <div class="profile-menu__meta" role="none">
                                     <span class="profile-menu__meta-avatar">{{ strtoupper(substr($authUser->name ?? 'U', 0, 1)) }}</span>
                                     <div class="profile-menu__meta-info">
-                                        <span class="profile-menu__meta-name">{{ $authUser->name }}</span>
-                                        <span class="profile-menu__meta-email">{{ $authUser->email }}</span>
-                                    </div>
+                                        <span class="profile-menu__meta-name">{{ $authUser->name }}</span>                                    </div>
                                 </div>
                                 <div class="profile-menu__divider" role="none"></div>
                                 <a class="profile-menu__item" href="{{ route('dashboard.profile.edit') }}" role="menuitem">
@@ -248,7 +246,7 @@
                                             <path d="M4 22a8 8 0 0 1 16 0"/>
                                         </svg>
                                     </span>
-                                    <span class="profile-menu__label">Profile Settings</span>
+                                    <span class="profile-menu__label">Profile</span>
                                 </a>
                                 @if (($authUser->role ?? null) === 'admin')
                                     <a class="profile-menu__item" href="{{ route('dashboard.users.index') }}" role="menuitem">
@@ -284,7 +282,9 @@
                         </li>
                     @else
                         <li><a href="{{ route('login') }}">Log in</a></li>
-                        <li><a href="{{ route('register') }}">Register</a></li>
+                        @if (Route::has('register'))
+                            <li><a href="{{ route('register') }}">Register</a></li>
+                        @endif
                     @endauth
                 </ul>
             </nav>

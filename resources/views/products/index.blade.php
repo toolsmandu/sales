@@ -46,7 +46,7 @@
                                 type="text"
                                 name="name"
                                 value="{{ old('name') }}"
-                                placeholder="Eg. Summer Denim Jacket"
+                                placeholder="Enter Product Name"
                                 required>
                         </label>
 

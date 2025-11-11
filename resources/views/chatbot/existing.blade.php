@@ -40,6 +40,8 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            font-size: 1.2rem;
+            line-height: 1.4;
         }
 
         .knowledge-faq__toggle {
@@ -158,8 +160,7 @@
             <div class="chatbot-grid">
                 <section class="card">
                     <header>
-                        <h2>Existing Knowledge</h2>
-                        <p class="muted">Switch products to review previously saved prompts.</p>
+                        <h2>Knowledgebase</h2>
                     </header>
 
                     @php

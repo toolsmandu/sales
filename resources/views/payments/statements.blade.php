@@ -24,7 +24,6 @@
                         <div class="payment-ledger-section__header">
                             <div>
                                 <h3>Payment Statement</h3>
-                                <p class="muted">Choose a payment method to view its chronological transaction history.</p>
                             </div>
                             <form method="GET" action="{{ route('payments.statements') }}" class="payment-ledger-filter">
                                 <div class="payment-ledger-filter__inputs">
@@ -51,7 +50,7 @@
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th scope="col">S.N.</th>
+                                            <th scope="col">Order ID</th>
                                             <th scope="col">Date</th>
                                             <th scope="col">Phone</th>
                                             <th scope="col">Email</th>

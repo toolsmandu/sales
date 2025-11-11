@@ -351,6 +351,7 @@
         grid-column: 1 / -1;
         align-items: center;
         margin-top: 0.25rem;
+              gap: 0.75rem;
     }
 
     .form-actions--row .helper-text {
@@ -444,7 +445,7 @@
         word-break: break-word;
     }
 
-    /* S.N. ko width badhaune*/
+    /* Order ID ko width badhaune*/
 .sales-table th:first-child,
 .sales-table td:first-child {
     min-width: 5rem;

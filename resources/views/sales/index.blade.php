@@ -29,10 +29,16 @@
             gap: 0.35rem;
         }
 
+        .sales-filter-row > .product-combobox {
+            flex: 0 0 auto;
+            min-width: 210px;
+        }
+
         .sales-filter-actions {
             display: flex;
             align-items: flex-end;
             gap: 0.5rem;
+            margin: 20px;
         }
 
         .sale-confirmation-message {
@@ -211,9 +217,10 @@
                         </label>
 
 
-                        <div class="form-actions form-actions--row">
-                            <button type="submit">Save record</button>
-                        </div>
+            
+                            <div class="form-actions__buttons">
+                                <button type="submit">Save record</button>
+                            </div>
                     </form>
                 </section>
             @endunless
@@ -342,7 +349,7 @@
 
             @unless ($saleToEdit)
                 <section class="card stack">
-                    <h2>Sales Records</h2>
+                    <h2>Sales Record History</h2>
 
                     @php
                         $filters = $filters ?? [
@@ -363,9 +370,16 @@
                         @if (request()->filled('per_page'))
                             <input type="hidden" name="per_page" value="{{ request()->query('per_page') }}">
                         @endif
+                        @php
+                            $filterProductValue = $filters['product_name'];
+                            $filterProductOptions = collect($productChoices);
+                            if ($filterProductValue && !$filterProductOptions->contains($filterProductValue)) {
+                                $filterProductOptions->prepend($filterProductValue);
+                            }
+                        @endphp
 
                         <label for="filter-serial-number">
-                            S.N.
+                            Order ID
                             <input
                                 type="text"
                                 id="filter-serial-number"
@@ -393,23 +407,52 @@
                                 id="filter-email"
                                 name="email"
                                 value="{{ $filters['email'] }}"
-                                placeholder="customer@example.com"
+                                placeholder="Email"
                             >
                         </label>
 
-                        <label for="filter-product">
-                            Product name
-                            <input
-                                type="text"
-                                id="filter-product"
-                                name="product_name"
-                                value="{{ $filters['product_name'] }}"
-                                placeholder="Product or variation"
-                            >
-                        </label>
+                        <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
+                            <label for="filter-product">
+                                Product
+                                <input
+                                    type="text"
+                                    id="filter-product"
+                                    class="product-combobox__input"
+                                    name="product_name"
+                                    value="{{ $filterProductValue }}"
+                                    placeholder="Choose"
+                                    autocomplete="off"
+                                    list="sales-product-options"
+                                    data-selected-name="{{ $filterProductValue }}"
+                                >
+                            </label>
+                            <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                @if ($filterProductOptions->isEmpty())
+                                    <p class="product-combobox__empty">No products available yet.</p>
+                                @else
+                                    <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                    @foreach ($filterProductOptions as $option)
+                                        @php
+                                            $isSelectedOption = $filterProductValue === $option;
+                                        @endphp
+                                        <button
+                                            type="button"
+                                            class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
+                                            data-product-option
+                                            data-product-name="{{ $option }}"
+                                            data-product-id="{{ $option }}"
+                                            role="option"
+                                            aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
+                                        >
+                                            {{ $option }}
+                                        </button>
+                                    @endforeach
+                                @endif
+                            </div>
+                        </div>
 
                         <label for="filter-date-from">
-                            Date from
+                           From
                             <input
                                 type="date"
                                 id="filter-date-from"
@@ -419,7 +462,7 @@
                         </label>
 
                         <label for="filter-date-to">
-                            Date to
+                            To
                             <input
                                 type="date"
                                 id="filter-date-to"
@@ -429,17 +472,23 @@
                         </label>
 
                         <div class="sales-filter-actions">
-                            <button type="submit">Apply filters</button>
-                            <a href="{{ route('sales.index', $resetParams) }}" class="ghost-button">Reset</a>
+                            <button type="submit">Filter</button>
                         </div>
                     </form>
+                    @if (!empty($productChoices))
+                        <datalist id="sales-product-options">
+                            @foreach ($productChoices as $option)
+                                <option value="{{ $option }}"></option>
+                            @endforeach
+                        </datalist>
+                    @endif
 
 
                     <div class="table-wrapper">
                         <table class="sales-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">S.N.</th>
+                                    <th scope="col">Order ID</th>
                                     <th scope="col">Purchase Date</th>
                                     <th scope="col">Product</th>
                                     <th scope="col">Phone</th>

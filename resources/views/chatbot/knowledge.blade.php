@@ -220,8 +220,7 @@
 
                 <section class="card">
                     <header>
-                        <h2>Chatbot Knowledge Base</h2>
-                        <p class="muted">Choose a product, then craft question-and-answer pairs. Use the formatting tools to add headings, lists, or screenshots pasted from your clipboard before saving.</p>
+                        <h2>Add Knowledge to Chatbot</h2>
                     </header>
 
                     @php

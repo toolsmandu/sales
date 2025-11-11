@@ -146,8 +146,7 @@
     data-variation-block
     data-variation-label="{{ $fieldLabelId }}">
     <div class="variation-header">
-        <p id="{{ $fieldLabelId }}" class="variation-title">Variations (optional)</p>
-        <p class="helper-text">Good for sizes, colors, capacity — appears wherever the product is listed.</p>
+        <p id="{{ $fieldLabelId }}" class="variation-title">Variations</p>
     </div>
 
     <div
@@ -162,7 +161,7 @@
                     value="{{ $value }}"
                     maxlength="255"
                     aria-labelledby="{{ $fieldLabelId }}"
-                    placeholder="Eg. 128GB / Grey"
+                    placeholder="Variation"
                 >
                 <button type="button" class="ghost-button" data-remove-variation>Remove</button>
             </div>
@@ -179,7 +178,7 @@
                 type="text"
                 name="{{ $fieldName }}"
                 maxlength="255"
-                placeholder="Eg. 128GB / Grey"
+                placeholder="Variation"
             >
             <button type="button" class="ghost-button" data-remove-variation>Remove</button>
         </div>

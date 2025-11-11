@@ -2071,7 +2071,7 @@
                     }
 
                     const header = [
-                        'S.N.',
+                        'Order ID',
                         'Purchase Date',
                         'Product Name',
                         'Phone',

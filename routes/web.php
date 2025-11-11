@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\Dashboard\DashboardBootstrapController;
 use App\Http\Controllers\Dashboard\ChatbotController;
+use App\Http\Controllers\Dashboard\CouponCodeController;
+use App\Http\Controllers\Dashboard\DashboardBootstrapController;
 use App\Http\Controllers\Dashboard\PaymentMethodController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\SaleController;
@@ -17,15 +17,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware('guest')->group(function (): void {
-    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-    Route::post('/register', [RegisteredUserController::class, 'store']);
-
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 });
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/coupons', [CouponCodeController::class, 'index'])->name('coupons.index');
+    Route::post('/coupons', [CouponCodeController::class, 'store'])->name('coupons.store');
+    Route::put('/coupons/{couponCode}', [CouponCodeController::class, 'update'])->name('coupons.update');
+    Route::delete('/coupons/{couponCode}', [CouponCodeController::class, 'destroy'])->name('coupons.destroy');
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
     Route::get('/qr', [QrController::class, 'index'])->name('qr.scan');
     Route::post('/qr', [QrController::class, 'store'])->name('qr.scan.store');
