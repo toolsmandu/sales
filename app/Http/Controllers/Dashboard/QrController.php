@@ -62,4 +62,17 @@ class QrController extends Controller
             ->route('qr.scan')
             ->with('status', 'QR updated successfully.');
     }
+
+    public function destroy(QrCode $qrCode): RedirectResponse
+    {
+        if ($qrCode->file_path && Storage::disk('public')->exists($qrCode->file_path)) {
+            Storage::disk('public')->delete($qrCode->file_path);
+        }
+
+        $qrCode->delete();
+
+        return redirect()
+            ->route('qr.scan')
+            ->with('status', 'QR deleted successfully.');
+    }
 }

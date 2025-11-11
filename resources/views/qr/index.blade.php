@@ -72,6 +72,27 @@
             height: 16px;
         }
 
+        .qr-inline-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: nowrap;
+        }
+
+        .ghost-button--danger {
+            border-color: rgba(239, 68, 68, 0.35);
+            background: rgba(239, 68, 68, 0.08);
+            color: #b91c1c;
+        }
+
+        .ghost-button--danger:hover,
+        .ghost-button--danger:focus-visible {
+            background: rgba(239, 68, 68, 0.18);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #7f1d1d;
+            outline: none;
+        }
+
         .qr-edit-form {
             margin-top: 0.75rem;
             padding-top: 0.75rem;
@@ -210,8 +231,28 @@
                                         </label>
                                         <div class="form-actions form-actions--row">
                                             <button type="submit">Update</button>
-                                            <button type="button" class="ghost-button" data-qr-edit-cancel="{{ $qr->id }}">Cancel</button>
+                                            <div class="form-actions__buttons qr-inline-actions">
+                                                <button type="button" class="ghost-button" data-qr-edit-cancel="{{ $qr->id }}">Cancel</button>
+                                                <button
+                                                    type="button"
+                                                    class="ghost-button ghost-button--danger"
+                                                    data-qr-delete-trigger="{{ $qr->id }}"
+                                                    data-confirm="Delete QR '{{ $qr->name }}'?"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </div>
+                                    </form>
+                                    <form
+                                        id="qr-delete-form-{{ $qr->id }}"
+                                        class="qr-delete-form"
+                                        method="POST"
+                                        action="{{ route('qr.scan.destroy', $qr) }}"
+                                        hidden
+                                    >
+                                        @csrf
+                                        @method('DELETE')
                                     </form>
                                 @endif
                             </article>
@@ -280,6 +321,25 @@
                     const id = button.dataset.qrEditCancel;
                     const form = document.querySelector(`[data-qr-edit-form=\"${id}\"]`);
                     form?.classList.add('is-hidden');
+                });
+            });
+
+            document.querySelectorAll('[data-qr-delete-trigger]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const id = button.dataset.qrDeleteTrigger;
+                    if (!id) {
+                        return;
+                    }
+
+                    const form = document.getElementById(`qr-delete-form-${id}`);
+                    if (!form) {
+                        return;
+                    }
+
+                    const message = button.dataset.confirm || 'Delete this QR?';
+                    if (window.confirm(message)) {
+                        form.submit();
+                    }
                 });
             });
         });

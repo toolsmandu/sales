@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/qr', [QrController::class, 'index'])->name('qr.scan');
     Route::post('/qr', [QrController::class, 'store'])->name('qr.scan.store');
     Route::put('/qr/{qrCode}', [QrController::class, 'update'])->name('qr.scan.update');
+    Route::delete('/qr/{qrCode}', [QrController::class, 'destroy'])->name('qr.scan.destroy');
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
     Route::get('/stock/keys/create', [StockController::class, 'createKeys'])->name('stock.keys.create');
     Route::post('/stock/keys', [StockController::class, 'store'])->name('stock.keys.store');
