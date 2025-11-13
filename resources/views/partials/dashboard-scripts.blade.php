@@ -51,6 +51,7 @@
                 const salesProductOptionsList = document.getElementById('sales-product-options');
                 const salesPhoneInput = document.getElementById('sales-phone');
                 const salesEmailInput = document.getElementById('sales-email');
+                const salesRemarksInput = document.getElementById('sales-remarks');
                 const salesAmountInput = document.getElementById('sales-amount');
                 const salesPaymentSelect = document.getElementById('sales-payment-method');
                 const salesSubmitButton = salesForm?.querySelector('button[type="submit"]');
@@ -100,6 +101,24 @@
                 if (salesPageSizeSelect) {
                     salesPageSizeSelect.value = String(salesPageSize);
                 }
+
+                salesPhoneInput?.addEventListener('paste', (event) => {
+                    event.preventDefault();
+                    const clipboardData = event.clipboardData?.getData('text') ?? '';
+                    const sanitized = clipboardData
+                        .replace(/[()\-\s]/g, '')
+                        .replace(/^(\+?)/, (_, plus) => plus === '+' ? '+' : '');
+
+                    const currentValue = salesPhoneInput.value;
+                    const selectionStart = salesPhoneInput.selectionStart ?? currentValue.length;
+                    const selectionEnd = salesPhoneInput.selectionEnd ?? currentValue.length;
+
+                    salesPhoneInput.value = currentValue.slice(0, selectionStart)
+                        + sanitized
+                        + currentValue.slice(selectionEnd);
+                    const cursor = selectionStart + sanitized.length;
+                    salesPhoneInput.setSelectionRange(cursor, cursor);
+                });
 
                 if (paymentPageSizeSelect) {
                     paymentPageSizeSelect.value = String(paymentPageSize);
@@ -194,7 +213,7 @@
                     bootstrap: '{{ route('dashboard.bootstrap') }}',
                     products: '{{ route('dashboard.products.store') }}',
                     paymentMethods: '{{ route('dashboard.payment-methods.store') }}',
-                    sales: '{{ route('dashboard.sales.store') }}',
+                    sales: '{{ route('dashboard.orders.store') }}',
                     withdrawals: '{{ route('dashboard.withdrawals.store') }}',
                 };
 
@@ -1566,7 +1585,10 @@
                             salesPhoneInput.value = existingRecord.phone;
                         }
                         if (salesEmailInput) {
-                            salesEmailInput.value = existingRecord.email;
+                            salesEmailInput.value = existingRecord.email ?? '';
+                        }
+                        if (salesRemarksInput) {
+                            salesRemarksInput.value = existingRecord.remarks ?? '';
                         }
                         if (salesAmountInput) {
                             salesAmountInput.value = existingRecord.salesAmount;
@@ -1601,6 +1623,9 @@
                     if (salesProductInput) {
                         salesProductInput.value = '';
                         salesProductInput.setCustomValidity('');
+                    }
+                    if (salesRemarksInput) {
+                        salesRemarksInput.value = '';
                     }
                     renderSalesProductOptions();
 
@@ -1996,13 +2021,14 @@
 
                     const purchaseDateValue = salesDateInput?.value ?? '';
                     const productName = (salesProductInput?.value ?? '').trim();
-                    const phone = salesPhoneInput?.value.trim() ?? '';
-                    const email = salesEmailInput?.value.trim() ?? '';
+                    const phone = (salesPhoneInput?.value ?? '').trim();
+                    const email = (salesEmailInput?.value ?? '').trim();
+                    const remarks = (salesRemarksInput?.value ?? '').trim();
                     const amountValue = parseFloat(salesAmountInput?.value ?? '0');
                     const paymentMethodValue = salesPaymentSelect?.value ?? '';
 
                     const purchaseDate = parseDateInput(purchaseDateValue);
-                    if (!purchaseDate || productName === '' || phone === '' || email === '' || Number.isNaN(amountValue) || amountValue < 0 || paymentMethodValue === '') {
+                    if (!purchaseDate || productName === '' || phone === '' || remarks === '' || Number.isNaN(amountValue) || amountValue < 0 || paymentMethodValue === '') {
                         return;
                     }
 
@@ -2017,11 +2043,15 @@
                     const payload = {
                         product_name: productName,
                         phone,
-                        email,
                         sales_amount: amountValue,
                         payment_method: paymentMethodValue,
                         purchase_date: formatDateForInput(startOfDay(purchaseDate)),
+                        remarks,
                     };
+
+                    if (email !== '') {
+                        payload.email = email;
+                    }
 
                     const endpoint = editingSalesId
                         ? `${routes.sales}/${editingSalesId}`

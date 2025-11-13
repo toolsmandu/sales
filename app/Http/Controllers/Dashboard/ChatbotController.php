@@ -68,6 +68,20 @@ class ChatbotController extends Controller
                 ->where('product_id', $productId)
                 ->orderBy('question');
 
+            if ($this->isGreeting($searchTerm)) {
+                return response()->json([
+                    'product' => Product::query()->find($productId, ['id', 'name']),
+                    'query' => $searchTerm,
+                    'answers' => [
+                        [
+                            'question' => $searchTerm,
+                            'answer' => 'How can I help you?',
+                        ],
+                    ],
+                    'timestamp' => now()->timezone('Asia/Kathmandu')->toIso8601String(),
+                ]);
+            }
+
             if ($searchTerm !== '' && strcasecmp($searchTerm, 'all') !== 0) {
                 $query->search($searchTerm);
             }
@@ -100,7 +114,16 @@ class ChatbotController extends Controller
             }
 
             if ($searchTerm !== '') {
-                $chatbotResults = $query->get(['question', 'answer']);
+                if ($this->isGreeting($searchTerm)) {
+                    $chatbotResults = collect([
+                        (object) [
+                            'question' => $searchTerm,
+                            'answer' => 'How can I help you?',
+                        ],
+                    ]);
+                } else {
+                    $chatbotResults = $query->get(['question', 'answer']);
+                }
             }
         }
 
@@ -195,5 +218,29 @@ class ChatbotController extends Controller
         return Product::query()
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    private function isGreeting(string $term): bool
+    {
+        $normalized = strtolower(trim($term));
+        if ($normalized === '') {
+            return false;
+        }
+
+        $greetings = [
+            'hi',
+            'hello',
+            'hey',
+            'hiya',
+            'hey there',
+            'hi there',
+            'good morning',
+            'good afternoon',
+            'good evening',
+            'greetings',
+            'namaste',
+        ];
+
+        return in_array($normalized, $greetings, true);
     }
 }

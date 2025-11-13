@@ -13,6 +13,8 @@ class QrCode extends Model
     protected $fillable = [
         'name',
         'file_path',
+        'description',
+        'payment_method_number',
     ];
 
     public function getImageDataAttribute(): ?string

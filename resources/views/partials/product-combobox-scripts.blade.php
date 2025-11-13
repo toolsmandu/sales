@@ -16,9 +16,28 @@
             const autoSubmit = combobox.dataset.autosubmit === 'true';
             const form = combobox.closest('form');
             const selectedName = (input.dataset.selectedName ?? '').toLowerCase();
+            const expiryInputId = combobox.dataset.expiryInput || '';
+            const expiryInput = expiryInputId ? document.getElementById(expiryInputId) : null;
 
             let userModifiedInput = false;
             let suppressFocusOpen = false;
+
+            const setExpiryValue = (value) => {
+                if (!expiryInput) {
+                    return;
+                }
+
+                expiryInput.value = value ?? '';
+            };
+
+            const applyOptionExpiry = (option) => {
+                if (!expiryInput) {
+                    return;
+                }
+
+                const expiryDays = option?.dataset.productExpiryDays ?? '';
+                setExpiryValue(expiryDays);
+            };
 
             const setHiddenFieldValue = (value) => {
                 if (!hiddenField) {
@@ -41,6 +60,16 @@
                     userModifiedInput = initialValue !== selectedName;
                 } else if (!allowFreeEntry) {
                     userModifiedInput = true;
+                }
+            }
+
+            if (input.dataset.selectedName) {
+                const initialSelection = options.find((option) => {
+                    const optionName = option.dataset.productName ?? '';
+                    return optionName.toLowerCase() === input.dataset.selectedName.toLowerCase();
+                });
+                if (initialSelection) {
+                    applyOptionExpiry(initialSelection);
                 }
             }
 
@@ -116,6 +145,7 @@
                 input.setCustomValidity('');
 
                 updateActiveOption(option);
+                applyOptionExpiry(option);
                 filterOptions();
                 closeDropdown();
 
@@ -162,6 +192,7 @@
                     setHiddenFieldValue('');
                     input.dataset.selectedName = '';
                 }
+                setExpiryValue('');
                 openDropdown();
                 filterOptions();
             });

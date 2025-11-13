@@ -38,7 +38,10 @@ class ProductController extends Controller
     {
         $data = $this->validatePayload($request);
 
-        $product = Product::create(['name' => $data['name']]);
+        $product = Product::create([
+            'name' => $data['name'],
+            'is_in_stock' => $data['is_in_stock'],
+        ]);
 
         $this->syncVariations($product, $data['variations']);
 
@@ -59,7 +62,10 @@ class ProductController extends Controller
     {
         $data = $this->validatePayload($request, $product);
 
-        $product->update(['name' => $data['name']]);
+        $product->update([
+            'name' => $data['name'],
+            'is_in_stock' => $data['is_in_stock'],
+        ]);
 
         $this->syncVariations($product, $data['variations']);
 
@@ -94,7 +100,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @return array{name: string, variations: array<int, string>}
+     * @return array{name: string, is_in_stock: bool, variations: array<int, array{name: string, expiry_days: ?int, is_in_stock: bool}>}
      */
     private function validatePayload(Request $request, ?Product $product = null): array
     {
@@ -105,20 +111,45 @@ class ProductController extends Controller
                 'max:255',
                 Rule::unique('products')->ignore($product?->id),
             ],
+            'is_in_stock' => ['required', 'boolean'],
             'variations' => ['nullable', 'array'],
-            'variations.*' => ['nullable', 'string', 'max:255'],
+            'variations.*.name' => ['nullable', 'string', 'max:255'],
+            'variations.*.expiry_days' => ['nullable', 'integer', 'min:0'],
+            'variations.*.is_in_stock' => ['nullable', 'boolean'],
             'product_variations' => ['nullable', 'array'],
             'product_variations.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $rawVariations = $data['variations'] ?? $data['product_variations'] ?? [];
+        $structuredVariations = collect($data['variations'] ?? [])
+            ->map(function ($value) {
+                $name = is_array($value) ? ($value['name'] ?? '') : '';
+                $expiry = is_array($value) ? ($value['expiry_days'] ?? null) : null;
+
+                return [
+                    'name' => trim((string) $name),
+                    'expiry_days' => isset($expiry) && $expiry !== '' ? max(0, (int) $expiry) : null,
+                    'is_in_stock' => $this->normalizeBoolean(is_array($value) ? ($value['is_in_stock'] ?? null) : null),
+                ];
+            })
+            ->filter(fn (array $value) => $value['name'] !== '')
+            ->values();
+
+        if ($structuredVariations->isEmpty() && !empty($data['product_variations'])) {
+            $structuredVariations = collect($data['product_variations'])
+                ->map(fn ($value) => [
+                    'name' => trim(is_string($value) ? $value : ''),
+                    'expiry_days' => null,
+                    'is_in_stock' => true,
+                ])
+                ->filter(fn (array $value) => $value['name'] !== '')
+                ->values();
+        }
 
         return [
             'name' => $data['name'],
-            'variations' => collect($rawVariations)
-                ->map(fn ($value) => is_string($value) ? trim($value) : '')
-                ->filter()
-                ->unique()
+            'is_in_stock' => $this->normalizeBoolean($data['is_in_stock']),
+            'variations' => $structuredVariations
+                ->unique(fn (array $value) => mb_strtolower($value['name']))
                 ->values()
                 ->all(),
         ];
@@ -126,19 +157,44 @@ class ProductController extends Controller
 
     private function syncVariations(Product $product, array $variations): void
     {
-        $variations = array_values($variations);
-
         if (count($variations) === 0) {
             $product->variations()->delete();
             return;
         }
 
+        $variationNames = collect($variations)->pluck('name')->all();
+
         $product->variations()
-            ->whereNotIn('name', $variations)
+            ->whereNotIn('name', $variationNames)
             ->delete();
 
         foreach ($variations as $variation) {
-            $product->variations()->firstOrCreate(['name' => $variation]);
+            $product->variations()->updateOrCreate(
+                ['name' => $variation['name']],
+                [
+                    'expiry_days' => $variation['expiry_days'],
+                    'is_in_stock' => $variation['is_in_stock'] ?? true,
+                ]
+            );
         }
+    }
+
+    private function normalizeBoolean(mixed $value, bool $default = true): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower((string) $value);
+
+        return in_array($normalized, ['1', 'true', 'on', 'yes'], true);
     }
 }

@@ -20,44 +20,6 @@
 
             <section class="card stack">
                 @if ($paymentMethodSummaries->isNotEmpty())
-                    <div class="payment-balances-section">
-                        <div class="payment-balances-section__header">
-                            <h3>Current Available Balance</h3>
-                        </div>
-                        <div class="table-wrapper table-wrapper--elevated payment-balances-table">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Payment Method</th>
-                                        <th scope="col">Net Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($paymentMethodSummaries as $summary)
-                                        <tr>
-                                            <td>
-                                                <div class="payment-balances__method">
-                                                    <span class="payment-balances__label">{{ $summary['label'] }}</span>
-                                                </div>
-                                            </td>
-                                            <td class="payment-balances__amount">Rs {{ number_format($summary['available_balance'], 0) }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td>
-                                            <div class="payment-balances__method">
-                                                <span class="payment-balances__label">Total</span>
-                                            </div>
-                                        </td>
-                                        <td class="payment-balances__amount">Rs {{ number_format($totalAvailableBalance, 0) }}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-
                     <div class="payment-monthly-section">
                         <div class="payment-monthly-section__header">
                             <div>

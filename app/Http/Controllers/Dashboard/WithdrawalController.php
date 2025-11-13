@@ -17,7 +17,20 @@ class WithdrawalController extends Controller
 {
     public function index(Request $request): View
     {
-        $paymentMethods = PaymentMethod::orderBy('label')->get();
+        $paymentMethods = PaymentMethod::query()
+            ->select('payment_methods.*')
+            ->selectSub(
+                PaymentTransaction::query()
+                    ->selectRaw('COALESCE(SUM(CASE WHEN type = "income" THEN amount ELSE -amount END), 0)')
+                    ->whereColumn('payment_transactions.payment_method_id', 'payment_methods.id'),
+                'computed_balance'
+            )
+            ->orderBy('label')
+            ->get()
+            ->map(function (PaymentMethod $method) {
+                $method->available_balance = (float) ($method->computed_balance ?? $method->balance ?? 0);
+                return $method;
+            });
         $perPage = (int) $request->query('per_page', 25);
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 

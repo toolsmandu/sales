@@ -63,6 +63,7 @@ class DashboardBootstrapController extends Controller
                 'serial_number' => $sale->serial_number,
                 'purchase_date' => $sale->purchase_date->toDateString(),
                 'product_name' => $sale->product_name,
+                'product_expiry_days' => $sale->product_expiry_days,
                 'remarks' => $sale->remarks,
                 'phone' => $sale->phone,
                 'email' => $sale->email,

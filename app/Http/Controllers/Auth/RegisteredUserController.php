@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,8 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
+        $this->ensureRegistrationEnabled();
+
         return view('auth.register');
     }
 
@@ -27,6 +30,8 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $this->ensureRegistrationEnabled();
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
@@ -46,5 +51,12 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         return redirect()->route('dashboard');
+    }
+
+    protected function ensureRegistrationEnabled(): void
+    {
+        if (!SiteSetting::bool('registration_enabled', true)) {
+            abort(404);
+        }
     }
 }

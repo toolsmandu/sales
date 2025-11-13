@@ -1,0 +1,46 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('payment_methods', function (Blueprint $table): void {
+            $table->string('unique_number')->nullable()->after('slug');
+            $table->decimal('monthly_limit', 12, 2)->default(0)->after('unique_number');
+        });
+
+        DB::table('payment_methods')->select('id', 'unique_number', 'slug')->orderBy('id')->chunkById(100, function ($methods): void {
+            foreach ($methods as $method) {
+                $unique = $method->unique_number;
+                if (!$unique) {
+                    $base = $method->slug ?: 'payment-method-'.$method->id;
+                    $unique = strtoupper(Str::limit(Str::slug($base, ''), 12, '')); // fallback
+                    if ($unique === '') {
+                        $unique = 'PMT'.$method->id;
+                    }
+                }
+                DB::table('payment_methods')
+                    ->where('id', $method->id)
+                    ->update(['unique_number' => $unique]);
+            }
+        });
+
+        Schema::table('payment_methods', function (Blueprint $table): void {
+            $table->string('unique_number')->nullable(false)->unique()->change();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('payment_methods', function (Blueprint $table): void {
+            $table->dropUnique(['unique_number']);
+            $table->dropColumn(['unique_number', 'monthly_limit']);
+        });
+    }
+};

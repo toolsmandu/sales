@@ -47,7 +47,7 @@
         </form>
 
         <footer>
-            @if (Route::has('register'))
+            @if (\App\Models\SiteSetting::bool('registration_enabled', true) && Route::has('register'))
                 <p>
                     Need an account?
                     <a href="{{ route('register') }}">Register now</a>.

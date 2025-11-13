@@ -63,8 +63,13 @@
                             required>
                             <option value="" disabled {{ old('payment_method') ? '' : 'selected' }}>Select method</option>
                             @foreach ($paymentMethods as $method)
+                                @php
+                                    $availableBalance = property_exists($method, 'available_balance')
+                                        ? $method->available_balance
+                                        : $method->balance;
+                                @endphp
                                 <option value="{{ $method->slug }}" @selected(old('payment_method') === $method->slug)>
-                                    {{ $method->label }} (Balance: Rs {{ number_format($method->balance, 0) }})
+                                    {{ $method->label }} (Balance: Rs {{ number_format($availableBalance, 0) }})
                                 </option>
                             @endforeach
                         </select>
@@ -87,7 +92,7 @@
                             min="0"
                             step="0.01"
                             value="{{ old('amount') }}"
-                            placeholder="....."
+                            placeholder="Rs."
                             required>
                     </label>
 

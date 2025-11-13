@@ -8,6 +8,31 @@
             flex-direction: column;
             gap: 1.5rem;
         }
+
+        .stock-toggle {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 0.65rem;
+            padding: 0.85rem 1rem;
+        }
+
+        .stock-toggle legend {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .stock-toggle__options {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .stock-toggle__option {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.95rem;
+        }
     </style>
 @endpush
 
@@ -50,6 +75,31 @@
                                 required>
                         </label>
 
+                        @php
+                            $createStockValue = old('is_in_stock', '1');
+                        @endphp
+                        <fieldset class="stock-toggle">
+                            <legend>Product stock status</legend>
+                            <div class="stock-toggle__options">
+                                <label class="stock-toggle__option">
+                                    <input
+                                        type="radio"
+                                        name="is_in_stock"
+                                        value="1"
+                                        @checked($createStockValue !== '0')>
+                                    In stock
+                                </label>
+                                <label class="stock-toggle__option">
+                                    <input
+                                        type="radio"
+                                        name="is_in_stock"
+                                        value="0"
+                                        @checked($createStockValue === '0')>
+                                    Out of stock
+                                </label>
+                            </div>
+                        </fieldset>
+
                         @include('products.partials.variation-fields', [
                             'fieldLabelId' => 'product-create-variation-label',
                             'values' => old('variations', []),
@@ -79,9 +129,38 @@
                                 required>
                         </label>
 
+                        @php
+                            $editStockValue = old('is_in_stock', $productToEdit->is_in_stock ? '1' : '0');
+                        @endphp
+                        <fieldset class="stock-toggle">
+                            <legend>Product stock status</legend>
+                            <div class="stock-toggle__options">
+                                <label class="stock-toggle__option">
+                                    <input
+                                        type="radio"
+                                        name="is_in_stock"
+                                        value="1"
+                                        @checked($editStockValue !== '0')>
+                                    In stock
+                                </label>
+                                <label class="stock-toggle__option">
+                                    <input
+                                        type="radio"
+                                        name="is_in_stock"
+                                        value="0"
+                                        @checked($editStockValue === '0')>
+                                    Out of stock
+                                </label>
+                            </div>
+                        </fieldset>
+
                         @include('products.partials.variation-fields', [
                             'fieldLabelId' => 'product-edit-variation-label',
-                            'values' => old('variations', $productToEdit->variations->pluck('name')->all()),
+                            'values' => old('variations', $productToEdit->variations->map(fn ($variation) => [
+                                'name' => $variation->name,
+                                'expiry_days' => $variation->expiry_days,
+                                'is_in_stock' => $variation->is_in_stock,
+                            ])->toArray()),
                         ])
 
                         <div class="form-actions">

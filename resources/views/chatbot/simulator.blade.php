@@ -141,13 +141,13 @@
                             <div class="chatbot-input__toolbar">
                                 <div class="chatbot-input__field">
                                     <label for="chatbot-term">
-                                        Ask the assistant
+                                        Ask the assistant <i>(Type "all" to list all topics.)</i>
                                         <textarea
                                             id="chatbot-term"
                                             name="term"
                                             rows="3"
-                                            placeholder="Eg. How do I reset my subscription?"
-                                            autocomplete="off"
+                                            placeholder="Type question here..."
+                                            autocomplete="on"
                                         ></textarea>
                                     </label>
                                 </div>
@@ -596,6 +596,21 @@
             }
 
             messageInput?.addEventListener('input', updateSendState);
+
+            if (messageInput) {
+                messageInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        if (form && !sendButton?.disabled) {
+                            if (typeof form.requestSubmit === 'function') {
+                                form.requestSubmit(sendButton || null);
+                            } else {
+                                form.submit();
+                            }
+                        }
+                    }
+                });
+            }
 
             form?.addEventListener('submit', async (event) => {
                 event.preventDefault();

@@ -35,13 +35,39 @@
                     <h2>Add Payment Method</h2><br>
                     <form method="POST" action="{{ route('dashboard.payment-methods.store') }}" class="form-grid form-grid--compact">
                         @csrf
+                        <label for="payment-method-name">
+                            Payment name
                             <input
                                 id="payment-method-name"
                                 name="label"
                                 type="text"
                                 placeholder="eSewa / Khalti / Bank"
                                 value="{{ old('label') }}"
-                                required>
+                                required
+                            >
+                        </label>
+                        <label for="payment-method-unique">
+                            Unique number
+                            <input
+                                id="payment-method-unique"
+                                name="unique_number"
+                                type="text"
+                                placeholder="Unique identifier"
+                                value="{{ old('unique_number') }}"
+                                required
+                            >
+                        </label>
+                        <label for="payment-method-limit">
+                            Monthly limit (NPR)
+                            <input
+                                id="payment-method-limit"
+                                name="monthly_limit"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value="{{ old('monthly_limit', 0) }}"
+                                required
+                            >
                         </label>
                         <div class="form-actions form-actions--row">
                             <button type="submit">Add method</button>
@@ -69,6 +95,26 @@
                                                 name="label"
                                                 value="{{ $method->label }}"
                                                 required>
+                                        </label>
+                                        <label class="method-card__label">
+                                            Unique number
+                                            <input
+                                                type="text"
+                                                name="unique_number"
+                                                value="{{ $method->unique_number }}"
+                                                required
+                                            >
+                                        </label>
+                                        <label class="method-card__label">
+                                            Monthly limit (NPR)
+                                            <input
+                                                type="number"
+                                                name="monthly_limit"
+                                                min="0"
+                                                step="0.01"
+                                                value="{{ $method->monthly_limit }}"
+                                                required
+                                            >
                                         </label>
                                         <button type="submit" class="pill-button pill-button--primary">Save</button>
                                     </form>

@@ -2,6 +2,8 @@
 
 @php
     use Illuminate\Support\Facades\Storage;
+
+    $paymentMethodLimits = $paymentMethodLimits ?? [];
 @endphp
 
 @push('styles')
@@ -30,8 +32,32 @@
 
         .qr-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 1.25rem;
+        }
+
+        @media (max-width: 1400px) {
+            .qr-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .qr-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 800px) {
+            .qr-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 540px) {
+            .qr-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .qr-card {
@@ -51,6 +77,19 @@
             object-fit: contain;
             border-radius: 0.6rem;
             background: rgba(15, 23, 42, 0.04);
+        }
+
+        .qr-available {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            background: rgba(34, 197, 94, 0.08);
+            border-radius: 0.6rem;
+            padding: 0.4rem 0.65rem;
+            font-weight: 600;
+            font-size: 0.95rem;
         }
 
         .qr-card__footer {
@@ -134,9 +173,7 @@
                     <h2>Available QR</h2>
                     <button type="button" id="qr-toggle">Add QR</button>
                 </div>
-                <p class="helper-text" style="margin-bottom: 0.75rem;">
-                    Attention: Please write your Whatsapp number in Payment remarks to track your payment quickly.
-                </p>
+
 
                 <div id="qr-form-wrapper" class="qr-form is-hidden">
                     <form class="form-grid form-grid--compact" method="POST" action="{{ route('qr.scan.store') }}" enctype="multipart/form-data">
@@ -164,6 +201,27 @@
                             >
                         </label>
 
+                        <label for="qr-description">
+                            Description
+                            <textarea
+                                id="qr-description"
+                                name="description"
+                                rows="2"
+                                placeholder="Optional description or remarks"
+                            >{{ old('description') }}</textarea>
+                        </label>
+
+                        <label for="qr-payment-number">
+                            Payment method number
+                            <input
+                                type="text"
+                                id="qr-payment-number"
+                                name="payment_method_number"
+                                placeholder="Matches payment method unique number"
+                                value="{{ old('payment_method_number') }}"
+                            >
+                        </label>
+
                         <div class="form-actions form-actions--row">
                             <button type="submit">Save QR</button>
                             <button type="button" class="ghost-button" id="qr-cancel">Cancel</button>
@@ -180,10 +238,25 @@
                         @foreach ($qrs as $qr)
                             @php
                                 $qrSrc = $qr->image_data ?? Storage::disk('public')->url($qr->file_path);
+                                $methodStats = $paymentMethodLimits[$qr->payment_method_number] ?? null;
+                                $availableText = $methodStats
+                                    ? ($methodStats['available'] === null
+                                        ? 'Unlimited'
+                                        : number_format($methodStats['available'], 2))
+                                    : 'N/A';
                             @endphp
                             <article class="qr-card">
-                                <strong>{{ $qr->name }}</strong>
+                                <center><strong>{{ $qr->name }}</strong></center>
                                 <img src="{{ $qrSrc }}" alt="QR code for {{ $qr->name }}">
+                                <div class="qr-available">
+                                    <span>Available Limit:</span>
+                                    <span>Rs {{ $availableText }}</span>
+                                </div>
+                                @if ($qr->payment_method_number)
+                                @endif
+                                @if ($qr->description)
+                                    <p>{{ $qr->description }}</p>
+                                @endif
                                 <div class="qr-card__footer">
                                     <button
                                         type="button"
@@ -194,8 +267,21 @@
                                             <path d="M9 9h10v12H9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                                         </svg>
-                                        Copy QR
+                                        QR
                                     </button>
+                                    @if ($qr->description)
+                                        <button
+                                            type="button"
+                                            class="ghost-button qr-copy-btn"
+                                            data-copy-text="{{ $qr->description }}"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none">
+                                            <path d="M9 9h10v12H9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                        </svg>
+                                            Text
+                                        </button>
+                                    @endif
                                     @if (auth()->user()?->role === 'admin')
                                         <button
                                             type="button"
@@ -228,6 +314,14 @@
                                         <label>
                                             Replace Image
                                             <input type="file" name="qr_image" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+                                        </label>
+                                        <label>
+                                            Description
+                                            <textarea name="description" rows="2" placeholder="Optional description">{{ $qr->description }}</textarea>
+                                        </label>
+                                        <label>
+                                            Payment method number
+                                            <input type="text" name="payment_method_number" value="{{ $qr->payment_method_number }}">
                                         </label>
                                         <div class="form-actions form-actions--row">
                                             <button type="submit">Update</button>
@@ -285,20 +379,22 @@
             document.querySelectorAll('.qr-copy-btn').forEach((button) => {
                 const originalText = button.textContent.trim();
                 button.addEventListener('click', async () => {
+                    const text = button.dataset.copyText;
                     const src = button.dataset.copySrc;
-                    if (!src) {
-                        return;
-                    }
 
                     try {
-                        const response = await fetch(src);
-                        const blob = await response.blob();
-                        await navigator.clipboard.write([
-                            new ClipboardItem({ [blob.type]: blob })
-                        ]);
+                        if (text) {
+                            await navigator.clipboard.writeText(text);
+                        } else if (src) {
+                            const response = await fetch(src);
+                            const blob = await response.blob();
+                            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                        } else {
+                            return;
+                        }
                         button.textContent = 'Copied!';
                     } catch (error) {
-                        console.error('Unable to copy QR', error);
+                        console.error('Unable to copy', error);
                         button.textContent = 'Copy failed';
                     }
 

@@ -41,6 +41,8 @@
             margin: 20px;
         }
 
+     
+
         .sale-confirmation-message {
             display: flex;
             flex-direction: column;
@@ -66,6 +68,25 @@
             color: rgba(15, 23, 42, 0.65);
         }
 
+        .phone-link--clean,
+        .whatsapp-link {
+            text-decoration: none;
+        }
+
+        .phone-link--clean:hover,
+        .whatsapp-link:hover {
+            text-decoration: underline;
+        }
+
+        .orders-card {
+            gap: 0;
+        }
+
+        .orders-card__section + .orders-card__section {
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+            padding-top: 1.25rem;
+            margin-top: 0.5rem;
+        }
 
     </style>
     @include('partials.product-combobox-styles')
@@ -95,17 +116,64 @@
             @endif
 
             @php
-                $productChoices = collect($productOptions ?? [])
-                    ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+                $normalizedProductOptions = collect($productOptions ?? [])
+                    ->map(function ($option) {
+                        if (is_array($option)) {
+                            $label = trim((string) ($option['label'] ?? ''));
+                            if ($label === '') {
+                                return null;
+                            }
+
+                            return [
+                                'label' => $label,
+                                'expiry_days' => isset($option['expiry_days']) && $option['expiry_days'] !== ''
+                                    ? (int) $option['expiry_days']
+                                    : null,
+                            ];
+                        }
+
+                        if (is_string($option)) {
+                            $label = trim($option);
+                            if ($label === '') {
+                                return null;
+                            }
+
+                            return [
+                                'label' => $label,
+                                'expiry_days' => null,
+                            ];
+                        }
+
+                        return null;
+                    })
+                    ->filter()
+                    ->values();
+
+                $productChoices = $normalizedProductOptions
+                    ->pluck('label')
+                    ->filter(fn ($value) => $value !== '')
                     ->unique()
                     ->values()
                     ->all();
+
+                $ensureOptionPresent = static function ($options, $value, $expiry = null) {
+                    $options = collect($options);
+                    if ($value && !$options->contains(fn ($option) => $option['label'] === $value)) {
+                        $options->prepend([
+                            'label' => $value,
+                            'expiry_days' => $expiry !== null && $expiry !== '' ? (int) $expiry : null,
+                        ]);
+                    }
+
+                    return $options->values();
+                };
             @endphp
 
-            @unless ($saleToEdit)
-                <section class="card stack">
-                    <h2>Add Sales Record</h2>
-                    <form method="POST" action="{{ route('dashboard.sales.store') }}" class="form-grid form-grid--compact">
+            @if (!$saleToEdit)
+                <section class="card stack orders-card">
+                    <div class="orders-card__section">
+                    <h2>Add Order</h2><br>
+                    <form method="POST" action="{{ route('dashboard.orders.store') }}" class="form-grid form-grid--compact">
                         @csrf
                         <label for="sales-phone">
                             Phone Number
@@ -118,19 +186,8 @@
                                 required>
                         </label>
 
-                        <label for="sales-email">
-                            Email Address
-                            <input
-                                type="email"
-                                id="sales-email"
-                                name="email"
-                                value="{{ old('email') }}"
-                                placeholder="Email"
-                                required>
-                        </label>
-
                         <label for="sales-payment-method">
-                            Payment method
+                            Payment
                             <select id="sales-payment-method" name="payment_method" required>
                                 <option value="" disabled {{ old('payment_method') ? '' : 'selected' }}>Choose one</option>
                                 @foreach ($paymentMethods as $method)
@@ -143,12 +200,14 @@
 
                         @php
                             $createProductValue = old('product_name');
-                            $createOptions = collect($productChoices);
-                            if ($createProductValue && !$createOptions->contains($createProductValue)) {
-                                $createOptions->prepend($createProductValue);
-                            }
+                            $createExpiryValue = old('product_expiry_days');
+                            $createOptions = $ensureOptionPresent($normalizedProductOptions, $createProductValue, $createExpiryValue);
                         @endphp
-                        <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
+                        <div
+                            class="product-combobox"
+                            data-product-combobox
+                            data-allow-free-entry="true"
+                            data-expiry-input="create-product-expiry">
                             <label for="sales-product-name">
                                 Product
                                 <input
@@ -162,6 +221,12 @@
                                     data-selected-name="{{ $createProductValue }}"
                                     required
                                 >
+                                <input
+                                    type="hidden"
+                                    name="product_expiry_days"
+                                    id="create-product-expiry"
+                                    value="{{ $createExpiryValue }}"
+                                >
                             </label>
 
                             <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
@@ -171,18 +236,21 @@
                                     <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
                                     @foreach ($createOptions as $option)
                                         @php
-                                            $isSelectedOption = $createProductValue === $option;
+                                            $label = $option['label'];
+                                            $expiryDays = $option['expiry_days'];
+                                            $isSelectedOption = $createProductValue === $label;
                                         @endphp
                                         <button
                                             type="button"
                                             class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
                                             data-product-option
-                                            data-product-name="{{ $option }}"
-                                            data-product-id="{{ $option }}"
+                                            data-product-name="{{ $label }}"
+                                            data-product-id="{{ $label }}"
+                                            data-product-expiry-days="{{ $expiryDays ?? '' }}"
                                             role="option"
                                             aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
                                         >
-                                            {{ $option }}
+                                            {{ $label }}
                                         </button>
                                     @endforeach
                                 @endif
@@ -200,7 +268,7 @@
                                 id="sales-amount"
                                 name="sales_amount"
                                 value="{{ old('sales_amount') }}"
-                                placeholder="Amount"
+                                placeholder="Rs."
                                 required>
                         </label>
 
@@ -211,27 +279,36 @@
                                 id="sales-remarks"
                                 name="remarks"
                                 value="{{ old('remarks') }}"
-                                placeholder="Optional"
+                                placeholder="Remarks"
                                 maxlength="255"
+                                required
                             >
                         </label>
 
 
             
-                            <div class="form-actions__buttons">
-                                <button type="submit">Save record</button>
+                            <div class="sales-filter-actions">
+                                <button type="submit" class="button">Create</button>
                             </div>
                     </form>
+                    </div>
+                    <div class="orders-card__section">
+                        <h2>All Orders List</h2><br>
+                        @include('sales.partials.orders-list', [
+                            'filters' => $filters ?? [],
+                            'productChoices' => $productChoices,
+                            'sales' => $sales,
+                            'perPage' => $perPage,
+                        ])
+                    </div>
                 </section>
-            @endunless
-
-            @if ($saleToEdit)
+            @else
                 <section class="card stack">
                     <div class="flex items-center gap-1">
                         <h2>Edit Sales Record #{{ $saleToEdit->serial_number }}</h2>
                     </div>
 
-                    <form method="POST" action="{{ route('dashboard.sales.update', $saleToEdit) }}" class="form-grid form-grid--compact">
+                    <form method="POST" action="{{ route('dashboard.orders.update', $saleToEdit) }}" class="form-grid form-grid--compact">
                         @csrf
                         @method('PUT')
 
@@ -247,14 +324,16 @@
 
                         @php
                             $editProductValue = old('product_name', $saleToEdit->product_name);
-                            $editOptions = collect($productChoices);
-                            if ($editProductValue && !$editOptions->contains($editProductValue)) {
-                                $editOptions->prepend($editProductValue);
-                            }
+                            $editExpiryValue = old('product_expiry_days', $saleToEdit->product_expiry_days);
+                            $editOptions = $ensureOptionPresent($normalizedProductOptions, $editProductValue, $editExpiryValue);
                         @endphp
-                        <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
+                        <div
+                            class="product-combobox"
+                            data-product-combobox
+                            data-allow-free-entry="true"
+                            data-expiry-input="edit-product-expiry">
                             <label for="edit-sales-product-name">
-                                Product
+                                Product Name
                                 <input
                                     type="text"
                                     id="edit-sales-product-name"
@@ -266,6 +345,12 @@
                                     data-selected-name="{{ $editProductValue }}"
                                     required
                                 >
+                                <input
+                                    type="hidden"
+                                    name="product_expiry_days"
+                                    id="edit-product-expiry"
+                                    value="{{ $editExpiryValue }}"
+                                >
                             </label>
 
                             <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
@@ -275,18 +360,21 @@
                                     <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
                                     @foreach ($editOptions as $option)
                                         @php
-                                            $isSelectedOption = $editProductValue === $option;
+                                            $label = $option['label'];
+                                            $expiryDays = $option['expiry_days'];
+                                            $isSelectedOption = $editProductValue === $label;
                                         @endphp
                                         <button
                                             type="button"
                                             class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
                                             data-product-option
-                                            data-product-name="{{ $option }}"
-                                            data-product-id="{{ $option }}"
+                                            data-product-name="{{ $label }}"
+                                            data-product-id="{{ $label }}"
+                                            data-product-expiry-days="{{ $expiryDays ?? '' }}"
                                             role="option"
                                             aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
                                         >
-                                            {{ $option }}
+                                            {{ $label }}
                                         </button>
                                     @endforeach
                                 @endif
@@ -300,8 +388,9 @@
                                 id="edit-sales-remarks"
                                 name="remarks"
                                 value="{{ old('remarks', $saleToEdit->remarks) }}"
-                                placeholder="Optional notes"
+                                placeholder="Remarks"
                                 maxlength="255"
+                                required
                             >
                         </label>
 
@@ -321,8 +410,7 @@
                                 type="email"
                                 id="edit-sales-email"
                                 name="email"
-                                value="{{ old('email', $saleToEdit->email) }}"
-                                required>
+                                value="{{ old('email', $saleToEdit->email) }}">
                         </label>
 
                         
@@ -347,323 +435,17 @@
                 </section>
             @endif
 
-            @unless ($saleToEdit)
+            @if ($saleToEdit)
                 <section class="card stack">
-                    <h2>Sales Record History</h2>
-
-                    @php
-                        $filters = $filters ?? [
-                            'serial_number' => '',
-                            'phone' => '',
-                            'email' => '',
-                            'product_name' => '',
-                            'date_from' => null,
-                            'date_to' => null,
-                        ];
-                        $resetParams = [];
-                        if (request()->filled('per_page')) {
-                            $resetParams['per_page'] = request()->query('per_page');
-                        }
-                    @endphp
-
-                    <form method="GET" action="{{ route('sales.index') }}" class="sales-filter-row" autocomplete="off">
-                        @if (request()->filled('per_page'))
-                            <input type="hidden" name="per_page" value="{{ request()->query('per_page') }}">
-                        @endif
-                        @php
-                            $filterProductValue = $filters['product_name'];
-                            $filterProductOptions = collect($productChoices);
-                            if ($filterProductValue && !$filterProductOptions->contains($filterProductValue)) {
-                                $filterProductOptions->prepend($filterProductValue);
-                            }
-                        @endphp
-
-                        <label for="filter-serial-number">
-                            Order ID
-                            <input
-                                type="text"
-                                id="filter-serial-number"
-                                name="serial_number"
-                                value="{{ $filters['serial_number'] }}"
-                                placeholder="TM123"
-                            >
-                        </label>
-
-                        <label for="filter-phone">
-                            Phone
-                            <input
-                                type="text"
-                                id="filter-phone"
-                                name="phone"
-                                value="{{ $filters['phone'] }}"
-                                placeholder="98xxxxxxxx"
-                            >
-                        </label>
-
-                        <label for="filter-email">
-                            Email
-                            <input
-                                type="text"
-                                id="filter-email"
-                                name="email"
-                                value="{{ $filters['email'] }}"
-                                placeholder="Email"
-                            >
-                        </label>
-
-                        <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
-                            <label for="filter-product">
-                                Product
-                                <input
-                                    type="text"
-                                    id="filter-product"
-                                    class="product-combobox__input"
-                                    name="product_name"
-                                    value="{{ $filterProductValue }}"
-                                    placeholder="Choose"
-                                    autocomplete="off"
-                                    list="sales-product-options"
-                                    data-selected-name="{{ $filterProductValue }}"
-                                >
-                            </label>
-                            <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                                @if ($filterProductOptions->isEmpty())
-                                    <p class="product-combobox__empty">No products available yet.</p>
-                                @else
-                                    <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
-                                    @foreach ($filterProductOptions as $option)
-                                        @php
-                                            $isSelectedOption = $filterProductValue === $option;
-                                        @endphp
-                                        <button
-                                            type="button"
-                                            class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
-                                            data-product-option
-                                            data-product-name="{{ $option }}"
-                                            data-product-id="{{ $option }}"
-                                            role="option"
-                                            aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
-                                        >
-                                            {{ $option }}
-                                        </button>
-                                    @endforeach
-                                @endif
-                            </div>
-                        </div>
-
-                        <label for="filter-date-from">
-                           From
-                            <input
-                                type="date"
-                                id="filter-date-from"
-                                name="date_from"
-                                value="{{ $filters['date_from'] }}"
-                            >
-                        </label>
-
-                        <label for="filter-date-to">
-                            To
-                            <input
-                                type="date"
-                                id="filter-date-to"
-                                name="date_to"
-                                value="{{ $filters['date_to'] }}"
-                            >
-                        </label>
-
-                        <div class="sales-filter-actions">
-                            <button type="submit">Filter</button>
-                        </div>
-                    </form>
-                    @if (!empty($productChoices))
-                        <datalist id="sales-product-options">
-                            @foreach ($productChoices as $option)
-                                <option value="{{ $option }}"></option>
-                            @endforeach
-                        </datalist>
-                    @endif
-
-
-                    <div class="table-wrapper">
-                        <table class="sales-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Order ID</th>
-                                    <th scope="col">Purchase Date</th>
-                                    <th scope="col">Product</th>
-                                    <th scope="col">Phone</th>
-                                    <th scope="col">Email</th>
-                                    <th scope="col">Amount</th>
-                                    <th scope="col">Payment Method</th>
-                                    <th scope="col">Posted By</th>
-                                    <th scope="col">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($sales as $sale)
-                                    <tr>
-                                        <td>{{ $sale->serial_number }}</td>
-                                        @php
-                                            $saleRecordedAt = $sale->created_at?->timezone('Asia/Kathmandu');
-                                        @endphp
-                                        <td>
-                                            @if ($saleRecordedAt)
-                                                {{ $saleRecordedAt->format('M d h:i A') }}
-                                            @else
-                                                <span class="muted">—</span>
-                                            @endif
-                                        </td>
-                                        @php
-                                            $productDisplay = trim($sale->product_name ?? '');
-                                        @endphp
-                                        <td>{{ $productDisplay !== '' ? $productDisplay : '—' }}</td>
-                                        <td>
-                                            <div class="cell-with-action">
-                                                <span>{{ $sale->phone }}</span>
-                                                <button
-                                                    type="button"
-                                                    class="cell-action-button"
-                                                    data-copy="{{ $sale->phone }}"
-                                                    aria-label="Copy phone {{ $sale->serial_number }}">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M8 7V5a2 2 0 012-2h9a2 2 0 012 2v11a2 2 0 01-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                        <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="cell-with-action">
-                                                <span>{{ $sale->email }}</span>
-                                                <button
-                                                    type="button"
-                                                    class="cell-action-button"
-                                                    data-copy="{{ $sale->email }}"
-                                                    aria-label="Copy email {{ $sale->serial_number }}">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M8 7V5a2 2 0 012-2h9a2 2 0 012 2v11a2 2 0 01-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                        <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td>Rs {{ number_format($sale->sales_amount, 0) }}</td>
-                                        <td>{{ $sale->paymentMethod?->label ?? '—' }}</td>
-                                        <td>{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
-                                        <td>
-                                            <div class="table-actions">
-                                                @if (!empty($sale->remarks))
-                                                    <button
-                                                        type="button"
-                                                        class="icon-button"
-                                                        data-sale-remarks="{{ e($sale->remarks) }}"
-                                                        data-sale-product="{{ e($sale->product_name ?? '') }}"
-                                                        data-sale-number="{{ e($sale->serial_number) }}"
-                                                        data-sale-poster="{{ e($sale->createdBy?->name ?? 'Unknown employee') }}"
-                                                        aria-label="View remarks for sale {{ $sale->serial_number }}">
-                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                                            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5" />
-                                                        </svg>
-                                                    </button>
-                                                @endif
-                                                <a
-                                                    class="icon-button"
-                                                    href="{{ route('sales.index', ['edit' => $sale->id] + request()->except('page')) }}"
-                                                    aria-label="Edit sale {{ $sale->serial_number }}">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M4 15.5V20h4.5L19 9.5l-4.5-4.5L4 15.5z" fill="currentColor"/>
-                                                        <path d="M14.5 5.5l4 4" stroke="currentColor" stroke-width="1.2"/>
-                                                    </svg>
-                                                </a>
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route('dashboard.sales.destroy', $sale) }}"
-                                                    onsubmit="return confirm('Delete sale {{ $sale->serial_number }}? This cannot be undone.');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="icon-button icon-button--danger" aria-label="Delete sale {{ $sale->serial_number }}">
-                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                            <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                                            <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                                            <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8">
-                                            <p class="helper-text">No sales recorded yet.</p>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                </div>
-
-                @php
-                    $totalSales = $sales->total();
-                    $currentPage = $sales->currentPage();
-                    $lastPage = $sales->lastPage();
-                    $start = $sales->firstItem() ?? 0;
-                    $end = $sales->lastItem() ?? 0;
-                @endphp
-
-                <div class="table-controls">
-                    <form method="GET" class="table-controls__page-size">
-                        @foreach (request()->except('per_page', 'page') as $param => $value)
-                            @if (!is_array($value))
-                                <input type="hidden" name="{{ $param }}" value="{{ $value }}">
-                            @endif
-                        @endforeach
-                        <label for="sales-per-page">
-                            
-                            <select
-                                id="sales-per-page"
-                                name="per_page"
-                                onchange="this.form.submit()">
-                                @foreach ([25, 50, 100, 200] as $option)
-                                    <option value="{{ $option }}" @selected($perPage === $option)>
-                                        {{ $option }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            
-                        </label>
-                    </form>
-                    <div class="table-controls__pagination">
-                        <a
-                            class="ghost-button"
-                            href="{{ $sales->previousPageUrl() ? route('sales.index', array_merge(request()->except('page'), ['page' => $currentPage - 1])) : '#' }}"
-                            @class(['is-disabled' => !$sales->previousPageUrl()])
-                            aria-disabled="{{ $sales->previousPageUrl() ? 'false' : 'true' }}">
-                            Previous
-                        </a>
-                        <span class="helper-text">
-                            @if ($totalSales === 0)
-                                No sales to display
-                            @else
-                                Showing {{ $start }}-{{ $end }} of {{ $totalSales }} (Page {{ $currentPage }} of {{ $lastPage }})
-                            @endif
-                        </span>
-                        <a
-                            class="ghost-button"
-                            href="{{ $sales->nextPageUrl() ? route('sales.index', array_merge(request()->except('page'), ['page' => $currentPage + 1])) : '#' }}"
-                            @class(['is-disabled' => !$sales->nextPageUrl()])
-                            aria-disabled="{{ $sales->nextPageUrl() ? 'false' : 'true' }}">
-                            Next
-                        </a>
-                    </div>
-                </div>
+                    <h2>All Orders List</h2>
+                    @include('sales.partials.orders-list', [
+                        'filters' => $filters ?? [],
+                        'productChoices' => $productChoices,
+                        'sales' => $sales,
+                        'perPage' => $perPage,
+                    ])
                 </section>
-
-               
-            @endunless
+            @endif
         </section>
     </div>
 
@@ -685,8 +467,13 @@
     @php
         $saleConfirmation = session('saleConfirmation');
         $orderId = $saleConfirmation['serial_number'] ?? null;
+        $productName = $saleConfirmation['product_name'] ?? null;
+        $productDisplay = $productName ?: 'N/A';
         $orderCopy = $orderId
-            ? "Your Order ID: {$orderId}\n\nWe are processing your order now. Please wait patiently until we deliver your order.\n\nImportant Note: Please keep your Order ID Safe to get support in Future. Our team will ask your order id to provide you further support."
+            ? "𝐘𝐨𝐮𝐫 𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: {$orderId}\n\n"
+                ."𝐏𝐫𝐨𝐝𝐮𝐜𝐭 𝐍𝐚𝐦𝐞: {$productDisplay}\n\n"
+                ."We are processing your order now. Please wait patiently until we deliver your order.\n\n"
+                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in future. Our team will ask you for your order ID to provide support."
             : null;
     @endphp
 
@@ -704,6 +491,7 @@
                 </div>
                 <div class="sale-confirmation-message">
                     <p>𝐘𝐨𝐮𝐫 𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: <strong>{{ $orderId }}</strong></p>
+                    <p>𝐏𝐫𝐨𝐝𝐮𝐜𝐭 𝐍𝐚𝐦𝐞: <strong>{{ $productDisplay }}</strong></p>
                     <p>We are processing your order now. Please wait patiently until we deliver your order.</p>
                     <p><strong>𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞:</strong> Please keep your Order ID safe to get support in future. Our team will ask you for your order ID to provide support.</p>
                 </div>

@@ -30,6 +30,7 @@ class UserManagementController extends Controller
 
         if ($editId) {
             $employeeToEdit = User::query()
+                ->with('employeeSetting')
                 ->where('role', 'employee')
                 ->find($editId);
 

@@ -13,6 +13,13 @@ class ProductVariation extends Model
     protected $fillable = [
         'product_id',
         'name',
+        'expiry_days',
+        'is_in_stock',
+    ];
+
+    protected $casts = [
+        'expiry_days' => 'integer',
+        'is_in_stock' => 'boolean',
     ];
 
     /**

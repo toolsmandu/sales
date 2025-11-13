@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentMethod;
 use App\Models\QrCode;
+use App\Models\Sale;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,8 +18,38 @@ class QrController extends Controller
     {
         $qrs = QrCode::query()->latest()->get();
 
+        $methods = PaymentMethod::query()
+            ->whereNotNull('unique_number')
+            ->get(['id', 'label', 'unique_number', 'monthly_limit']);
+
+        $now = Carbon::now();
+        $startOfMonth = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
+
+        $monthlySales = Sale::query()
+            ->selectRaw('payment_method_id, COALESCE(SUM(sales_amount), 0) as total_sales')
+            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+            ->groupBy('payment_method_id')
+            ->pluck('total_sales', 'payment_method_id');
+
+        $paymentMethodLimits = $methods->mapWithKeys(function (PaymentMethod $method) use ($monthlySales) {
+            $limit = (float) $method->monthly_limit;
+            $used = (float) ($monthlySales[$method->id] ?? 0);
+            $available = $limit > 0 ? max($limit - $used, 0) : null;
+
+            return [
+                $method->unique_number => [
+                    'label' => $method->label,
+                    'monthly_limit' => $limit,
+                    'used' => $used,
+                    'available' => $available,
+                ],
+            ];
+        })->all();
+
         return view('qr.index', [
             'qrs' => $qrs,
+            'paymentMethodLimits' => $paymentMethodLimits,
         ]);
     }
 
@@ -25,6 +58,8 @@ class QrController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'qr_image' => ['required', 'image', 'max:4096'],
+            'description' => ['nullable', 'string', 'max:500'],
+             'payment_method_number' => ['nullable', 'string', 'max:255'],
         ]);
 
         $path = $request->file('qr_image')->store('qr-codes', 'public');
@@ -32,6 +67,8 @@ class QrController extends Controller
         QrCode::create([
             'name' => $data['name'],
             'file_path' => $path,
+            'description' => $data['description'] ?? null,
+            'payment_method_number' => $data['payment_method_number'] ?? null,
         ]);
 
         return redirect()
@@ -44,9 +81,15 @@ class QrController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'qr_image' => ['nullable', 'image', 'max:4096'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'payment_method_number' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $payload = ['name' => $data['name']];
+        $payload = [
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'payment_method_number' => $data['payment_method_number'] ?? null,
+        ];
 
         if ($request->hasFile('qr_image')) {
             if ($qrCode->file_path && Storage::disk('public')->exists($qrCode->file_path)) {

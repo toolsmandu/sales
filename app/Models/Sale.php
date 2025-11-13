@@ -16,6 +16,7 @@ class Sale extends Model
         'serial_number',
         'purchase_date',
         'product_name',
+        'product_expiry_days',
         'remarks',
         'phone',
         'email',
@@ -27,6 +28,7 @@ class Sale extends Model
     protected $casts = [
         'purchase_date' => 'date',
         'sales_amount' => 'decimal:2',
+        'product_expiry_days' => 'integer',
     ];
 
     /**

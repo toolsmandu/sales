@@ -15,6 +15,14 @@
 
         @php
             $authUser = \Illuminate\Support\Facades\Auth::user();
+            $registrationEnabled = \App\Models\SiteSetting::bool('registration_enabled', true);
+            $activeAttendance = null;
+            if ($authUser) {
+                $activeAttendance = \App\Models\AttendanceLog::where('user_id', $authUser->id)
+                    ->whereNull('ended_at')
+                    ->latest('started_at')
+                    ->first();
+            }
         @endphp
 
         <style>
@@ -141,6 +149,26 @@
                 outline: none;
             }
 
+            .profile-menu__setting {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.35rem;
+            }
+
+            .profile-menu__setting-options {
+                display: flex;
+                gap: 0.6rem;
+                width: 100%;
+            }
+
+            .profile-menu__setting-options label {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+                font-size: 0.85rem;
+                font-weight: 500;
+            }
+
             .profile-menu__item--danger {
                 color: #b02a37;
             }
@@ -210,6 +238,46 @@
             .profile-menu__label {
                 flex: 1;
             }
+
+            .header-attendance-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-right: 1rem;
+            }
+
+            .header-attendance-actions form {
+                display: inline-flex;
+            }
+
+            .header-attendance-actions button {
+                padding: 0.35rem 0.85rem;
+                border-radius: 999px;
+                border: 1px solid rgba(79, 70, 229, 0.35);
+                background: rgba(79, 70, 229, 0.12);
+                color: #312e81;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+            }
+
+            .header-attendance-actions button:hover,
+            .header-attendance-actions button:focus-visible {
+                background: rgba(79, 70, 229, 0.2);
+                color: #1e1b4b;
+                transform: translateY(-1px);
+            }
+
+            .header-attendance-actions button:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .header-attendance-indicator {
+                font-size: 0.8rem;
+                color: rgba(15, 23, 42, 0.65);
+            }
         </style>
 
         @stack('styles')
@@ -224,6 +292,23 @@
                 </ul>
                 <ul>
                     @auth
+                        @if (($authUser->role ?? null) !== 'admin')
+                            <li class="header-attendance-actions">
+                                <form method="POST" action="{{ route('user-logs.attendance.start') }}">
+                                    @csrf
+                                    <button type="submit" @disabled($activeAttendance)>Start Work</button>
+                                </form>
+                                <form method="POST" action="{{ route('user-logs.attendance.end') }}">
+                                    @csrf
+                                    <button type="submit" @disabled(!$activeAttendance)>End Work</button>
+                                </form>
+                                @if ($activeAttendance)
+                                    <span class="header-attendance-indicator">
+                                        Active since {{ $activeAttendance->started_at->setTimezone('Asia/Kathmandu')->format('g:i A') }}
+                                    </span>
+                                @endif
+                            </li>
+                        @endif
                         <li class="profile-menu">
                             <button type="button" class="profile-menu__trigger" aria-haspopup="true" aria-expanded="false">
                                 <span class="profile-menu__avatar">{{ strtoupper(substr($authUser->name ?? 'U', 0, 1)) }}</span>
@@ -239,6 +324,39 @@
                                         <span class="profile-menu__meta-name">{{ $authUser->name }}</span>                                    </div>
                                 </div>
                                 <div class="profile-menu__divider" role="none"></div>
+                                @if (($authUser->role ?? null) === 'admin')
+                                    <form
+                                        method="POST"
+                                        action="{{ route('dashboard.settings.registration') }}"
+                                        class="profile-menu__item profile-menu__setting"
+                                        role="none"
+                                    >
+                                        @csrf
+                                        <span class="profile-menu__label">User registration</span>
+                                        <div class="profile-menu__setting-options">
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name="registration_enabled"
+                                                    value="1"
+                                                    @checked($registrationEnabled)
+                                                    onchange="this.form.submit()"
+                                                >
+                                                Enable
+                                            </label>
+                                            <label>
+                                                <input
+                                                    type="radio"
+                                                    name="registration_enabled"
+                                                    value="0"
+                                                    @checked(!$registrationEnabled)
+                                                    onchange="this.form.submit()"
+                                                >
+                                                Disable
+                                            </label>
+                                        </div>
+                                    </form>
+                                @endif
                                 <a class="profile-menu__item" href="{{ route('dashboard.profile.edit') }}" role="menuitem">
                                     <span class="profile-menu__icon" aria-hidden="true">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -282,7 +400,7 @@
                         </li>
                     @else
                         <li><a href="{{ route('login') }}">Log in</a></li>
-                        @if (Route::has('register'))
+                        @if ($registrationEnabled && Route::has('register'))
                             <li><a href="{{ route('register') }}">Register</a></li>
                         @endif
                     @endauth

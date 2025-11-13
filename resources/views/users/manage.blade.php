@@ -29,6 +29,8 @@
                                     <th scope="col">Name</th>
                                     <th scope="col">Email</th>
                                     <th scope="col">Position</th>
+                                    <th scope="col">Daily Work Hours</th>
+                                    <th scope="col">Holidays</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -39,6 +41,23 @@
                                         <td>{{ $teamMember->name }}</td>
                                         <td>{{ $teamMember->email }}</td>
                                         <td>{{ ucfirst($teamMember->role ?? '—') }}</td>
+                                        <td>
+                                            @if ($teamMember->employeeSetting)
+                                                {{ $teamMember->employeeSetting->daily_hours_quota ?? '—' }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @php
+                                                $holidays = $teamMember->employeeSetting?->holiday_weekdays ?? [];
+                                            @endphp
+                                            @if ($holidays && count($holidays))
+                                                {{ collect($holidays)->map(fn ($day) => ucfirst($day))->implode(', ') }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
                                         <td>
                                             <div class="table-actions">
                                                 @if ($teamMember->role === 'employee')
@@ -146,6 +165,32 @@
                                 <button type="submit" class="button">Update Password</button>
                             </div>
                         </form>
+
+                        <div class="stack">
+                            <h4>Employee Settings</h4>
+                            <form method="POST" action="{{ route('user-logs.settings.store', $employeeToEdit) }}" class="form-grid form-grid--compact">
+                                @csrf
+
+                                <label for="employee-daily-hours">
+                                    Daily hours quota
+                                    <input
+                                        type="number"
+                                        id="employee-daily-hours"
+                                        name="daily_hours_quota"
+                                        min="0"
+                                        value="{{ old('daily_hours_quota', optional($employeeToEdit->employeeSetting)->daily_hours_quota ?? 0) }}"
+                                        required
+                                    >
+                                </label>
+                                @error('daily_hours_quota', 'employeeSettings')
+                                    <small role="alert">{{ $message }}</small>
+                                @enderror
+
+                                <div class="form-actions">
+                                    <button type="submit">Save Settings</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 @endif
             </section>

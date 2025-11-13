@@ -19,6 +19,31 @@
         gap: 1rem;
     }
 
+    .dashboard-nav__mobile-trigger {
+        display: none;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.6rem 0.9rem;
+        border-radius: 0.65rem;
+        border: 1px solid rgba(79, 70, 229, 0.2);
+        background: linear-gradient(180deg, rgba(79, 70, 229, 0.12), rgba(37, 99, 235, 0.08));
+        color: #0f172a;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .dashboard-nav__mobile-trigger svg {
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+
+    .dashboard-nav__content {
+        display: grid;
+        gap: 1rem;
+    }
+
     .dashboard-nav ul {
         list-style: none;
         margin: 0;
@@ -137,7 +162,7 @@
         transition: transform 0.2s ease;
     }
 
-    .dashboard-nav li.is-expanded > .dashboard-nav__accordion svg:last-child {
+    .dashboard-nav li.is-expanded > .dashboard-nav__accordion > svg:last-child {
         transform: rotate(90deg);
     }
 
@@ -187,7 +212,7 @@
     }
 
     .dashboard-content.stack {
-        padding: 0;
+        padding: 20px;
     }
 
     .card {
@@ -1420,17 +1445,37 @@
         box-shadow: 0 8px 16px rgba(220, 38, 38, 0.18);
     }
 
-    @media (max-width: 960px) {
+    @media (max-width: 1024px) {
         .dashboard-grid {
             flex-direction: column;
         }
 
         .dashboard-nav {
+            position: relative;
+            top: 0;
             width: 100%;
+            box-shadow: 0 10px 28px rgba(79, 70, 229, 0.16);
+        }
+
+        .dashboard-nav__mobile-trigger {
+            display: inline-flex;
+            margin-bottom: 0.35rem;
+        }
+
+        .dashboard-nav__content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease;
+        }
+
+        .dashboard-nav.is-open .dashboard-nav__content {
+            max-height: 1800px;
+            margin-top: 0.85rem;
         }
 
         .dashboard-content {
             padding: 1rem;
+            width: 100%;
         }
 
         .modal {
@@ -1441,6 +1486,16 @@
             width: 100%;
             max-height: calc(100vh - 4rem);
             padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .dashboard-nav__heading span {
+            font-size: 0.72rem;
+        }
+
+        .dashboard-content {
+            padding: 0.85rem;
         }
     }
 </style>

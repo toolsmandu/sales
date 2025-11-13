@@ -15,10 +15,13 @@ class PaymentMethod extends Model
         'label',
         'slug',
         'balance',
+        'unique_number',
+        'monthly_limit',
     ];
 
     protected $casts = [
         'balance' => 'decimal:2',
+        'monthly_limit' => 'decimal:2',
     ];
 
     /**
