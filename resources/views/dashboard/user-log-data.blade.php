@@ -13,6 +13,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 0.8rem;
+           
         }
 
         .filters__grid--compact {
@@ -332,6 +333,8 @@
             color: #b91c1c;
         }
 
+    
+
         .tasks-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -503,6 +506,9 @@
             background: rgba(220, 38, 38, 0.2);
             color: rgba(153, 27, 27, 0.95);
         }
+
+       
+
     </style>
 @endpush
 
@@ -591,12 +597,14 @@
                                 </select>
                             </label>
                             <div>
-                                <button type="submit">Apply filters</button>
-                            </div>
+<button type="submit" style="
+    margin-top: 30px;
+">Apply filters</button>                            </div>
                         @else
-                            <div class="filters__actions">
-                                <button type="submit">Apply filters</button>
-                            </div>
+                            <div>
+<button type="submit" style="
+    margin-top: 30px;
+">Apply filters</button>                            </div>
                         @endif
                     </div>
                 </form>
@@ -757,9 +765,8 @@
                                         <p><strong>Remarks:</strong> {{ $task->description }}</p>
                                     @endif
                                     <p><strong>Employee:</strong> {{ $task->assignedUser->name }}</p>
-                                    <span class="task-status is-complete">Completed</span>
                                     @if ($todayCompletion)
-                                        <small>Finished {{ $todayCompletion->completed_on->format('M d, Y') }}</small>
+                                        <small>Completed on:{{ $todayCompletion->completed_on->format('M d, Y') }}</small>
                                     @endif
                                 </div>
                             @empty

@@ -14,6 +14,10 @@
         max-width: 520px;
     }
 
+    .input.date {
+        margin-bottom: -15px;
+    }
+
     .stock-search {
         display: grid;
         gap: 0.35rem;

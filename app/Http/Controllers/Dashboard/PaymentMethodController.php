@@ -295,6 +295,8 @@ class PaymentMethodController extends Controller
         $ledgerPaginator = null;
         $ledgerHasData = false;
         $displayTimezone = config('app.display_timezone', 'Asia/Kathmandu');
+        $dailySalesTotals = collect();
+        $dailySalesTotalsSum = 0.0;
 
         if ($selectedMethod) {
             $chronologicalTransactions = PaymentTransaction::query()
@@ -421,6 +423,35 @@ class PaymentMethodController extends Controller
             $ledgerHasData = $ledgerPaginator->total() > 0;
         }
 
+        $dailySalesQuery = PaymentTransaction::query()
+            ->selectRaw('DATE(occurred_at) as day')
+            ->selectRaw('SUM(amount) as income_total')
+            ->where('type', 'income')
+            ->whereNotNull('occurred_at');
+
+        if ($selectedYear !== null) {
+            $dailySalesQuery->whereYear('occurred_at', $selectedYear);
+        }
+
+        if ($selectedMonth !== null) {
+            $dailySalesQuery->whereMonth('occurred_at', $selectedMonth);
+        }
+
+        $dailySalesTotals = $dailySalesQuery
+            ->groupBy('day')
+            ->orderByDesc('day')
+            ->get()
+            ->map(function ($row) {
+                $day = $row->day ? Carbon::createFromFormat('Y-m-d', $row->day) : null;
+
+                return [
+                    'day' => $day,
+                    'income_total' => (float) ($row->income_total ?? 0),
+                ];
+            });
+
+        $dailySalesTotalsSum = $dailySalesTotals->sum(fn (array $row) => $row['income_total']);
+
         return view('payments.statements', [
             'methods' => $methods,
             'selectedMethod' => $selectedMethod,
@@ -437,6 +468,8 @@ class PaymentMethodController extends Controller
             'yearOptions' => $yearOptions,
             'selectedMonth' => $selectedMonth,
             'selectedYear' => $selectedYear,
+            'dailySalesTotals' => $dailySalesTotals,
+            'dailySalesTotalsSum' => $dailySalesTotalsSum,
         ]);
     }
 

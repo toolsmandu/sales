@@ -142,7 +142,7 @@
                     <div class="payment-ledger-section">
                         <div class="payment-ledger-section__header">
                             <div>
-                                <h3>Payment Statement</h3>
+                                <h3>All Payment Statement</h3>
                             </div>
                             <form method="GET" action="{{ route('payments.statements') }}" class="payment-ledger-filter">
                                 <div class="payment-ledger-filter__inputs">
@@ -247,6 +247,8 @@
                             <div class="table-controls table-controls--compact payment-ledger-controls">
                                 <form method="GET" class="table-controls__page-size statements-page-size">
                                     <input type="hidden" name="method" value="{{ optional($selectedMethod)->slug }}">
+                                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                                    <input type="hidden" name="year" value="{{ $selectedYear }}">
                                     <label for="statements-page-size">
                                         <span>Show</span>
                                         <select
@@ -288,6 +290,78 @@
                     </div>
                 @else
                     <p class="helper-text">No payment methods available yet. Add a payment method to view statements.</p>
+                @endif
+            </section>
+
+            <section class="card stack">
+                <div class="payment-ledger-section__header">
+                    <div>
+                        <h3>Daily Total Sales Statement</h3>
+                    </div>
+                    <form method="GET" action="{{ route('payments.statements') }}" class="payment-monthly-filter">
+                        <input type="hidden" name="method" value="{{ optional($selectedMethod)->slug }}">
+                        <input type="hidden" name="per_page" value="{{ $perPage }}">
+                        <div class="payment-monthly-filter__inputs">
+                            <label class="payments-filter" for="daily-sales-month">
+                                <select id="daily-sales-month" name="month">
+                                    <option value="" @selected($selectedMonth === null)>Month</option>
+                                    @foreach ($monthOptions as $monthOption)
+                                        <option value="{{ $monthOption['value'] }}" @selected($selectedMonth === $monthOption['value'])>
+                                            {{ $monthOption['label'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label class="payments-filter" for="daily-sales-year">
+                                <select id="daily-sales-year" name="year">
+                                    <option value="" @selected($selectedYear === null)>Year</option>
+                                    @forelse ($yearOptions as $yearOption)
+                                        <option value="{{ $yearOption }}" @selected($selectedYear === $yearOption)>
+                                            {{ $yearOption }}
+                                        </option>
+                                    @empty
+                                        <option value="" disabled>No data yet</option>
+                                    @endforelse
+                                </select>
+                            </label>
+                        </div>
+                        <div class="payment-monthly-actions">
+                            <button type="submit" class="filter-apply">Apply</button>
+                        </div>
+                    </form>
+                </div>
+
+                @if ($dailySalesTotals->isNotEmpty())
+                    <div class="table-wrapper table-wrapper--elevated payment-ledger-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Total Sales</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($dailySalesTotals as $row)
+                                    @php
+                                        $day = $row['day'];
+                                        $label = $day ? $day->format('M d, Y') : '—';
+                                    @endphp
+                                    <tr>
+                                        <td>{{ $label }}</td>
+                                        <td>Rs {{ number_format($row['income_total'], 0) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td><strong>Total</strong></td>
+                                    <td><strong>Rs {{ number_format($dailySalesTotalsSum, 0) }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                @else
+                    <p class="helper-text">No sales recorded for the selected period.</p>
                 @endif
             </section>
         </section>

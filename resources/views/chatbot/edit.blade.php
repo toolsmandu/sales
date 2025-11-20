@@ -157,7 +157,7 @@
                                 Product:
                                 <strong>{{ $products->firstWhere('id', $entry->product_id)?->name ?? 'Unknown product' }}</strong>
                             </p>
-                            <a href="{{ route('chatbot.existing', ['product' => $entry->product_id]) }}" class="link">
+                            <a href="{{ route('chatbot.knowledgebase', ['product' => $entry->product_id]) }}" class="link">
                                 &larr; Back to existing knowledge
                             </a>
                         </div>
@@ -294,7 +294,7 @@
                         </div>
 
                         <div class="knowledge-edit__actions">
-                            <a class="ghost-button" href="{{ route('chatbot.existing', ['product' => $redirectProduct]) }}">
+                            <a class="ghost-button" href="{{ route('chatbot.knowledgebase', ['product' => $redirectProduct]) }}">
                                 Cancel
                             </a>
                             <button type="submit">Save changes</button>

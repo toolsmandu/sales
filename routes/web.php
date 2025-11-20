@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Dashboard\ChatbotController;
 use App\Http\Controllers\Dashboard\CouponCodeController;
 use App\Http\Controllers\Dashboard\DashboardBootstrapController;
@@ -14,10 +15,13 @@ use App\Http\Controllers\Dashboard\SaleController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\WithdrawalController;
 use App\Http\Controllers\Dashboard\QrController;
+use App\Http\Controllers\Dashboard\NotificationController;
+use App\Http\Controllers\Dashboard\ImpersonationController;
 use App\Http\Controllers\Dashboard\TaskController;
 use App\Http\Controllers\Dashboard\UserProfileController;
 use App\Http\Controllers\Dashboard\UserManagementController;
 use App\Http\Controllers\Dashboard\UserLogController;
+use App\Http\Controllers\RecordController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
@@ -44,18 +48,15 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/qr', [QrController::class, 'store'])->name('qr.scan.store');
     Route::put('/qr/{qrCode}', [QrController::class, 'update'])->name('qr.scan.update');
     Route::delete('/qr/{qrCode}', [QrController::class, 'destroy'])->name('qr.scan.destroy');
-    Route::prefix('user-logs')->name('user-logs.')->group(function (): void {
-        Route::get('/', fn () => redirect()->route('user-logs.attendance'))->name('index');
-        Route::get('/attendance', [UserLogController::class, 'attendance'])->name('attendance');
-        Route::get('/tasks', [UserLogController::class, 'tasks'])->name('tasks');
-        Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('attendance.start');
-        Route::post('/attendance/end', [AttendanceController::class, 'end'])->name('attendance.end');
-        Route::post('/settings/{user}', [EmployeeSettingController::class, 'store'])->name('settings.store');
-        Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
-        Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
-        Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
-        Route::post('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
-    });
+    Route::get('/attendance', [UserLogController::class, 'attendance'])->name('user-logs.attendance');
+    Route::get('/tasks', [UserLogController::class, 'tasks'])->name('user-logs.tasks');
+    Route::post('/attendance/start', [AttendanceController::class, 'start'])->name('user-logs.attendance.start');
+    Route::post('/attendance/end', [AttendanceController::class, 'end'])->name('user-logs.attendance.end');
+    Route::post('/settings/{user}', [EmployeeSettingController::class, 'store'])->name('user-logs.settings.store');
+    Route::post('/tasks', [TaskController::class, 'store'])->name('user-logs.tasks.store');
+    Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('user-logs.tasks.update');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('user-logs.tasks.destroy');
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('user-logs.tasks.complete');
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
     Route::get('/stock/keys/create', [StockController::class, 'createKeys'])->name('stock.keys.create');
     Route::post('/stock/keys', [StockController::class, 'store'])->name('stock.keys.store');
@@ -63,9 +64,9 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/stock/keys/{stockKey}', [StockController::class, 'update'])->name('stock.keys.update');
     Route::delete('/stock/keys/{stockKey}', [StockController::class, 'destroy'])->name('stock.keys.destroy');
     Route::prefix('chatbot')->name('chatbot.')->group(function (): void {
-        Route::get('/', [ChatbotController::class, 'knowledge'])->name('knowledge');
-        Route::get('/existing', [ChatbotController::class, 'existing'])->name('existing');
-        Route::get('/simulator', [ChatbotController::class, 'simulator'])->name('simulator');
+        Route::get('/add', [ChatbotController::class, 'knowledge'])->name('knowledge');
+        Route::get('/knowledgebase', [ChatbotController::class, 'existing'])->name('knowledgebase');
+        Route::get('/', [ChatbotController::class, 'simulator'])->name('start');
         Route::post('/entries', [ChatbotController::class, 'store'])->name('entries.store');
         Route::get('/entries/{chatbotEntry}/edit', [ChatbotController::class, 'edit'])->name('entries.edit');
         Route::put('/entries/{chatbotEntry}', [ChatbotController::class, 'update'])->name('entries.update');
@@ -73,9 +74,16 @@ Route::middleware('auth')->group(function (): void {
     });
     Route::view('/payments', 'payments.index')->name('payments.index');
     Route::get('/payments/balance', [PaymentMethodController::class, 'balance'])->name('payments.balance');
-    Route::get('/payments/statements', [PaymentMethodController::class, 'statements'])->name('payments.statements');
-    Route::get('/payments/manage', [PaymentMethodController::class, 'index'])->name('payments.manage');
-    Route::get('/payments/withdraw', [WithdrawalController::class, 'index'])->name('payments.withdraw');
+    Route::get('/billing/statements', [PaymentMethodController::class, 'statements'])->name('payments.statements');
+    Route::get('/billing/manage', [PaymentMethodController::class, 'index'])->name('payments.manage');
+    Route::get('/billing/withdraw', [WithdrawalController::class, 'index'])->name('payments.withdraw');
+    Route::get('/sheet', [RecordController::class, 'index'])->name('sheet.index');
+    Route::get('/sheet/products', [RecordController::class, 'products'])->name('sheet.products');
+    Route::post('/sheet/products', [RecordController::class, 'storeProduct'])->name('sheet.products.store');
+    Route::get('/sheet/products/{recordProduct}/entries', [RecordController::class, 'listEntries'])->name('sheet.entries.index');
+    Route::post('/sheet/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('sheet.entries.store');
+    Route::put('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('sheet.entries.update');
+    Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
@@ -95,6 +103,8 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::put('/orders/{sale}', [SaleController::class, 'update'])->name('orders.update');
     Route::delete('/orders/{sale}', [SaleController::class, 'destroy'])->name('orders.destroy');
 
+
+
     Route::post('/withdrawals', [WithdrawalController::class, 'store'])->name('withdrawals.store');
 
     Route::get('/profile', [UserProfileController::class, 'edit'])->name('profile.edit');
@@ -104,6 +114,12 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
     Route::put('/users/{user}/password', [UserManagementController::class, 'updatePassword'])->name('users.password.update');
+    Route::post('/users/{user}/attendance/start', [AttendanceController::class, 'startForEmployee'])->name('users.attendance.start');
+    Route::post('/users/{user}/attendance/end', [AttendanceController::class, 'endForEmployee'])->name('users.attendance.end');
 
     Route::post('/settings/registration', [SiteSettingController::class, 'updateRegistration'])->name('settings.registration');
+    Route::post('/notifications/hide', [NotificationController::class, 'hide'])->name('notifications.hide');
+    Route::post('/notifications/overdue-snooze', [NotificationController::class, 'snoozeOverdue'])->name('notifications.overdue-snooze');
+    Route::post('/impersonate/start', [ImpersonationController::class, 'start'])->name('impersonate.start');
+    Route::post('/impersonate/stop', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
 });

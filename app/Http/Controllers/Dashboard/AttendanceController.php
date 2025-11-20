@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLog;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,13 +16,64 @@ class AttendanceController extends Controller
         $user = $request->user();
         abort_unless($user, 403);
 
-        $openLog = AttendanceLog::where('user_id', $user->id)
-            ->whereNull('ended_at')
-            ->latest('started_at')
-            ->first();
+        $message = $this->startWorkSession($user)
+            ? 'Attendance started. Have a productive day!'
+            : 'You already have an active work session.';
 
-        if ($openLog) {
-            return back()->with('status', 'You already have an active work session.');
+        return back()->with('status', $message);
+    }
+
+    public function end(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+
+        $message = $this->endWorkSession($user)
+            ? 'Great job! Work session recorded.'
+            : 'No active work session found.';
+
+        return back()->with('status', $message);
+    }
+
+    public function startForEmployee(Request $request, User $user): RedirectResponse
+    {
+        $this->authorizeEmployeeManagement($request, $user);
+
+        $message = $this->startWorkSession($user)
+            ? "{$user->name}'s attendance has been started."
+            : "{$user->name} already has an active work session.";
+
+        return redirect()
+            ->route('dashboard.users.index', ['edit' => $user->getKey()])
+            ->with('status', $message);
+    }
+
+    public function endForEmployee(Request $request, User $user): RedirectResponse
+    {
+        $this->authorizeEmployeeManagement($request, $user);
+
+        $message = $this->endWorkSession($user)
+            ? "{$user->name}'s work session has been recorded."
+            : "{$user->name} does not have an active work session.";
+
+        return redirect()
+            ->route('dashboard.users.index', ['edit' => $user->getKey()])
+            ->with('status', $message);
+    }
+
+    private function authorizeEmployeeManagement(Request $request, User $user): void
+    {
+        /** @var User|null $actingUser */
+        $actingUser = $request->user();
+
+        abort_unless($actingUser && $actingUser->isAdmin(), 403);
+        abort_unless($user->isEmployee(), 403);
+    }
+
+    private function startWorkSession(User $user): bool
+    {
+        if ($this->activeAttendanceLog($user)) {
+            return false;
         }
 
         AttendanceLog::create([
@@ -30,21 +82,15 @@ class AttendanceController extends Controller
             'started_at' => Carbon::now(),
         ]);
 
-        return back()->with('status', 'Attendance started. Have a productive day!');
+        return true;
     }
 
-    public function end(Request $request): RedirectResponse
+    private function endWorkSession(User $user): bool
     {
-        $user = $request->user();
-        abort_unless($user, 403);
-
-        $log = AttendanceLog::where('user_id', $user->id)
-            ->whereNull('ended_at')
-            ->latest('work_date')
-            ->first();
+        $log = $this->activeAttendanceLog($user);
 
         if (!$log || !$log->started_at) {
-            return back()->with('status', 'No active work session found.');
+            return false;
         }
 
         $endTime = Carbon::now();
@@ -55,6 +101,14 @@ class AttendanceController extends Controller
             'total_minutes' => $totalMinutes,
         ]);
 
-        return back()->with('status', 'Great job! Work session recorded.');
+        return true;
+    }
+
+    private function activeAttendanceLog(User $user): ?AttendanceLog
+    {
+        return AttendanceLog::where('user_id', $user->id)
+            ->whereNull('ended_at')
+            ->latest('started_at')
+            ->first();
     }
 }

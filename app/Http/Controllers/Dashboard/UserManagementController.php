@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\AttendanceLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,16 @@ class UserManagementController extends Controller
         abort_unless($actingUser->role === 'admin', 403);
 
         $teamMembers = User::query()
+            ->with('employeeSetting')
             ->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")
             ->orderBy('name')
             ->get();
+
+        $activeAttendanceLogs = AttendanceLog::query()
+            ->whereNull('ended_at')
+            ->whereIn('user_id', $teamMembers->pluck('id'))
+            ->get()
+            ->keyBy('user_id');
 
         $employeeToEdit = null;
         $editId = $request->integer('edit');
@@ -42,6 +50,7 @@ class UserManagementController extends Controller
         return view('users.manage', [
             'teamMembers' => $teamMembers,
             'employeeToEdit' => $employeeToEdit,
+            'activeAttendanceLogs' => $activeAttendanceLogs,
         ]);
     }
 

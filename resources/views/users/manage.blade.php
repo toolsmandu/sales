@@ -31,6 +31,7 @@
                                     <th scope="col">Position</th>
                                     <th scope="col">Daily Work Hours</th>
                                     <th scope="col">Holidays</th>
+                                    <th scope="col">Work Session</th>
                                     <th scope="col">Actions</th>
                                 </tr>
                             </thead>
@@ -54,15 +55,51 @@
                                             @endphp
                                             @if ($holidays && count($holidays))
                                                 {{ collect($holidays)->map(fn ($day) => ucfirst($day))->implode(', ') }}
-                                            @else
-                                                —
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <div class="table-actions">
-                                                @if ($teamMember->role === 'employee')
-                                                    <a
-                                                        class="ghost-button"
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($teamMember->role === 'employee')
+                                            @php
+                                                $activeLog = $activeAttendanceLogs->get($teamMember->id);
+                                                $activeSince = $activeLog?->started_at
+                                                    ? $activeLog->started_at
+                                                        ->timezone(config('app.timezone'))
+                                                        ->format('M d, Y g:i A')
+                                                    : null;
+                                            @endphp
+                                            <div class="stack">
+                                                
+                                                <form method="POST" class="table-actions">
+                                                    @csrf
+                                                    <button
+                                                        type="submit"
+                                                        class="ghost-button work-session-button"
+                                                        formaction="{{ route('dashboard.users.attendance.start', $teamMember) }}"
+                                                        {{ $activeLog ? 'disabled' : '' }}
+                                                    >
+                                                        Start
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        class="ghost-button work-session-button"
+                                                        formaction="{{ route('dashboard.users.attendance.end', $teamMember) }}"
+                                                        {{ $activeLog ? '' : 'disabled' }}
+                                                    >
+                                                        Stop
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        @else
+                                            <span class="muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            @if ($teamMember->role === 'employee')
+                                                <a
+                                                    class="ghost-button"
                                                         href="{{ route('dashboard.users.index', ['edit' => $teamMember->id]) }}"
                                                         aria-label="Manage {{ $teamMember->name }}"
                                                     >

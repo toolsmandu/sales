@@ -13,6 +13,7 @@
             const hiddenField = combobox.querySelector('[data-product-selected]');
             const emptyMessage = dropdown.querySelector('[data-empty-message]');
             const allowFreeEntry = combobox.dataset.allowFreeEntry === 'true';
+            const allowEmpty = combobox.dataset.allowEmpty === 'true';
             const autoSubmit = combobox.dataset.autosubmit === 'true';
             const form = combobox.closest('form');
             const selectedName = (input.dataset.selectedName ?? '').toLowerCase();
@@ -239,7 +240,7 @@
             });
 
             form?.addEventListener('submit', (event) => {
-                if (!allowFreeEntry && hiddenField && options.length > 0 && hiddenField.value === '') {
+                if (!allowFreeEntry && !allowEmpty && hiddenField && options.length > 0 && hiddenField.value === '') {
                     event.preventDefault();
                     openDropdown();
                     input.focus({ preventScroll: true });

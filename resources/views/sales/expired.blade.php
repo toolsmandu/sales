@@ -198,10 +198,11 @@
                         <tr>
                             <th scope="col">Order ID</th>
                             <th scope="col">Product</th>
+                            <th scope="col">Email</th>
                             <th scope="col">Phone</th>
                             <th scope="col">Stock Status</th>
-                            <th scope="col">Purchase Date</th>
-                            <th scope="col">Expiry Date</th>
+                            <th scope="col">Purchase</th>
+                            <th scope="col">Expiry</th>
                             <th scope="col">Remaining</th>
                         </tr>
                     </thead>
@@ -228,6 +229,10 @@
                                 <td>{{ $sale->serial_number }}</td>
                           
                                 <td>{{ $productDisplay !== '' ? $productDisplay : '—' }}</td>
+                                @php
+                                    $emailDisplay = trim((string) $sale->email);
+                                @endphp
+                                <td>{{ $emailDisplay !== '' ? $emailDisplay : '—' }}</td>
                                 <td>
                                     @if ($plainPhone !== '')
                                         @php

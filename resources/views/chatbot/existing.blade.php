@@ -167,7 +167,7 @@
                         $selectedProduct = $products->firstWhere('id', $selectedProductId);
                     @endphp
 
-                    <form method="GET" action="{{ route('chatbot.existing') }}" class="form-grid form-grid--compact">
+                    <form method="GET" action="{{ route('chatbot.knowledgebase') }}" class="form-grid form-grid--compact">
                         <div class="product-combobox" data-product-combobox data-autosubmit="true">
                             <label for="existing-product-input">
                                 Product

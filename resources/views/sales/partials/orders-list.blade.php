@@ -130,19 +130,40 @@
     </datalist>
 @endif
 
+@push('styles')
+    <style>
+        .sales-table th {
+            position: relative;
+        }
+
+        .sales-col-resizer {
+            position: absolute;
+            top: 0;
+            right: -4px;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            user-select: none;
+            z-index: 2;
+        }
+    </style>
+@endpush
+
 <div class="table-wrapper">
-    <table class="sales-table">
+    <table class="sales-table" id="orders-table">
+        <colgroup id="orders-colgroup"></colgroup>
         <thead>
             <tr>
-                <th scope="col">Order ID</th>
-                <th scope="col">Purchase Date</th>
-                <th scope="col">Product</th>
-                <th scope="col">Phone</th>
-                <th scope="col">Remarks</th>
-                <th scope="col">Amount</th>
-                <th scope="col">Payment</th>
-                <th scope="col">Sold By</th>
-                <th scope="col">Actions</th>
+                <th scope="col" data-col-id="serial">Order ID<span class="sales-col-resizer" data-col-id="serial"></span></th>
+                <th scope="col" data-col-id="purchase_date">Purchase Date<span class="sales-col-resizer" data-col-id="purchase_date"></span></th>
+                <th scope="col" data-col-id="product">Product<span class="sales-col-resizer" data-col-id="product"></span></th>
+                <th scope="col" data-col-id="email">Email<span class="sales-col-resizer" data-col-id="email"></span></th>
+                <th scope="col" data-col-id="phone">Phone<span class="sales-col-resizer" data-col-id="phone"></span></th>
+                <th scope="col" data-col-id="amount">Amount<span class="sales-col-resizer" data-col-id="amount"></span></th>
+                <th scope="col" data-col-id="payment">Payment<span class="sales-col-resizer" data-col-id="payment"></span></th>
+                <th scope="col" data-col-id="status">Status<span class="sales-col-resizer" data-col-id="status"></span></th>
+                <th scope="col" data-col-id="sold_by">Sold By<span class="sales-col-resizer" data-col-id="sold_by"></span></th>
+                <th scope="col" data-col-id="actions">Actions<span class="sales-col-resizer" data-col-id="actions"></span></th>
             </tr>
         </thead>
         <tbody>
@@ -163,6 +184,10 @@
                         $productDisplay = trim($sale->product_name ?? '');
                     @endphp
                     <td>{{ $productDisplay !== '' ? $productDisplay : '—' }}</td>
+                    @php
+                        $emailDisplay = trim((string) $sale->email);
+                    @endphp
+                    <td>{{ $emailDisplay !== '' ? $emailDisplay : '—' }}</td>
                     @php
                         $rawPhone = (string) ($sale->phone ?? '');
                         $leadingSymbol = ltrim($rawPhone, " ()-\t\n\r\0\x0B");
@@ -202,21 +227,27 @@
                             @endif
                         </div>
                     </td>
-                    @php
-                        $remarksText = trim($sale->remarks ?? '');
-                    @endphp
-                    <td>
-                        @if ($remarksText === '')
-                            <span class="muted">—</span>
-                        @else
-                            <span>{{ \Illuminate\Support\Str::limit($remarksText, 60) }}</span>
-                        @endif
-                    </td>
                     <td>Rs {{ number_format($sale->sales_amount, 0) }}</td>
                     <td>{{ $sale->paymentMethod?->label ?? '—' }}</td>
+                    @php
+                        $status = strtolower((string) ($sale->status ?? 'completed'));
+                        $statusLabel = $status === 'refunded' ? 'Refunded' : 'Completed';
+                    @endphp
+                    <td>{{ $statusLabel }}</td>
                     <td>{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
                     <td>
                         <div class="table-actions">
+                            <button
+                                type="button"
+                                class="icon-button"
+                                data-action="show-remarks"
+                                data-remarks="{{ trim((string) $sale->remarks) }}"
+                                aria-label="View remarks for {{ $sale->serial_number }}">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 5c-4.5 0-8.2 3-10 7 1.8 4 5.5 7 10 7s8.2-3 10-7c-1.8-4-5.5-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                                </svg>
+                            </button>
                             <a
                                 class="icon-button"
                                 href="{{ route('orders.index', ['edit' => $sale->id] + request()->except('page')) }}"
@@ -306,3 +337,103 @@
         </a>
     </div>
 </div>
+
+@push('scripts')
+    <script>
+        (() => {
+            const storageKey = 'orders_table_widths';
+            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'status', 'sold_by', 'actions'];
+            const table = document.getElementById('orders-table');
+            const colgroup = document.getElementById('orders-colgroup');
+
+            if (!table || !colgroup) return;
+
+            const loadWidths = () => {
+                try {
+                    const raw = localStorage.getItem(storageKey);
+                    if (!raw) return {};
+                    const parsed = JSON.parse(raw);
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch (error) {
+                    console.warn('Unable to read column widths', error);
+                    return {};
+                }
+            };
+
+            const widths = loadWidths();
+
+            const renderColgroup = () => {
+                colgroup.innerHTML = columnIds.map((id) => {
+                    const width = widths[id];
+                    return `<col data-col-id="${id}" style="${width ? `width:${width}px` : ''}">`;
+                }).join('');
+            };
+
+            const persist = () => {
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(widths));
+                } catch (error) {
+                    console.warn('Unable to save column widths', error);
+                }
+            };
+
+            const applyHeaderWidths = () => {
+                columnIds.forEach((id) => {
+                    const header = table.querySelector(`th[data-col-id="${id}"]`);
+                    if (!header) return;
+                    const width = widths[id];
+                    header.style.width = width ? `${width}px` : '';
+                });
+            };
+
+            const setupResizers = () => {
+                const headers = Array.from(table.querySelectorAll('thead th'));
+                headers.forEach((th) => {
+                    const handle = th.querySelector('.sales-col-resizer');
+                    const colId = handle?.dataset?.colId;
+                    if (!handle || !colId) return;
+                    handle.addEventListener('mousedown', (event) => startResize(event, colId));
+                });
+            };
+
+            const startResize = (event, colId) => {
+                event.preventDefault();
+                const startX = event.pageX;
+                const header = table.querySelector(`th[data-col-id="${colId}"]`);
+                const startWidth = widths[colId]
+                    ?? header?.getBoundingClientRect().width
+                    ?? 140;
+
+                const onMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    const delta = moveEvent.pageX - startX;
+                    const nextWidth = Math.max(80, startWidth + delta);
+                    widths[colId] = nextWidth;
+                    renderColgroup();
+                    applyHeaderWidths();
+                };
+
+                const onUp = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    persist();
+                };
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            };
+
+            const handleRemarksView = (event) => {
+                const button = event.target.closest('button[data-action="show-remarks"]');
+                if (!button) return;
+                const remarks = button.dataset.remarks?.trim();
+                alert(remarks && remarks !== '' ? remarks : 'No remarks available.');
+            };
+
+            renderColgroup();
+            applyHeaderWidths();
+            setupResizers();
+            table.addEventListener('click', handleRemarksView);
+        })();
+    </script>
+@endpush

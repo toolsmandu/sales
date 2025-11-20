@@ -54,6 +54,29 @@
                 padding: 0 1.5rem;
             }
 
+            .app-header nav {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1.5rem;
+                flex-wrap: wrap;
+            }
+
+            .app-header nav ul {
+                display: inline-flex;
+                align-items: center;
+                gap: 1rem;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+
+            .app-header nav ul li {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.6rem;
+            }
+
             .profile-menu {
                 position: relative;
                 display: flex;
@@ -244,6 +267,17 @@
                 align-items: center;
                 gap: 0.5rem;
                 margin-right: 1rem;
+                position: relative;
+                top: 8px;
+            }
+
+                        .header-attendance-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-right: 1rem;
+                position: relative;
+                top: -8px;
             }
 
             .header-attendance-actions form {
@@ -278,6 +312,153 @@
                 font-size: 0.8rem;
                 color: rgba(15, 23, 42, 0.65);
             }
+
+            .header-notifications {
+                position: relative;
+                margin-right: 1rem;
+            }
+
+            .header-notifications__trigger {
+                width: 2.5rem;
+                height: 2.5rem;
+                border-radius: 50%;
+                border: none;
+                background: rgba(15, 23, 42, 0.08);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                position: relative;
+                transition: background 0.2s ease;
+            }
+
+            .header-notifications__trigger:hover,
+            .header-notifications__trigger:focus-visible {
+                background: rgba(15, 23, 42, 0.15);
+                outline: none;
+            }
+
+            .header-notifications__trigger svg {
+                width: 1.1rem;
+                height: 1.1rem;
+                color: #1d4ed8;
+            }
+
+            .header-notifications__badge {
+                position: absolute;
+                top: -0.25rem;
+                right: -0.25rem;
+                min-width: 1.2rem;
+                padding: 0.1rem 0.35rem;
+                border-radius: 999px;
+                background: #ef4444;
+                color: #fff;
+                font-size: 0.7rem;
+                font-weight: 700;
+                text-align: center;
+            }
+
+            .header-notifications__panel {
+                position: absolute;
+                right: 0;
+                top: calc(100% + 0.35rem);
+                width: min(320px, 85vw);
+                background: #fff;
+                border-radius: 0.75rem;
+                border: 1px solid rgba(15, 23, 42, 0.1);
+                box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+                padding: 0.85rem;
+                display: none;
+                flex-direction: column;
+                gap: 0.75rem;
+                z-index: 35;
+            }
+
+            .header-notifications[data-notification-open="true"] .header-notifications__panel {
+                display: flex;
+            }
+
+            .header-notifications__item {
+                border: 1px solid rgba(148, 163, 184, 0.35);
+                border-radius: 0.75rem;
+                padding: 0.65rem 0.85rem;
+                background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(224, 231, 255, 0.4));
+                display: flex;
+                gap: 0.75rem;
+                align-items: flex-start;
+                transition: transform 0.2s ease, border-color 0.2s ease;
+                position: relative;
+            }
+
+            .header-notifications__dismiss {
+                position: absolute;
+                top: 0.35rem;
+                right: 0.35rem;
+                border: none;
+                background: transparent;
+                color: rgba(15, 23, 42, 0.35);
+                cursor: pointer;
+                font-size: 0.9rem;
+                padding: 0.15rem;
+                transition: color 0.15s ease;
+            }
+
+            .header-notifications__dismiss:hover,
+            .header-notifications__dismiss:focus-visible {
+                color: rgba(15, 23, 42, 0.65);
+                outline: none;
+            }
+
+            .header-notifications__item:hover,
+            .header-notifications__item:focus-visible {
+                border-color: rgba(59, 130, 246, 0.5);
+                transform: translateX(2px);
+                outline: none;
+            }
+
+            .header-notifications__icon {
+                width: 2.4rem;
+                height: 2.4rem;
+                border-radius: 0.75rem;
+                background: rgba(59, 130, 246, 0.15);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .header-notifications__icon svg {
+                width: 1.2rem;
+                height: 1.2rem;
+                color: #1d4ed8;
+            }
+
+            .header-notifications__content {
+                flex: 1;
+                display: grid;
+                gap: 0.25rem;
+            }
+
+            .header-notifications__title {
+                margin: 0;
+                font-weight: 600;
+                font-size: 0.92rem;
+                color: rgba(15, 23, 42, 0.95);
+            }
+
+            .header-notifications__message,
+            .header-notifications__time {
+                margin: 0;
+                font-size: 0.85rem;
+                color: rgba(15, 23, 42, 0.75);
+                line-height: 1.4;
+            }
+
+            .header-notifications__time {
+                margin-top: 0.35rem;
+                font-size: 0.8rem;
+                color: rgba(15, 23, 42, 0.65);
+            }
         </style>
 
         @stack('styles')
@@ -307,6 +488,59 @@
                                         Active since {{ $activeAttendance->started_at->setTimezone('Asia/Kathmandu')->format('g:i A') }}
                                     </span>
                                 @endif
+                            </li>
+                        @endif
+                        @php
+                            $notificationCount = $headerNotifications['count'] ?? 0;
+                        @endphp
+                        @if ($notificationCount > 0)
+                            <li class="header-notifications" data-notification-open="false">
+                                <button type="button" class="header-notifications__trigger" aria-haspopup="true" aria-expanded="false" aria-label="View notifications">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v0.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h11z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M9 21c.863.641 1.862 1 3 1s2.137-.359 3-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <span class="header-notifications__badge">{{ $notificationCount }}</span>
+                                </button>
+                                <div class="header-notifications__panel" role="menu">
+                                    @foreach (($headerNotifications['items'] ?? []) as $notification)
+                                        @php
+                                            $type = $notification['type'] ?? '';
+                                            $isTaskNotification = in_array($type, ['today', 'overdue'], true);
+                                            $iconSvg = match ($type) {
+                                                'shift' => '<path d="M12 6v6l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" fill="none" />',
+                                                default => '<path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /><path d="M21 11.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />',
+                                            };
+                                        @endphp
+                                        <article
+                                            class="header-notifications__item"
+                                            data-notification-type="{{ $type }}"
+                                            @if(!empty($notification['id'])) data-notification-id="{{ $notification['id'] }}" @endif
+                                            @if(!empty($notification['employee_id'])) data-employee-id="{{ $notification['employee_id'] }}" @endif
+                                            @if($isTaskNotification && !empty($notification['link']))
+                                                data-notification-link="{{ $notification['link'] }}"
+                                                role="button"
+                                                tabindex="0"
+                                            @endif
+                                        >
+                                            @unless($type === 'sales')
+                                                <button type="button" class="header-notifications__dismiss" aria-label="Dismiss notification">
+                                                    &times;
+                                                </button>
+                                            @endunless
+                                            <div class="header-notifications__icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none">{!! $iconSvg !!}</svg>
+                                            </div>
+                                            <div class="header-notifications__content">
+                                                <p class="header-notifications__title">{{ $notification['title'] ?? 'Notification' }}</p>
+                                                <p class="header-notifications__message">{{ $notification['message'] ?? '' }}</p>
+                                                @if ($type === 'shift' && !empty($notification['current_time']))
+                                                    <p class="header-notifications__time">Current time (+05:45 GMT): {{ $notification['current_time'] }}</p>
+                                                @endif
+                                            </div>
+                                        </article>
+                                    @endforeach
+                                </div>
                             </li>
                         @endif
                         <li class="profile-menu">
@@ -378,6 +612,31 @@
                                         </span>
                                         <span class="profile-menu__label">Edit Team</span>
                                     </a>
+                                @endif
+
+                                @if (($authUser->role ?? null) === 'admin' || ($isImpersonating ?? false))
+                                    @if ($isImpersonating ?? false)
+                                        <form method="POST" action="{{ route('dashboard.impersonate.stop') }}" class="profile-menu__item profile-menu__setting" role="none">
+                                            @csrf
+                                            <div class="profile-menu__setting-options" style="flex-direction: column; gap: 0.4rem;">
+                                                <button type="submit" class="ghost-button">Return to {{ $impersonatorName ?? 'admin' }}</button>
+                                            </div>
+                                        </form>
+                                    @elseif (($authUser->role ?? null) === 'admin')
+                                        <form method="POST" action="{{ route('dashboard.impersonate.start') }}" class="profile-menu__item profile-menu__setting" role="none">
+                                            @csrf
+                                            <span class="profile-menu__label">Login as employee</span>
+                                            <div class="profile-menu__setting-options" style="flex-direction: column; gap: 0.4rem;">
+                                                <select name="employee_id" required>
+                                                    <option value="">Select employee</option>
+                                                    @foreach (($impersonationEmployees ?? collect()) as $employeeOption)
+                                                        <option value="{{ $employeeOption->id }}">{{ $employeeOption->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="submit" class="ghost-button ghost-button--slim">Login</button>
+                                            </div>
+                                        </form>
+                                    @endif
                                 @endif
                                 <div class="profile-menu__divider" role="none"></div>
                                 <form method="POST" action="{{ route('logout') }}" role="none">
@@ -497,6 +756,98 @@
                         trigger.focus({ preventScroll: true });
                     }
                 });
+
+                const notificationMenu = document.querySelector('.header-notifications');
+                if (notificationMenu) {
+                    const notificationTrigger = notificationMenu.querySelector('.header-notifications__trigger');
+                    const notificationPanel = notificationMenu.querySelector('.header-notifications__panel');
+                    if (notificationTrigger && notificationPanel) {
+                        let notificationOpen = false;
+
+                        const setNotificationOpen = (open) => {
+                            notificationOpen = open;
+                            notificationMenu.dataset.notificationOpen = open ? 'true' : 'false';
+                            notificationTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+                        };
+
+                        notificationTrigger.addEventListener('click', () => {
+                            setNotificationOpen(!notificationOpen);
+                        });
+
+                        document.addEventListener('click', (event) => {
+                            if (!notificationMenu.contains(event.target)) {
+                                setNotificationOpen(false);
+                            }
+                        });
+
+                    document.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape' && notificationOpen) {
+                            setNotificationOpen(false);
+                            notificationTrigger.focus({ preventScroll: true });
+                        }
+                    });
+
+                        notificationPanel.addEventListener('click', (event) => {
+                            const dismissButton = event.target.closest('.header-notifications__dismiss');
+                            if (dismissButton) {
+                                const item = dismissButton.closest('.header-notifications__item');
+                                if (item) {
+                                    const notificationType = item.getAttribute('data-notification-type') || '';
+                                    const notificationId = item.getAttribute('data-notification-id') || notificationType;
+                                    const employeeId = item.getAttribute('data-employee-id') || '';
+                                    item.remove();
+
+                                    if (notificationType === 'employee_overdue' && employeeId) {
+                                        fetch(@json(route('dashboard.notifications.overdue-snooze')), {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                                'Content-Type': 'application/json',
+                                                'Accept': 'application/json',
+                                            },
+                                            credentials: 'same-origin',
+                                            body: JSON.stringify({ employee_id: employeeId }),
+                                        }).catch(() => {});
+                                    } else if (notificationId) {
+                                        fetch(@json(route('dashboard.notifications.hide')), {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                                'Content-Type': 'application/json',
+                                                'Accept': 'application/json',
+                                            },
+                                            credentials: 'same-origin',
+                                            body: JSON.stringify({ notification_id: notificationId }),
+                                        }).catch(() => {});
+                                    }
+                                }
+                                event.stopPropagation();
+                                return;
+                            }
+
+                            const target = event.target.closest('[data-notification-link]');
+                            if (target) {
+                                const href = target.getAttribute('data-notification-link');
+                                if (href) {
+                                    window.location.href = href;
+                                }
+                            }
+                        });
+
+                        notificationPanel.addEventListener('keydown', (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                const target = event.target.closest('[data-notification-link]');
+                                if (target) {
+                                    event.preventDefault();
+                                    const href = target.getAttribute('data-notification-link');
+                                    if (href) {
+                                        window.location.href = href;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
             });
         </script>
 

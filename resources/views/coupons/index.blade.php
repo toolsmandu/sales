@@ -11,6 +11,7 @@
         ->values();
 
     $selectedProduct = $products->firstWhere('id', (int) old('product_id', $filters['product'] ?? null));
+    $filterProduct = $products->firstWhere('id', (int) ($filters['product'] ?? null));
     $couponCodeError = $errors->first('coupon_entries.*.code');
     $couponRemarksError = $errors->first('coupon_entries.*.remarks');
 @endphp
@@ -58,8 +59,10 @@
             align-items: end;
         }
 
-    
-       
+        .coupon-filters .product-combobox {
+            max-width: 300px;
+        }
+
         .coupon-filters__actions {
             display: flex;
             gap: 0.5rem;
@@ -84,6 +87,10 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 0.75rem;
+        }
+
+        .coupon-inline-grid .product-combobox {
+            width: 100%;
         }
 
         .form-error {
@@ -242,16 +249,55 @@
                     </div>
 
                     <form method="GET" class="coupon-filters">
-                        <label>
-                            <select name="filter_product">
-                                <option value="">All products</option>
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}" @selected((int) ($filters['product'] ?? null) === $product->id)>
-                                        {{ $product->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </label>
+                        <div
+                            class="product-combobox"
+                            data-product-combobox
+                            data-allow-empty="true"
+                        >
+                            <label for="coupon-filter-product">
+                                Product
+                                <input
+                                    type="text"
+                                    id="coupon-filter-product"
+                                    class="product-combobox__input"
+                                    name="filter_product_name"
+                                    value="{{ $filterProduct->name ?? '' }}"
+                                    placeholder="All products"
+                                    autocomplete="off"
+                                    data-selected-name="{{ $filterProduct->name ?? '' }}"
+                                >
+                            </label>
+                            <input
+                                type="hidden"
+                                name="filter_product"
+                                value="{{ $filterProduct->id ?? '' }}"
+                                data-product-selected
+                            >
+
+                            <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                @if ($products->isEmpty())
+                                    <p class="product-combobox__empty">No products available yet.</p>
+                                @else
+                                    <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                    @foreach ($products as $product)
+                                        @php
+                                            $isActiveFilterProduct = $filterProduct && $filterProduct->id === $product->id;
+                                        @endphp
+                                        <button
+                                            type="button"
+                                            class="product-combobox__option {{ $isActiveFilterProduct ? 'is-active' : '' }}"
+                                            data-product-option
+                                            data-product-id="{{ $product->id }}"
+                                            data-product-name="{{ $product->name }}"
+                                            role="option"
+                                            aria-selected="{{ $isActiveFilterProduct ? 'true' : 'false' }}"
+                                        >
+                                            {{ $product->name }}
+                                        </button>
+                                    @endforeach
+                                @endif
+                            </div>
+                        </div>
 
                         <div class="coupon-filters__actions">
                             <button type="submit">Filter</button>
@@ -303,16 +349,52 @@
                                             @csrf
                                             @method('PUT')
                                             <div class="coupon-inline-grid">
-                                                <label>
-                                                    Product
-                                                    <select name="product_id" required>
-                                                        @foreach ($products as $product)
-                                                            <option value="{{ $product->id }}" @selected($product->id === $coupon->product_id)>
-                                                                {{ $product->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </label>
+                                                <div class="product-combobox" data-product-combobox>
+                                                    <label for="coupon-edit-product-{{ $coupon->id }}">
+                                                        Product
+                                                        <input
+                                                            type="text"
+                                                            id="coupon-edit-product-{{ $coupon->id }}"
+                                                            class="product-combobox__input"
+                                                            name="product_search"
+                                                            value="{{ $coupon->product->name ?? '' }}"
+                                                            placeholder="Choose product..."
+                                                            autocomplete="off"
+                                                            data-selected-name="{{ $coupon->product->name ?? '' }}"
+                                                            required
+                                                        >
+                                                    </label>
+                                                    <input
+                                                        type="hidden"
+                                                        name="product_id"
+                                                        value="{{ $coupon->product_id }}"
+                                                        data-product-selected
+                                                    >
+
+                                                    <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                                        @if ($products->isEmpty())
+                                                            <p class="product-combobox__empty">No products available yet.</p>
+                                                        @else
+                                                            <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                                            @foreach ($products as $product)
+                                                                @php
+                                                                    $isActiveProduct = $product->id === $coupon->product_id;
+                                                                @endphp
+                                                                <button
+                                                                    type="button"
+                                                                    class="product-combobox__option {{ $isActiveProduct ? 'is-active' : '' }}"
+                                                                    data-product-option
+                                                                    data-product-id="{{ $product->id }}"
+                                                                    data-product-name="{{ $product->name }}"
+                                                                    role="option"
+                                                                    aria-selected="{{ $isActiveProduct ? 'true' : 'false' }}"
+                                                                >
+                                                                    {{ $product->name }}
+                                                                </button>
+                                                            @endforeach
+                                                        @endif
+                                                    </div>
+                                                </div>
                                                 <label>
                                                     Coupon Code
                                                     <input type="text" name="code" value="{{ $coupon->code }}" required>

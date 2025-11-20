@@ -137,7 +137,7 @@
                             </div>
                         </div>
 
-                        <form method="GET" action="{{ route('chatbot.simulator') }}" class="chatbot-input" id="chatbot-simulator-form">
+                        <form method="GET" action="{{ route('chatbot.start') }}" class="chatbot-input" id="chatbot-simulator-form">
                             <div class="chatbot-input__toolbar">
                                 <div class="chatbot-input__field">
                                     <label for="chatbot-term">
@@ -169,7 +169,7 @@
     @include('partials.product-combobox-scripts')
     <script>
         (function () {
-            const endpoint = @json(route('chatbot.simulator'));
+            const endpoint = @json(route('chatbot.start'));
             const chatInterface = document.querySelector('[data-chat-interface]');
             const chatWindow = chatInterface?.querySelector('[data-chat-window]');
             if (!chatWindow) {

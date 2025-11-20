@@ -44,6 +44,12 @@
         gap: 1rem;
     }
 
+    @media (min-width: 1025px) {
+        .dashboard-nav__mobile-trigger {
+            display: none !important;
+        }
+    }
+
     .dashboard-nav ul {
         list-style: none;
         margin: 0;
@@ -411,18 +417,18 @@
     .ghost-button {
         padding: 0.4rem 0.8rem;
         border-radius: 0.5rem;
-        border: 1px solid rgba(79, 70, 229, 0.2);
-        background: rgba(79, 70, 229, 0.08);
-        color: #4338ca;
+        border: 1px solid rgba(37, 99, 235, 0.6);
+        background: rgba(59, 130, 246, 0.18);
+        color: #1d4ed8;
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .ghost-button:hover,
     .ghost-button:focus-visible {
-        background: rgba(79, 70, 229, 0.18);
-        border-color: rgba(79, 70, 229, 0.35);
-        color: #312e81;
+        background: rgba(37, 99, 235, 0.3);
+        border-color: rgba(30, 64, 175, 0.9);
+        color: #1e3a8a;
         outline: none;
     }
 
@@ -1189,6 +1195,11 @@
 
     .table-actions > * {
         flex: 0 0 auto;
+    }
+
+    .table-actions  {
+        min-width: 5rem;
+        text-align: center;
     }
 
     .sales-header {

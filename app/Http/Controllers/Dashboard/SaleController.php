@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SaleController extends Controller
@@ -264,15 +265,18 @@ class SaleController extends Controller
     {
         $nowKathmandu = Carbon::now('Asia/Kathmandu');
 
-        $request->merge([
-            'purchase_date' => $nowKathmandu->toDateString(),
-        ]);
+        if (!$request->filled('purchase_date')) {
+            $request->merge([
+                'purchase_date' => $nowKathmandu->toDateString(),
+            ]);
+        }
 
         $data = $this->validatePayload($request);
 
         if ($data['product_expiry_days'] === null) {
             $data['product_expiry_days'] = $this->inferExpiryDaysFromProductName($data['product_name']);
         }
+        $data['status'] = $data['status'] ?? 'completed';
 
         $createdBy = $request->user()?->id;
 
@@ -294,6 +298,7 @@ class SaleController extends Controller
                 'sales_amount' => $data['sales_amount'],
                 'payment_method_id' => $method->id,
                 'created_by' => $createdBy,
+                'status' => $data['status'],
             ]);
 
             PaymentTransaction::create([
@@ -336,6 +341,7 @@ class SaleController extends Controller
         if ($data['product_expiry_days'] === null) {
             $data['product_expiry_days'] = $this->inferExpiryDaysFromProductName($data['product_name']);
         }
+        $data['status'] = $data['status'] ?? $sale->status ?? 'completed';
 
         DB::transaction(function () use ($sale, $data) {
             $newMethod = PaymentMethod::where('slug', $data['payment_method'])->firstOrFail();
@@ -352,6 +358,7 @@ class SaleController extends Controller
                 'email' => trim($data['email'] ?? ''),
                 'sales_amount' => $data['sales_amount'],
                 'payment_method_id' => $newMethod->id,
+                'status' => $data['status'],
             ]);
 
             $transaction = $sale->transaction;
@@ -461,7 +468,8 @@ class SaleController extends Controller
      *     payment_method: string,
      *     purchase_date: string,
      *     remarks: string,
-     *     product_expiry_days: ?int
+     *     product_expiry_days: ?int,
+     *     status: ?string
      * }
      */
     private function validatePayload(Request $request, ?Sale $sale = null): array
@@ -475,6 +483,7 @@ class SaleController extends Controller
             'purchase_date' => ['required', 'date_format:Y-m-d'],
             'remarks' => ['required', 'string', 'max:255'],
             'product_expiry_days' => ['nullable', 'integer', 'min:0'],
+            'status' => ['nullable', 'string', Rule::in(['completed', 'refunded'])],
         ]);
 
         $expiryInput = $data['product_expiry_days'] ?? null;
@@ -483,6 +492,7 @@ class SaleController extends Controller
         return [
             ...$data,
             'product_expiry_days' => $expiryDays,
+            'status' => $data['status'] ?? null,
         ];
     }
 

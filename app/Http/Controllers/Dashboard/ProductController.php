@@ -15,11 +15,59 @@ class ProductController extends Controller
         $perPage = (int) $request->query('per_page', 50);
         $perPage = in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
 
+        $stockStatus = $request->query('stock_status', 'all');
+        $stockStatus = in_array($stockStatus, ['in', 'out'], true) ? $stockStatus : 'all';
+
+        $search = trim((string) $request->query('search'));
+
         $products = Product::query()
             ->with(['variations' => fn ($query) => $query->orderBy('name')])
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->when($stockStatus !== 'all', fn ($query) => $query->where('is_in_stock', $stockStatus === 'in'))
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString();
+
+        $productOptions = Product::query()
+            ->where('is_in_stock', true)
+            ->with(['variations' => fn ($query) => $query
+                ->where('is_in_stock', true)
+                ->orderBy('name')])
+            ->orderBy('name')
+            ->get()
+            ->flatMap(function (Product $product) {
+                $name = trim($product->name);
+                if ($name === '') {
+                    return collect();
+                }
+
+                if ($product->variations->isEmpty()) {
+                    return collect([
+                        [
+                            'label' => $name,
+                            'expiry_days' => null,
+                        ],
+                    ]);
+                }
+
+                return $product->variations
+                    ->map(function ($variation) use ($name) {
+                        $variationName = trim((string) $variation->name);
+                        if ($variationName === '') {
+                            return null;
+                        }
+
+                        return [
+                            'label' => sprintf('%s - %s', $name, $variationName),
+                            'expiry_days' => $variation->expiry_days,
+                        ];
+                    })
+                    ->filter()
+                    ->values();
+            })
+            ->unique('label')
+            ->values()
+            ->all();
 
         $productToEdit = null;
         if ($request->filled('edit')) {
@@ -31,6 +79,9 @@ class ProductController extends Controller
             'products' => $products,
             'productToEdit' => $productToEdit,
             'perPage' => $perPage,
+            'stockStatus' => $stockStatus,
+            'search' => $search,
+            'productOptions' => $productOptions,
         ]);
     }
 
