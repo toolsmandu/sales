@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UserProfileController;
 use App\Http\Controllers\Dashboard\UserManagementController;
 use App\Http\Controllers\Dashboard\UserLogController;
 use App\Http\Controllers\RecordController;
+use App\Http\Controllers\ReportsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/sheet/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('sheet.entries.store');
     Route::put('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('sheet.entries.update');
     Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

@@ -481,6 +481,7 @@
         min-width: 100%;
     }
 
+
     .products-table th:nth-child(2),
     .products-table td:nth-child(2) {
         min-width: 12rem;
