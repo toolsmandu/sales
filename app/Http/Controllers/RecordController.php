@@ -7,6 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -155,6 +156,107 @@ class RecordController extends Controller
 
         return response()->json([
             'message' => 'Deleted',
+        ]);
+    }
+
+    public function importEntries(Request $request, RecordProduct $recordProduct): JsonResponse
+    {
+        $tableName = $recordProduct->table_name;
+        $this->createTableIfMissing($tableName);
+
+        $request->validate([
+            'file' => ['required', 'file'],
+        ]);
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, ['csv', 'txt'], true)) {
+            return response()->json([
+                'message' => 'Please upload a CSV file.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $handle = fopen($file->getRealPath(), 'r');
+        if (! $handle) {
+            return response()->json([
+                'message' => 'Unable to read uploaded file.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $headers = [];
+        $inserted = 0;
+
+        try {
+            if (($row = fgetcsv($handle, 0, ',')) !== false) {
+                $headers = array_map(function ($header) {
+                    return trim(mb_strtolower($header ?? ''));
+                }, $row);
+            }
+
+            if (empty($headers)) {
+                return response()->json([
+                    'message' => 'CSV is missing headers.',
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $allowed = [
+                'purchase' => 'purchase_date',
+                'purchase_date' => 'purchase_date',
+                'email' => 'email',
+                'password' => 'password',
+                'phone' => 'phone',
+                'product' => 'product',
+                'expiry' => 'expiry',
+                'period' => 'expiry',
+                'remaining_days' => 'remaining_days',
+                'remarks' => 'remarks',
+                'two_factor' => 'two_factor',
+                'email2' => 'email2',
+                'password2' => 'password2',
+            ];
+
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                $payload = [];
+                foreach ($headers as $index => $header) {
+                    $value = $row[$index] ?? null;
+                    if (! array_key_exists($header, $allowed)) {
+                        continue;
+                    }
+                    $column = $allowed[$header];
+                    $payload[$column] = $value;
+                }
+
+                if (empty($payload)) {
+                    continue;
+                }
+
+                if (isset($payload['purchase_date']) && $payload['purchase_date'] !== null) {
+                    try {
+                        $payload['purchase_date'] = Carbon::parse($payload['purchase_date'])->toDateString();
+                    } catch (\Exception $e) {
+                        $payload['purchase_date'] = null;
+                    }
+                }
+
+                if (isset($payload['expiry'])) {
+                    $payload['expiry'] = is_numeric($payload['expiry'])
+                        ? (int) $payload['expiry']
+                        : null;
+                }
+
+                $payload['product'] = $payload['product'] ?? $recordProduct->name;
+                $payload['created_at'] = Carbon::now();
+                $payload['updated_at'] = Carbon::now();
+
+                DB::table($tableName)->insert($payload);
+                $inserted++;
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return response()->json([
+            'inserted' => $inserted,
         ]);
     }
 

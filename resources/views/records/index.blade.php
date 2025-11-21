@@ -401,6 +401,10 @@
                         <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
                         <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
                         <div class="pill" id="records-count">0 Data</div>
+                        <label class="secondary outline" style="margin: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            <input type="file" id="records-import-file" accept=".csv" style="display: none;">
+                            Import CSV
+                        </label>
                     </div>
                 </header>
                 <div class="column-controls" id="column-controls" style="display: none;"></div>
@@ -432,6 +436,7 @@
                 storeEntry: (productId) => @json(route('sheet.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 updateEntry: (productId, entryId) => @json(route('sheet.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
                 deleteEntry: (productId, entryId) => @json(route('sheet.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
+                importEntries: (productId) => @json(route('sheet.entries.import', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
             };
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -532,6 +537,7 @@
             const toggleColumnsButton = document.getElementById('toggle-column-controls');
             const createProductButton = document.getElementById('records-create-product');
             const newProductInput = document.getElementById('record-new-product');
+            const importFileInput = document.getElementById('records-import-file');
 
             const resolveHighlightProduct = () => {
                 if (!state.products.length || !state.highlight) {
@@ -1425,6 +1431,38 @@
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     createProduct();
+                }
+            });
+            importFileInput?.addEventListener('change', async () => {
+                if (!importFileInput.files.length || !state.selectedProductId) {
+                    return;
+                }
+                const file = importFileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    setStatus('Importing CSV...');
+                    const response = await fetch(routes.importEntries(state.selectedProductId), {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: formData,
+                    });
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => null);
+                        const message = payload?.message ?? 'Unable to import CSV.';
+                        throw new Error(message);
+                    }
+                    const result = await response.json();
+                    const inserted = result?.inserted ?? 0;
+                    await fetchRecords();
+                    setStatus(`Imported ${inserted} row${inserted === 1 ? '' : 's'}`, true);
+                } catch (error) {
+                    setStatus(error.message ?? 'Unable to import CSV');
+                } finally {
+                    importFileInput.value = '';
                 }
             });
 

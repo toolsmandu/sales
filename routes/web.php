@@ -85,6 +85,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/sheet/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('sheet.entries.store');
     Route::put('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('sheet.entries.update');
     Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
+    Route::post('/sheet/products/{recordProduct}/import', [RecordController::class, 'importEntries'])->name('sheet.entries.import');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
