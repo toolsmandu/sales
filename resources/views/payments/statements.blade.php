@@ -14,6 +14,53 @@
             font-weight: 600;
             border-top: 1px solid rgba(15, 23, 42, 0.12);
         }
+
+        .payment-balances-table table th,
+        .payment-balances-table table td,
+        .payment-ledger-table table th,
+        .payment-ledger-table table td {
+            white-space: nowrap;
+            word-break: normal;
+        }
+
+        .payment-balances-table table th:first-child,
+        .payment-balances-table table td:first-child {
+            min-width: 10rem;
+        }
+
+        .payment-ledger-table table th:nth-child(1),
+        .payment-ledger-table table td:nth-child(1) {
+            min-width: 6rem;
+        }
+
+        .payment-ledger-table table th:nth-child(2),
+        .payment-ledger-table table td:nth-child(2) {
+            min-width: 11rem;
+        }
+
+        .payment-ledger-table table th:nth-child(3),
+        .payment-ledger-table table td:nth-child(3) {
+            min-width: 8rem;
+        }
+
+        .payment-ledger-table table th:nth-child(4),
+        .payment-ledger-table table td:nth-child(4) {
+            min-width: 10rem;
+        }
+
+        .payment-ledger-table table th:nth-child(5),
+        .payment-ledger-table table td:nth-child(5) {
+            min-width: 12rem;
+        }
+
+        .payment-ledger-table table th:nth-child(6),
+        .payment-ledger-table table td:nth-child(6),
+        .payment-ledger-table table th:nth-child(7),
+        .payment-ledger-table table td:nth-child(7),
+        .payment-ledger-table table th:nth-child(8),
+        .payment-ledger-table table td:nth-child(8) {
+            min-width: 9rem;
+        }
     </style>
 @endpush
 

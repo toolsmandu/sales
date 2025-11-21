@@ -7,7 +7,7 @@
     }
 
     .dashboard-nav {
-        flex: 0 0 240px;
+       
         padding: 1.1rem 1rem;
         border-radius: 1rem;
         background: linear-gradient(180deg, rgba(37, 99, 235, 0.12) 0%, rgba(79, 70, 229, 0.08) 100%);
@@ -212,13 +212,10 @@
     .dashboard-content {
         flex: 1;
         padding: 1.2rem;
-        border-radius: 0.75rem;
-        background: #fff;
-        border: 1px solid rgba(15, 23, 42, 0.08);
     }
 
     .dashboard-content.stack {
-        padding: 20px;
+        padding: 0px;
     }
 
     .card {
@@ -448,7 +445,9 @@
     .table-wrapper {
         border: 1px solid rgba(148, 163, 184, 0.4);
         border-radius: 0.75rem;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
     }
 
     table {
@@ -476,6 +475,33 @@
         word-break: break-word;
     }
 
+    .products-table,
+    .sales-table {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .products-table th:nth-child(2),
+    .products-table td:nth-child(2) {
+        min-width: 12rem;
+        white-space: nowrap;
+        word-break: normal;
+    }
+
+    .products-table th:nth-child(3),
+    .products-table td:nth-child(3) {
+        min-width: 10rem;
+        white-space: nowrap;
+        word-break: normal;
+    }
+
+    .products-table th:nth-child(4),
+    .products-table td:nth-child(4) {
+        min-width: 8rem;
+        white-space: nowrap;
+        word-break: normal;
+    }
+
     /* Order ID ko width badhaune*/
 .sales-table th:first-child,
 .sales-table td:first-child {
@@ -486,6 +512,12 @@
 .sales-table th:nth-child(2),
 .sales-table td:nth-child(2) {
     min-width: 10rem;
+    white-space: nowrap;
+}
+
+.sales-table th:nth-child(3),
+.sales-table td:nth-child(3) {
+    min-width: 12rem;
     white-space: nowrap;
 }
 
@@ -514,6 +546,12 @@
 .sales-table th:nth-child(8),
 .sales-table td:nth-child(8) {
     min-width: 4.5rem;
+}
+
+.sales-table th:nth-child(9),
+.sales-table td:nth-child(9) {
+    min-width: 9rem;
+    white-space: nowrap;
 }
 
     .amount-chip {
@@ -954,7 +992,9 @@
         border-radius: 0.9rem;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(255, 255, 255, 0.98);
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
@@ -1466,6 +1506,8 @@
             top: 0;
             width: 100%;
             box-shadow: 0 10px 28px rgba(79, 70, 229, 0.16);
+            padding: 0.65rem 0.75rem;
+            gap: 0.75rem;
         }
 
         .dashboard-nav__mobile-trigger {
@@ -1482,6 +1524,15 @@
         .dashboard-nav.is-open .dashboard-nav__content {
             max-height: 1800px;
             margin-top: 0.85rem;
+        }
+
+        .dashboard-nav button,
+        .dashboard-nav a {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .dashboard-nav__heading {
+            padding-bottom: 0.35rem;
         }
 
         .dashboard-content {
@@ -1505,8 +1556,19 @@
             font-size: 0.72rem;
         }
 
+        .dashboard-nav {
+            padding: 0.5rem 0.65rem;
+            gap: 0.6rem;
+            border-radius: 0.7rem;
+        }
+
+        .dashboard-nav button,
+        .dashboard-nav a {
+            padding: 0.45rem 0.65rem;
+        }
+
         .dashboard-content {
-            padding: 0.85rem;
+            padding: 0 0 1rem;
         }
     }
 </style>

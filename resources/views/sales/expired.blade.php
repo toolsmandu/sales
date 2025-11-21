@@ -115,7 +115,9 @@
             border-radius: 1rem;
             box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
             background: #fff;
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
             padding: 1rem;
             margin-top: 1rem;
         }

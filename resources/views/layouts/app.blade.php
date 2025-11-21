@@ -51,7 +51,7 @@
             .app-main {
                 width: 100%;
                 margin: 0;
-                padding: 0 1.5rem;
+                padding: 0 0.5rem;
             }
 
             .app-header nav {

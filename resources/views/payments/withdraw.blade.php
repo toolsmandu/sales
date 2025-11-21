@@ -8,6 +8,37 @@
             flex-direction: column;
             gap: 1.5rem;
         }
+
+        .withdrawals-table th,
+        .withdrawals-table td {
+            white-space: nowrap;
+            word-break: normal;
+        }
+
+        .withdrawals-table th:nth-child(1),
+        .withdrawals-table td:nth-child(1) {
+            min-width: 6rem;
+        }
+
+        .withdrawals-table th:nth-child(2),
+        .withdrawals-table td:nth-child(2) {
+            min-width: 11rem;
+        }
+
+        .withdrawals-table th:nth-child(3),
+        .withdrawals-table td:nth-child(3) {
+            min-width: 8rem;
+        }
+
+        .withdrawals-table th:nth-child(4),
+        .withdrawals-table td:nth-child(4) {
+            min-width: 10rem;
+        }
+
+        .withdrawals-table th:nth-child(5),
+        .withdrawals-table td:nth-child(5) {
+            min-width: 10rem;
+        }
     </style>
 @endpush
 
@@ -122,7 +153,7 @@
                 </header>
 
                 <div class="table-wrapper">
-                    <table class="table-striped">
+                    <table class="table-striped withdrawals-table">
                         
                         <thead>
                             <tr>
