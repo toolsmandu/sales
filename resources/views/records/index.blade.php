@@ -83,8 +83,22 @@
         .records-row--expiring td,
         .records-row--expiring:hover td {
             color: #4c1d95;
-            background: #e9ddff;
+            background: #767082ff;
             border-color: rgba(139, 92, 246, 0.45);
+        }
+
+        .records-row--highlight td,
+        .records-row--highlight:hover td {
+            background: #6b5f50ff;
+            border-color: rgba(38, 18, 169, 0.45);
+            box-shadow: inset 0 0 0 1px rgba(234, 88, 12, 0.35);
+            animation: records-highlight 1.6s ease-in-out 20;
+        }
+
+        @keyframes records-highlight {
+            0% { box-shadow: inset 0 0 0 1px rgba(234, 88, 12, 0.35); }
+            50% { box-shadow: inset 0 0 0 3px rgba(234, 88, 12, 0.2); }
+            100% { box-shadow: inset 0 0 0 1px rgba(234, 88, 12, 0.35); }
         }
 
         input:not([type="checkbox"], [type="radio"]),
@@ -420,6 +434,18 @@
                 deleteEntry: (productId, entryId) => @json(route('sheet.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
             };
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const parseHighlightParam = (raw) => {
+                if (!raw) return null;
+                const [table, recordId] = raw.split(':');
+                if (!recordId) {
+                    return { table: null, recordId: raw };
+                }
+                return { table, recordId };
+            };
+            const highlightFromUrl = parseHighlightParam(urlParams.get('highlight'));
+            const requestedProductId = urlParams.get('product') ? Number(urlParams.get('product')) : null;
+
             const columns = [
                 { id: 'serial', label: 'Serial', type: 'serial' },
                 { id: 'purchase_date', label: 'Purchase', type: 'date' },
@@ -484,6 +510,13 @@
                     column: null,
                     direction: 'asc',
                 },
+                highlight: {
+                    recordId: highlightFromUrl?.recordId ?? null,
+                    table: highlightFromUrl?.table ?? null,
+                    productId: requestedProductId,
+                    applied: false,
+                    focused: false,
+                },
             };
 
             const productSelect = document.getElementById('record-product-select');
@@ -500,6 +533,40 @@
             const createProductButton = document.getElementById('records-create-product');
             const newProductInput = document.getElementById('record-new-product');
 
+            const resolveHighlightProduct = () => {
+                if (!state.products.length || !state.highlight) {
+                    return null;
+                }
+                if (state.highlight.productId) {
+                    const matchById = state.products.find((product) => Number(product.id) === Number(state.highlight.productId));
+                    if (matchById) {
+                        return matchById;
+                    }
+                }
+                if (state.highlight.table) {
+                    const matchByTable = state.products.find((product) => product.table_name === state.highlight.table);
+                    if (matchByTable) {
+                        state.highlight.productId = matchByTable.id;
+                        return matchByTable;
+                    }
+                }
+                return null;
+            };
+
+            const focusHighlightedRow = () => {
+                if (!state.highlight?.recordId || state.highlight.focused) {
+                    return;
+                }
+                if (state.highlight.productId && Number(state.highlight.productId) !== Number(state.selectedProductId)) {
+                    return;
+                }
+                const highlightedRow = tableBody.querySelector('tr.records-row--highlight');
+                if (highlightedRow) {
+                    highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    state.highlight.focused = true;
+                }
+            };
+
             const getSelectedProductName = () => productInput?.value ?? '';
 
             const setStatus = (message, highlight = false) => {
@@ -513,6 +580,9 @@
                 productInput.value = product.name ?? '';
                 productInput.dataset.selectedName = product.name ?? '';
                 state.selectedProductId = product.id ?? null;
+                if (state.highlight?.recordId && !state.highlight.productId && product.id) {
+                    state.highlight.productId = product.id;
+                }
                 syncDropdown();
             };
 
@@ -779,6 +849,13 @@
                             row.classList.add('records-row--expired');
                         }
                     }
+                    const shouldHighlight = state.highlight?.recordId
+                        && String(rowId) === String(state.highlight.recordId)
+                        && (!state.highlight.productId || Number(state.highlight.productId) === Number(state.selectedProductId));
+                    if (shouldHighlight) {
+                        row.classList.add('records-row--highlight');
+                        state.highlight.applied = true;
+                    }
                     visible.forEach((col) => {
                         const cell = document.createElement('td');
                         if (col.id === 'actions') {
@@ -804,6 +881,7 @@
 
                 recordsCount.textContent = `${state.records.length} row${state.records.length === 1 ? '' : 's'}`;
                 applyColumnWidths();
+                focusHighlightedRow();
             };
 
             const getSortedRecords = () => {
@@ -1355,7 +1433,10 @@
             renderRecords();
 
             if (state.products.length) {
-                if (!productSelect.value) {
+                const preferredProduct = resolveHighlightProduct();
+                if (preferredProduct) {
+                    selectProduct(preferredProduct);
+                } else if (!productSelect.value) {
                     productSelect.value = state.products[0].id;
                     if (productInput && !productInput.value) {
                         productInput.value = state.products[0].name ?? '';

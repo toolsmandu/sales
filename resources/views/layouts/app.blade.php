@@ -452,6 +452,7 @@
                 font-size: 0.85rem;
                 color: rgba(15, 23, 42, 0.75);
                 line-height: 1.4;
+                white-space: pre-line;
             }
 
             .header-notifications__time {
@@ -517,7 +518,7 @@
                                             data-notification-type="{{ $type }}"
                                             @if(!empty($notification['id'])) data-notification-id="{{ $notification['id'] }}" @endif
                                             @if(!empty($notification['employee_id'])) data-employee-id="{{ $notification['employee_id'] }}" @endif
-                                            @if($isTaskNotification && !empty($notification['link']))
+                                            @if(!empty($notification['link']))
                                                 data-notification-link="{{ $notification['link'] }}"
                                                 role="button"
                                                 tabindex="0"

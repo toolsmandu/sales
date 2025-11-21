@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\AttendanceLog;
+use App\Models\RecordProduct;
 use App\Models\Sale;
 use App\Models\StockKey;
 use App\Models\Task;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class UserNotificationService
 {
@@ -81,6 +84,8 @@ class UserNotificationService
                 'current_time' => $shiftWarning['current_time'],
             ];
         }
+
+        $items = array_merge($items, self::recordExpiryNotifications($hidden));
 
         return [
             'items' => $items,
@@ -183,6 +188,8 @@ class UserNotificationService
                 ];
             }
         }
+
+        $items = array_merge($items, self::recordExpiryNotifications($hidden));
 
         return [
             'items' => $items,
@@ -320,5 +327,79 @@ class UserNotificationService
         }
 
         return $results;
+    }
+
+    protected static function recordExpiryNotifications(array $hidden = []): array
+    {
+        $notifications = [];
+        $today = Carbon::today('Asia/Kathmandu');
+
+        $products = RecordProduct::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'table_name']);
+
+        foreach ($products as $product) {
+            if (! Schema::hasTable($product->table_name)) {
+                continue;
+            }
+
+            $rows = DB::table($product->table_name)
+                ->select(['id', 'product', 'email', 'phone', 'purchase_date', 'expiry'])
+                ->whereNotNull('purchase_date')
+                ->whereNotNull('expiry')
+                ->get();
+
+            foreach ($rows as $row) {
+                $remaining = self::calculateRemainingDays($row, $today);
+                if ($remaining !== -1) {
+                    continue;
+                }
+
+                $notificationId = 'record_expiry_' . $product->table_name . '_' . $row->id;
+                if (in_array($notificationId, $hidden, true)) {
+                    continue;
+                }
+
+                $productName = trim((string) ($row->product ?? $product->name));
+                $period = is_numeric($row->expiry) ? ((int) $row->expiry . ' Days') : 'N/A';
+                $messageLines = [
+                    'Subscription of ' . ($productName !== '' ? $productName : 'Unknown product') . ' has just expired.',
+                    'Email: ' . ($row->email ?: 'N/A'),
+                    'Phone: ' . ($row->phone ?: 'N/A'),
+                    'Purchased Period: ' . $period,
+                ];
+
+                $notifications[] = [
+                    'type' => 'record_expiry',
+                    'id' => $notificationId,
+                    'title' => 'Subscription expired',
+                    'message' => implode(PHP_EOL, $messageLines),
+                    'link' => route('sheet.index', [
+                        'product' => $product->id,
+                        'highlight' => $product->table_name . ':' . $row->id,
+                    ]),
+                ];
+            }
+        }
+
+        return $notifications;
+    }
+
+    protected static function calculateRemainingDays(object $row, Carbon $today): ?int
+    {
+        $expiryDays = is_numeric($row->expiry) ? (int) $row->expiry : null;
+        if ($expiryDays === null || empty($row->purchase_date)) {
+            return null;
+        }
+
+        try {
+            $purchaseDate = Carbon::parse($row->purchase_date, 'Asia/Kathmandu')->startOfDay();
+        } catch (\Exception) {
+            return null;
+        }
+
+        $expiryDate = $purchaseDate->copy()->addDays($expiryDays);
+
+        return $today->diffInDays($expiryDate, false);
     }
 }
