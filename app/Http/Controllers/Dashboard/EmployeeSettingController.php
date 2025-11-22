@@ -21,15 +21,12 @@ class EmployeeSettingController extends Controller
 
         $validated = $request->validateWithBag('employeeSettings', [
             'daily_hours_quota' => ['required', 'integer', 'min:0'],
-            'holiday_weekdays' => ['nullable', 'array'],
-            'holiday_weekdays.*' => ['in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
         ]);
 
         EmployeeSetting::updateOrCreate(
             ['user_id' => $user->id],
             [
                 'daily_hours_quota' => $validated['daily_hours_quota'],
-                'holiday_weekdays' => $validated['holiday_weekdays'] ?? [],
             ],
         );
 

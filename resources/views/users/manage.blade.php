@@ -30,7 +30,6 @@
                                     <th scope="col">Email</th>
                                     <th scope="col">Position</th>
                                     <th scope="col">Daily Work Hours</th>
-                                    <th scope="col">Holidays</th>
                                     <th scope="col">Work Session</th>
                                     <th scope="col">Actions</th>
                                 </tr>
@@ -50,21 +49,11 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @php
-                                                $holidays = $teamMember->employeeSetting?->holiday_weekdays ?? [];
-                                            @endphp
-                                            @if ($holidays && count($holidays))
-                                                {{ collect($holidays)->map(fn ($day) => ucfirst($day))->implode(', ') }}
-                                        @else
-                                            —
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if ($teamMember->role === 'employee')
-                                            @php
-                                                $activeLog = $activeAttendanceLogs->get($teamMember->id);
-                                                $activeSince = $activeLog?->started_at
-                                                    ? $activeLog->started_at
+                                            @if ($teamMember->role === 'employee')
+                                                @php
+                                                    $activeLog = $activeAttendanceLogs->get($teamMember->id);
+                                                    $activeSince = $activeLog?->started_at
+                                                        ? $activeLog->started_at
                                                         ->timezone(config('app.timezone'))
                                                         ->format('M d, Y g:i A')
                                                     : null;
@@ -120,7 +109,6 @@
 
             <section class="card stack">
                 <h2>Work Schedule</h2>
-                <p class="helper-text">First row is the header. Leave cells blank or fill them in and click save.</p>
                 <form method="POST" action="{{ route('dashboard.settings.work-schedule') }}">
                     @csrf
                     <div class="table-wrapper">
@@ -276,35 +264,6 @@
                                     >
                                 </label>
                                 @error('daily_hours_quota', 'employeeSettings')
-                                    <small role="alert">{{ $message }}</small>
-                                @enderror
-
-                                @php
-                                    $weekdayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-                                    $selectedHolidays = old('holiday_weekdays', optional($employeeToEdit->employeeSetting)->holiday_weekdays ?? []);
-                                @endphp
-
-                                <fieldset class="stack">
-                                    <legend>Holiday weekdays</legend>
-                                    <div class="form-grid form-grid--compact">
-                                        @foreach ($weekdayOptions as $weekday)
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    name="holiday_weekdays[]"
-                                                    value="{{ $weekday }}"
-                                                    {{ in_array($weekday, $selectedHolidays ?? [], true) ? 'checked' : '' }}
-                                                >
-                                                {{ ucfirst($weekday) }}
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                    <p class="helper-text">Selected days will be treated as holidays for this employee.</p>
-                                </fieldset>
-                                @error('holiday_weekdays', 'employeeSettings')
-                                    <small role="alert">{{ $message }}</small>
-                                @enderror
-                                @error('holiday_weekdays.*', 'employeeSettings')
                                     <small role="alert">{{ $message }}</small>
                                 @enderror
 
