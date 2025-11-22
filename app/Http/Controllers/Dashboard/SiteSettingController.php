@@ -28,4 +28,26 @@ class SiteSettingController extends Controller
                 : 'User registration has been disabled.'
         );
     }
+
+    public function updateWorkSchedule(Request $request): RedirectResponse
+    {
+        if ($request->user()?->role !== 'admin') {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'work_schedule' => ['required', 'array', 'size:4'],
+            'work_schedule.*' => ['required', 'array', 'size:4'],
+            'work_schedule.*.*' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $schedule = array_map(
+            fn (array $row) => array_map(static fn ($cell) => $cell ?? '', $row),
+            $validated['work_schedule'],
+        );
+
+        SiteSetting::set('work_schedule_table', json_encode($schedule));
+
+        return back()->with('status', 'Work schedule saved.');
+    }
 }

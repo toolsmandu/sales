@@ -121,6 +121,7 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::post('/users/{user}/attendance/end', [AttendanceController::class, 'endForEmployee'])->name('users.attendance.end');
 
     Route::post('/settings/registration', [SiteSettingController::class, 'updateRegistration'])->name('settings.registration');
+    Route::post('/settings/work-schedule', [SiteSettingController::class, 'updateWorkSchedule'])->name('settings.work-schedule');
     Route::post('/notifications/hide', [NotificationController::class, 'hide'])->name('notifications.hide');
     Route::post('/notifications/overdue-snooze', [NotificationController::class, 'snoozeOverdue'])->name('notifications.overdue-snooze');
     Route::post('/impersonate/start', [ImpersonationController::class, 'start'])->name('impersonate.start');

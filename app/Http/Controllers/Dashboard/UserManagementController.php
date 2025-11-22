@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLog;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,10 +48,24 @@ class UserManagementController extends Controller
             }
         }
 
+        $storedSchedule = json_decode(SiteSetting::value('work_schedule_table', '[]'), true);
+        $workSchedule = array_fill(0, 4, array_fill(0, 4, ''));
+
+        if (is_array($storedSchedule)) {
+            foreach ($storedSchedule as $rowIndex => $row) {
+                foreach ($row as $colIndex => $value) {
+                    if (isset($workSchedule[$rowIndex][$colIndex])) {
+                        $workSchedule[$rowIndex][$colIndex] = $value ?? '';
+                    }
+                }
+            }
+        }
+
         return view('users.manage', [
             'teamMembers' => $teamMembers,
             'employeeToEdit' => $employeeToEdit,
             'activeAttendanceLogs' => $activeAttendanceLogs,
+            'workSchedule' => $workSchedule,
         ]);
     }
 

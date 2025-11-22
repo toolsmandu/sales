@@ -119,6 +119,62 @@
             </section>
 
             <section class="card stack">
+                <h2>Work Schedule</h2>
+                <p class="helper-text">First row is the header. Leave cells blank or fill them in and click save.</p>
+                <form method="POST" action="{{ route('dashboard.settings.work-schedule') }}">
+                    @csrf
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    @for ($col = 0; $col < 4; $col++)
+                                        <th scope="col">
+                                            <input
+                                                type="text"
+                                                name="work_schedule[0][{{ $col }}]"
+                                                value="{{ $workSchedule[0][$col] ?? '' }}"
+                                                placeholder="Header {{ $col + 1 }}"
+                                            >
+                                        </th>
+                                    @endfor
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for ($row = 1; $row < 4; $row++)
+                                    <tr>
+                                        @for ($col = 0; $col < 4; $col++)
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="work_schedule[{{ $row }}][{{ $col }}]"
+                                                    value="{{ $workSchedule[$row][$col] ?? '' }}"
+                                                    placeholder="Row {{ $row }} col {{ $col + 1 }}"
+                                                >
+                                            </td>
+                                        @endfor
+                                    </tr>
+                                @endfor
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @error('work_schedule')
+                        <small role="alert">{{ $message }}</small>
+                    @enderror
+                    @error('work_schedule.*')
+                        <small role="alert">{{ $message }}</small>
+                    @enderror
+                    @error('work_schedule.*.*')
+                        <small role="alert">{{ $message }}</small>
+                    @enderror
+
+                    <div class="form-actions">
+                        <button type="submit">Save Schedule</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card stack">
                 <h2>Manage Employee</h2>
 
                 @if (! $employeeToEdit)
@@ -220,6 +276,35 @@
                                     >
                                 </label>
                                 @error('daily_hours_quota', 'employeeSettings')
+                                    <small role="alert">{{ $message }}</small>
+                                @enderror
+
+                                @php
+                                    $weekdayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                                    $selectedHolidays = old('holiday_weekdays', optional($employeeToEdit->employeeSetting)->holiday_weekdays ?? []);
+                                @endphp
+
+                                <fieldset class="stack">
+                                    <legend>Holiday weekdays</legend>
+                                    <div class="form-grid form-grid--compact">
+                                        @foreach ($weekdayOptions as $weekday)
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    name="holiday_weekdays[]"
+                                                    value="{{ $weekday }}"
+                                                    {{ in_array($weekday, $selectedHolidays ?? [], true) ? 'checked' : '' }}
+                                                >
+                                                {{ ucfirst($weekday) }}
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    <p class="helper-text">Selected days will be treated as holidays for this employee.</p>
+                                </fieldset>
+                                @error('holiday_weekdays', 'employeeSettings')
+                                    <small role="alert">{{ $message }}</small>
+                                @enderror
+                                @error('holiday_weekdays.*', 'employeeSettings')
                                     <small role="alert">{{ $message }}</small>
                                 @enderror
 
