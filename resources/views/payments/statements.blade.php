@@ -107,7 +107,7 @@
                                 </label>
                             </div>
                             <div class="payment-monthly-actions">
-                                <button type="submit" class="filter-apply">Apply</button>
+                                <button type="submit" class="filter-apply">Filter</button>
                             </div>
                         </form>
                     </div>
@@ -206,7 +206,7 @@
                                 </div>
                                 <input type="hidden" name="per_page" value="{{ $perPage }}">
                                 <div class="payment-ledger-actions">
-                                    <button type="submit" class="ghost-button-statement">Apply</button>
+                                    <button type="submit" class="ghost-button-statement">Filter</button>
                                 </div>
                             </form>
                         </div>

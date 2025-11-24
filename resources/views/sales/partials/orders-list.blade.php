@@ -170,7 +170,22 @@
         </thead>
         <tbody>
             @forelse ($sales as $sale)
-                <tr>
+                @php
+                    $rawPhone = (string) ($sale->phone ?? '');
+                    $leadingSymbol = ltrim($rawPhone, " ()-\t\n\r\0\x0B");
+                    $hasLeadingPlus = str_starts_with($leadingSymbol, '+');
+                    $normalizedPhone = preg_replace('/[()\s-]+/', '', $rawPhone);
+                    $normalizedPhone = ltrim($normalizedPhone ?? '', '+');
+                    if ($normalizedPhone !== '' && $hasLeadingPlus) {
+                        $normalizedPhone = '+' . $normalizedPhone;
+                    }
+                    $phoneDisplay = $normalizedPhone !== '' ? $normalizedPhone : '—';
+                    $phoneDigits = preg_replace('/\D+/', '', $rawPhone);
+                @endphp
+                <tr
+                    data-phone="{{ $phoneDigits }}"
+                    data-email="{{ trim((string) $sale->email) }}"
+                >
                     <td>{{ $sale->serial_number }}</td>
                     @php
                         $saleRecordedAt = $sale->created_at?->timezone('Asia/Kathmandu');
@@ -190,17 +205,6 @@
                         $emailDisplay = trim((string) $sale->email);
                     @endphp
                     <td>{{ $emailDisplay !== '' ? $emailDisplay : '—' }}</td>
-                    @php
-                        $rawPhone = (string) ($sale->phone ?? '');
-                        $leadingSymbol = ltrim($rawPhone, " ()-\t\n\r\0\x0B");
-                        $hasLeadingPlus = str_starts_with($leadingSymbol, '+');
-                        $normalizedPhone = preg_replace('/[()\s-]+/', '', $rawPhone);
-                        $normalizedPhone = ltrim($normalizedPhone ?? '', '+');
-                        if ($normalizedPhone !== '' && $hasLeadingPlus) {
-                            $normalizedPhone = '+' . $normalizedPhone;
-                        }
-                        $phoneDisplay = $normalizedPhone !== '' ? $normalizedPhone : '—';
-                    @endphp
                     <td>
                         <div class="cell-with-action">
                             @php

@@ -174,6 +174,37 @@
         searchCombobox?.addEventListener('product-combobox:select', filterItems);
 
         stockRoot.addEventListener('click', (event) => {
+            const copyButton = event.target.closest('[data-stock-copy]');
+            if (copyButton) {
+                const item = copyButton.closest('[data-stock-item]');
+                const activation = item?.dataset.activation ?? '';
+                if (!activation) {
+                    return;
+                }
+                const feedback = copyButton.nextElementSibling && copyButton.nextElementSibling.classList.contains('copy-inline-feedback')
+                    ? copyButton.nextElementSibling
+                    : null;
+                const setFeedback = (text) => {
+                    if (!feedback) return;
+                    feedback.textContent = text;
+                    window.clearTimeout(copyButton._copyTimeout);
+                    copyButton._copyTimeout = window.setTimeout(() => {
+                        feedback.textContent = '';
+                    }, 1500);
+                };
+                const doCopy = async () => {
+                    try {
+                        await navigator.clipboard.writeText(activation);
+                        setFeedback('Copied');
+                    } catch (error) {
+                        console.warn('Unable to copy key', error);
+                        setFeedback('Copy failed');
+                    }
+                };
+                doCopy();
+                return;
+            }
+
             const editButton = event.target.closest('[data-stock-edit]');
             if (editButton) {
                 if (isAdmin && !editButton.disabled) {

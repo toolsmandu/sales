@@ -712,7 +712,6 @@
                                 value="{{ old('remarks', $saleToEdit->remarks) }}"
                                 placeholder="Remarks"
                                 maxlength="255"
-                                required
                             >
                         </label>
 
@@ -824,7 +823,7 @@
             ? "𝐘𝐨𝐮𝐫 𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: {$orderId}\n\n"
                 ."𝐏𝐫𝐨𝐝𝐮𝐜𝐭 𝐍𝐚𝐦𝐞: {$productDisplay}\n\n"
                 ."We are processing your order now. Please wait patiently until we deliver your order.\n\n"
-                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in future. Our team will ask you for your order ID to provide support."
+                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in future."
             : null;
     @endphp
 
@@ -863,7 +862,7 @@
                         </div>
                     </dl>
                     <div class="sale-confirmation-note">
-                        <strong>Important note:</strong> Please keep your Order ID safe to get support in future. Our team will ask you for your order ID to provide support.
+                        <strong>Important note:</strong> Please keep your Order ID safe to get support in Future.
                     </div>
                 </div>
                 <div class="sale-confirmation-actions">
@@ -888,6 +887,43 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const addPhoneInput = document.getElementById('sales-phone');
+            const addEmailInput = document.getElementById('sales-email');
+            const addEmailDefaultPlaceholder = addEmailInput?.getAttribute('placeholder') || 'Email address';
+            const collectPhoneEmailMap = () => {
+                const map = new Map();
+                document.querySelectorAll('#orders-table tbody tr').forEach((row) => {
+                    const phone = (row.dataset.phone || '').replace(/\D+/g, '');
+                    const email = (row.dataset.email || '').trim();
+                    if (phone && email && !map.has(phone)) {
+                        map.set(phone, email);
+                    }
+                });
+                return map;
+            };
+            const phoneEmailMap = collectPhoneEmailMap();
+            const autofillEmail = () => {
+                if (!addPhoneInput || !addEmailInput) return;
+                const digits = (addPhoneInput.value || '').replace(/\D+/g, '');
+                addEmailInput.setAttribute('placeholder', addEmailDefaultPlaceholder);
+                if (!digits) return;
+                const isEmailEmpty = addEmailInput.value.trim() === '';
+                const foundEmail = phoneEmailMap.get(digits);
+                if (foundEmail && isEmailEmpty) {
+                    addEmailInput.value = foundEmail;
+                    addEmailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    addEmailInput.setAttribute('placeholder', addEmailDefaultPlaceholder);
+                } else if (isEmailEmpty) {
+                    addEmailInput.setAttribute('placeholder', 'No Matching Records');
+                }
+            };
+            addPhoneInput?.addEventListener('blur', autofillEmail);
+            addPhoneInput?.addEventListener('change', autofillEmail);
+            addPhoneInput?.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    autofillEmail();
+                }
+            });
             const remarksModal = document.getElementById('sale-remarks-modal');
 
             if (remarksModal) {

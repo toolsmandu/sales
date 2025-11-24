@@ -130,7 +130,21 @@
                                         >
                                             <div class="stock-item__details">
                                                 <span class="stock-item__product">{{ $key->product->name }}</span>
-                                                <span class="stock-item__value">{{ $key->masked_activation_key }}</span>
+                                                <div class="stock-item__value-row">
+                                                    <span class="stock-item__value">{{ $key->masked_activation_key }}</span>
+                                                    <button
+                                                        type="button"
+                                                        class="cell-action-button"
+                                                        data-stock-copy
+                                                        aria-label="Copy activation key"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                            <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                            <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </button>
+                                                    <span class="copy-inline-feedback"></span>
+                                                </div>
                                                 <span class="stock-item__timestamp">
                                                     Added {{ optional($key->created_at)?->setTimezone('Asia/Kathmandu')->format('M j, Y g:i A') }}
                                                 </span>
@@ -199,7 +213,21 @@
                                         >
                                             <div class="stock-item__details">
                                                 <span class="stock-item__product">{{ $key->product->name }}</span>
-                                                <span class="stock-item__value">{{ $key->activation_key }}</span>
+                                                <div class="stock-item__value-row">
+                                                    <span class="stock-item__value">{{ $key->activation_key }}</span>
+                                                    <button
+                                                        type="button"
+                                                        class="cell-action-button"
+                                                        data-stock-copy
+                                                        aria-label="Copy activation key"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                            <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                            <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                        </svg>
+                                                    </button>
+                                                    <span class="copy-inline-feedback"></span>
+                                                </div>
                                                 @php
                                                     $viewedAt = optional($key->viewed_at)?->setTimezone('Asia/Kathmandu');
                                                     $viewerLabel = $key->viewedBy?->name ?? '—';

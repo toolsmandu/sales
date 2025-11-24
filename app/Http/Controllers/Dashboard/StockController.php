@@ -8,6 +8,7 @@ use App\Models\StockKey;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -81,9 +82,15 @@ class StockController extends Controller
         $uniqueKeys = $keys->unique()->values();
 
         $existingKeys = StockKey::query()
-            ->whereIn('activation_key', $uniqueKeys)
             ->pluck('activation_key')
-            ->map(fn (string $value) => strtolower($value))
+            ->map(function ($value) {
+                try {
+                    return strtolower(Crypt::decryptString($value));
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            })
+            ->filter()
             ->all();
 
         $duplicates = [];
@@ -108,7 +115,7 @@ class StockController extends Controller
 
             $payload[] = [
                 'product_id' => (int) $data['product_id'],
-                'activation_key' => $key,
+                'activation_key' => Crypt::encryptString($normalized),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -149,11 +156,32 @@ class StockController extends Controller
         abort_unless($request->user()?->role === 'admin', 403);
 
         $data = $request->validate([
-            'activation_key' => ['required', 'string', 'max:255', Rule::unique('stock_keys', 'activation_key')->ignore($stockKey->getKey())],
+            'activation_key' => ['required', 'string', 'max:255'],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
         ]);
 
-        $payload = ['activation_key' => trim($data['activation_key'])];
+        $normalizedKey = strtolower(trim($data['activation_key']));
+
+        $existingKeys = StockKey::query()
+            ->whereKeyNot($stockKey->getKey())
+            ->pluck('activation_key')
+            ->map(function ($value) {
+                try {
+                    return strtolower(Crypt::decryptString($value));
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            })
+            ->filter()
+            ->all();
+
+        if (in_array($normalizedKey, $existingKeys, true)) {
+            throw ValidationException::withMessages([
+                'activation_key' => 'This activation key already exists.',
+            ]);
+        }
+
+        $payload = ['activation_key' => Crypt::encryptString($normalizedKey)];
 
         if (array_key_exists('product_id', $data) && $data['product_id'] !== null) {
             $payload['product_id'] = (int) $data['product_id'];

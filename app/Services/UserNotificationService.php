@@ -163,7 +163,7 @@ class UserNotificationService
                     'type' => 'stock_view',
                     'id' => $id,
                     'title' => 'Stock key viewed',
-                    'message' => "{$viewer} has viewed the {$product}'s key: {$key}",
+                    'message' => "{$viewer} has viewed the {$product}'s key.",
                 ];
             }
         }

@@ -128,6 +128,13 @@
         color: rgba(15, 23, 42, 0.95);
     }
 
+    .stock-item__value-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+    }
+
     .stock-item__value {
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
         font-size: 0.95rem;

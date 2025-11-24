@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -75,7 +76,8 @@ class RecordController extends Controller
         $records = DB::table($tableName)
             ->orderByDesc('purchase_date')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->map(fn ($record) => $this->decryptSensitiveFields($record));
 
         return response()->json([
             'records' => $records,
@@ -94,8 +96,8 @@ class RecordController extends Controller
         $payload['created_at'] = $now;
         $payload['updated_at'] = $now;
 
-        $recordId = DB::table($tableName)->insertGetId($payload);
-        $record = DB::table($tableName)->find($recordId);
+        $recordId = DB::table($tableName)->insertGetId($this->encryptSensitiveFields($payload));
+        $record = $this->decryptSensitiveFields(DB::table($tableName)->find($recordId));
 
         return response()->json([
             'record' => $record,
@@ -129,9 +131,9 @@ class RecordController extends Controller
 
         DB::table($tableName)
             ->where('id', $entryId)
-            ->update($payload);
+            ->update($this->encryptSensitiveFields($payload, true));
 
-        $record = DB::table($tableName)->find($entryId);
+        $record = $this->decryptSensitiveFields(DB::table($tableName)->find($entryId));
 
         return response()->json([
             'record' => $record,
@@ -254,7 +256,7 @@ class RecordController extends Controller
                 $payload['created_at'] = Carbon::now();
                 $payload['updated_at'] = Carbon::now();
 
-                DB::table($tableName)->insert($payload);
+                DB::table($tableName)->insert($this->encryptSensitiveFields($payload));
                 $inserted++;
             }
         } finally {
@@ -296,6 +298,42 @@ class RecordController extends Controller
         }
 
         return $data;
+    }
+
+    private function encryptSensitiveFields(array $payload, bool $partial = false): array
+    {
+        foreach (['password', 'password2'] as $field) {
+            if ($partial && !array_key_exists($field, $payload)) {
+                continue;
+            }
+
+            if (isset($payload[$field]) && $payload[$field] !== '') {
+                $payload[$field] = Crypt::encryptString($payload[$field]);
+            }
+        }
+
+        return $payload;
+    }
+
+    private function decryptSensitiveFields(object $record): object
+    {
+        foreach (['password', 'password2'] as $field) {
+            if (!isset($record->{$field}) || $record->{$field} === null) {
+                continue;
+            }
+
+            try {
+                $record->{$field} = Crypt::decryptString($record->{$field});
+            } catch (\Throwable $e) {
+                Log::warning("Unable to decrypt {$field} for record", [
+                    'record_id' => $record->id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+                $record->{$field} = $record->{$field};
+            }
+        }
+
+        return $record;
     }
 
     private function createTableIfMissing(string $tableName): void

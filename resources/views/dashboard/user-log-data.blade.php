@@ -599,12 +599,12 @@
                             <div>
 <button type="submit" style="
     margin-top: 30px;
-">Apply filters</button>                            </div>
+">Filter</button>                            </div>
                         @else
                             <div>
 <button type="submit" style="
     margin-top: 30px;
-">Apply filters</button>                            </div>
+">Filter</button>                            </div>
                         @endif
                     </div>
                 </form>

@@ -494,7 +494,7 @@ class SaleController extends Controller
             'sales_amount' => ['required', 'numeric', 'min:0'],
             'payment_method' => ['required', 'string', 'exists:payment_methods,slug'],
             'purchase_date' => ['required', 'date_format:Y-m-d'],
-            'remarks' => ['required', 'string', 'max:255'],
+            'remarks' => ['nullable', 'string', 'max:255'],
             'product_expiry_days' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', Rule::in(['completed', 'refunded'])],
         ]);

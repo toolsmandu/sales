@@ -221,7 +221,7 @@
                                 @endif
                             </select>
                         </label>
-                        <button type="submit" style="margin: 20px;">Apply</button>
+                        <button type="submit" style="margin: 20px;">Filter</button>
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; margin: 0;">
                             <span>Rows:</span>
                             <select name="top_per_page" onchange="this.form.submit()">
@@ -315,7 +315,7 @@
                                 </div>
                             </div>
                             <div class="reports-contact-actions">
-                                <button type="submit" style="margin: 15px;">Apply</button>
+                                <button type="submit" style="margin: 15px;">Filter</button>
                                 <a
                                     class="secondary outline"
                                     href="{{ route('reports', array_merge(request()->all(), ['export' => 'contacts'])) }}"

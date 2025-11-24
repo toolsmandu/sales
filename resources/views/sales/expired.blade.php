@@ -7,6 +7,16 @@
             font-weight: 600;
         }
 
+        .expired-search {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .expired-search input {
+            min-width: 260px;
+        }
+
         .remaining-chip--positive {
             color: #15803d;
         }
@@ -163,6 +173,14 @@
             <div class="expired-header">
                 <h2>Expired Orders</h2>
                 <div class="expired-filter-actions">
+                    <label class="expired-search">
+                        <input
+                            type="search"
+                            id="expired-search"
+                            placeholder="Order ID/Email/Phone/Remarks"
+                            aria-label="Search expired orders"
+                        >
+                    </label>
                     <form method="GET" class="expired-filter-form">
                         @foreach (request()->except(['remaining_filter', 'page']) as $param => $value)
                             <input type="hidden" name="{{ $param }}" value="{{ $value }}">
@@ -227,7 +245,12 @@
                                 $purchaseDate = $sale->purchase_date ? $sale->purchase_date->copy() : null;
                                 $expiryDate = $sale->calculated_expiry_date ?? null;
                             @endphp
-                            <tr>
+                            <tr
+                                data-expired-order="{{ Str::lower(trim((string) $sale->serial_number)) }}"
+                                data-expired-email="{{ Str::lower(trim((string) $sale->email)) }}"
+                                data-expired-phone="{{ $plainPhone }}"
+                                data-expired-remarks="{{ Str::lower(trim((string) $sale->remarks)) }}"
+                            >
                                 <td>{{ $sale->serial_number }}</td>
                           
                                 <td>{{ $productDisplay !== '' ? $productDisplay : '—' }}</td>
@@ -369,3 +392,34 @@
         </section>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('expired-search');
+            const rows = Array.from(document.querySelectorAll('tr[data-expired-order]'));
+            const normalize = (value) => (value || '').toString().trim().toLowerCase();
+
+            const performSearch = () => {
+                const term = normalize(searchInput?.value || '');
+                if (!searchInput) return;
+                rows.forEach((row) => row.classList.remove('is-hidden'));
+                if (!term) {
+                    return;
+                }
+                rows.forEach((row) => {
+                    const haystacks = [
+                        row.dataset.expiredOrder,
+                        row.dataset.expiredEmail,
+                        row.dataset.expiredPhone,
+                        row.dataset.expiredRemarks,
+                    ].map(normalize);
+                    const matches = haystacks.some((value) => value.includes(term));
+                    row.classList.toggle('is-hidden', !matches);
+                });
+            };
+
+            searchInput?.addEventListener('input', performSearch);
+        });
+    </script>
+@endpush
