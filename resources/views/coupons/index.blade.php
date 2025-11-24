@@ -357,6 +357,7 @@
                                                     <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                 </svg>
                                             </button>
+                                            <span class="copy-inline-feedback"></span>
                                         </div>
                                     </td>
                                     <td>{{ $coupon->product->name ?? 'N/A' }}</td>
@@ -628,18 +629,33 @@
             });
 
             document.querySelectorAll('button[data-copy]').forEach((button) => {
-                const text = button.dataset.copy || '';
                 const originalLabel = button.getAttribute('aria-label') || 'Copy';
+                const feedback = button.nextElementSibling && button.nextElementSibling.classList.contains('copy-inline-feedback')
+                    ? button.nextElementSibling
+                    : null;
+
+                const setFeedback = (text) => {
+                    if (!feedback) return;
+                    feedback.textContent = text;
+                    window.clearTimeout(button._copyIndicatorTimeout);
+                    button._copyIndicatorTimeout = window.setTimeout(() => {
+                        feedback.textContent = '';
+                    }, 1500);
+                };
+
                 button.addEventListener('click', async () => {
+                    const text = button.dataset.copy || '';
                     if (!text) {
                         return;
                     }
                     try {
                         await navigator.clipboard.writeText(text);
                         button.setAttribute('aria-label', 'Copied');
+                        setFeedback('Copied');
                     } catch (error) {
                         console.error('Unable to copy coupon code', error);
                         button.setAttribute('aria-label', 'Copy failed');
+                        setFeedback('Copy failed');
                     }
                     setTimeout(() => {
                         button.setAttribute('aria-label', originalLabel);

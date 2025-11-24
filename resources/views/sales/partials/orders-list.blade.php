@@ -352,6 +352,22 @@
 
             if (!table || !colgroup) return;
 
+            const showInlineCopyFeedback = (button, message = 'Copied') => {
+                if (!button) return;
+                let indicator = button._copyIndicator;
+                if (!indicator) {
+                    indicator = document.createElement('span');
+                    indicator.className = 'copy-inline-feedback';
+                    button.insertAdjacentElement('afterend', indicator);
+                    button._copyIndicator = indicator;
+                }
+                indicator.textContent = message;
+                window.clearTimeout(button._copyIndicatorTimeout);
+                button._copyIndicatorTimeout = window.setTimeout(() => {
+                    indicator.textContent = '';
+                }, 1500);
+            };
+
             document.querySelectorAll('#orders-table button[data-copy]').forEach((button) => {
                 const value = button.dataset.copy ?? '';
                 const originalLabel = button.getAttribute('aria-label') || 'Copy';
@@ -360,6 +376,7 @@
                     try {
                         await navigator.clipboard.writeText(value);
                         button.setAttribute('aria-label', 'Copied');
+                        showInlineCopyFeedback(button, 'Copied');
                     } catch (error) {
                         console.warn('Clipboard API failed, using fallback.', error);
                         const textarea = document.createElement('textarea');
@@ -372,9 +389,11 @@
                         try {
                             document.execCommand('copy');
                             button.setAttribute('aria-label', 'Copied');
+                            showInlineCopyFeedback(button, 'Copied');
                         } catch (fallbackError) {
                             console.error('Fallback copy failed', fallbackError);
                             button.setAttribute('aria-label', 'Copy failed');
+                            showInlineCopyFeedback(button, 'Copy failed');
                         } finally {
                             document.body.removeChild(textarea);
                         }

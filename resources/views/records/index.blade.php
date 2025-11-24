@@ -595,6 +595,22 @@
                 statusLabel.style.color = highlight ? '#15803d' : '#075985';
             };
 
+            const showInlineCopyFeedback = (button, message) => {
+                if (!button) return;
+                let indicator = button._copyIndicator;
+                if (!indicator) {
+                    indicator = document.createElement('span');
+                    indicator.className = 'copy-inline-feedback';
+                    button.insertAdjacentElement('afterend', indicator);
+                    button._copyIndicator = indicator;
+                }
+                indicator.textContent = message;
+                window.clearTimeout(button._copyIndicatorTimeout);
+                button._copyIndicatorTimeout = window.setTimeout(() => {
+                    indicator.textContent = '';
+                }, 1500);
+            };
+
             const selectProduct = (product) => {
                 if (!productSelect || !productInput) return;
                 productSelect.value = product.id ?? '';
@@ -1042,6 +1058,10 @@
                         `;
                         wrapper.appendChild(copyButton);
 
+                        const feedback = document.createElement('span');
+                        feedback.className = 'copy-inline-feedback';
+                        wrapper.appendChild(feedback);
+
                         return wrapper;
                     }
 
@@ -1434,16 +1454,54 @@
                     if (value === '') {
                         return;
                     }
-                    try {
-                        await navigator.clipboard.writeText(value);
-                        button.setAttribute('aria-label', 'Copied');
-                    } catch (error) {
-                        console.error('Unable to copy', error);
-                        button.setAttribute('aria-label', 'Copy failed');
+                    const feedback = button.nextElementSibling && button.nextElementSibling.classList.contains('copy-inline-feedback')
+                        ? button.nextElementSibling
+                        : null;
+
+                    const setFeedback = (text) => {
+                        if (feedback) {
+                            feedback.textContent = text;
+                            window.clearTimeout(button._copyIndicatorTimeout);
+                            button._copyIndicatorTimeout = window.setTimeout(() => {
+                                feedback.textContent = '';
+                            }, 1500);
+                        }
+                    };
+
+                    const writeClipboard = async () => {
+                        try {
+                            await navigator.clipboard.writeText(value);
+                            button.setAttribute('aria-label', 'Copied');
+                            setFeedback('Copied');
+                        } catch (error) {
+                            console.error('Unable to copy', error);
+                            button.setAttribute('aria-label', 'Copy failed');
+                            setFeedback('Copy failed');
+                        }
+                    };
+
+                    if (navigator.clipboard?.writeText) {
+                        writeClipboard();
+                    } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = value;
+                        textarea.setAttribute('readonly', 'readonly');
+                        textarea.style.position = 'absolute';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        try {
+                            document.execCommand('copy');
+                            button.setAttribute('aria-label', 'Copied');
+                            setFeedback('Copied');
+                        } catch (fallbackError) {
+                            console.error('Fallback copy failed', fallbackError);
+                            button.setAttribute('aria-label', 'Copy failed');
+                            setFeedback('Copy failed');
+                        } finally {
+                            document.body.removeChild(textarea);
+                        }
                     }
-                    setTimeout(() => {
-                        button.setAttribute('aria-label', `Copy ${field}`);
-                    }, 1500);
                     return;
                 }
 

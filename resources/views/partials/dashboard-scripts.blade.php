@@ -1651,6 +1651,22 @@
                     }
                 });
 
+                function showInlineCopyFeedback(target, message) {
+                    if (!target) return;
+                    let indicator = target._copyIndicator;
+                    if (!indicator) {
+                        indicator = document.createElement('span');
+                        indicator.className = 'copy-inline-feedback';
+                        target.insertAdjacentElement('afterend', indicator);
+                        target._copyIndicator = indicator;
+                    }
+                    indicator.textContent = message;
+                    window.clearTimeout(target._copyIndicatorTimeout);
+                    target._copyIndicatorTimeout = window.setTimeout(() => {
+                        indicator.textContent = '';
+                    }, 1500);
+                }
+
                 function showCopyToast(message) {
                     if (!notificationToast) {
                         return;
@@ -1673,6 +1689,9 @@
                         return;
                     }
 
+                    const feedbackTarget = target.closest('.cell-action-button, .cell-with-action, .data-copy-field, button, [role="button"]') || target;
+                    const feedbackMessage = target.getAttribute('data-copy-feedback') || 'Copied';
+
                     const value = target.getAttribute('data-copy') ?? '';
                     if (value === '') {
                         return;
@@ -1680,7 +1699,8 @@
 
                     try {
                         await navigator.clipboard.writeText(value);
-                        showCopyToast('Copied to clipboard');
+                        showCopyToast(feedbackMessage);
+                        showInlineCopyFeedback(feedbackTarget, feedbackMessage);
                     } catch (error) {
                         console.warn('Clipboard copy failed, attempting fallback.', error);
                         const textarea = document.createElement('textarea');
@@ -1692,7 +1712,8 @@
                         textarea.select();
                         try {
                             document.execCommand('copy');
-                            showCopyToast('Copied to clipboard');
+                            showCopyToast(feedbackMessage);
+                            showInlineCopyFeedback(feedbackTarget, feedbackMessage);
                         } catch (fallbackError) {
                             console.warn('Fallback copy failed.', fallbackError);
                             window.alert('Unable to copy to clipboard.');

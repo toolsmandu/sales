@@ -1178,6 +1178,7 @@
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         line-height: 0;
+        margin-top: 12px;
     }
 
     .cell-action-button:hover,
@@ -1191,6 +1192,16 @@
     .cell-action-button svg {
         width: 1rem;
         height: 1rem;
+    }
+
+    .copy-inline-feedback {
+        margin-left: 0.35rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #16a34a;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
     }
 
     .copy-toast {
