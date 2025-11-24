@@ -1,8 +1,6 @@
 @extends('layouts.app')
 
 @php
-    use Illuminate\Support\Facades\Storage;
-
     $paymentMethodLimits = $paymentMethodLimits ?? [];
 @endphp
 
@@ -237,7 +235,10 @@
                     <div class="qr-grid">
                         @foreach ($qrs as $qr)
                             @php
-                                $qrSrc = $qr->image_data ?? Storage::disk('public')->url($qr->file_path);
+                                $qrSrc = $qr->image_data;
+                                if (! $qrSrc && $qr->file_path) {
+                                    $qrSrc = asset('storage/' . ltrim($qr->file_path, '/'));
+                                }
                                 $methodStats = $paymentMethodLimits[$qr->payment_method_number] ?? null;
                                 $availableText = $methodStats
                                     ? ($methodStats['available'] === null
@@ -365,6 +366,74 @@
             const toggleBtn = document.getElementById('qr-toggle');
             const cancelBtn = document.getElementById('qr-cancel');
 
+            const normalizeSrc = (src) => {
+                if (!src) {
+                    return '';
+                }
+
+                try {
+                    const url = new URL(src, window.location.origin);
+                    if (window.location.protocol === 'https:' && url.protocol === 'http:') {
+                        url.protocol = 'https:';
+                    }
+                    return url.toString();
+                } catch (error) {
+                    return src;
+                }
+            };
+
+            const blobToPng = (blob) => new Promise((resolve, reject) => {
+                const img = new Image();
+                const objectUrl = URL.createObjectURL(blob);
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob((pngBlob) => {
+                        URL.revokeObjectURL(objectUrl);
+                        if (pngBlob) {
+                            resolve(pngBlob);
+                        } else {
+                            reject(new Error('Unable to convert image'));
+                        }
+                    }, 'image/png');
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(new Error('Unable to load image'));
+                };
+
+                img.src = objectUrl;
+            });
+
+            const copyImageToClipboard = async (src) => {
+                if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+                    throw new Error('Image clipboard not supported');
+                }
+
+                const resolvedSrc = normalizeSrc(src);
+                const response = await fetch(resolvedSrc, { mode: 'cors' });
+                if (!response.ok) {
+                    throw new Error('Failed to fetch image');
+                }
+
+                const blob = await response.blob();
+                const writeBlob = async (mimeType, data) => {
+                    await navigator.clipboard.write([new ClipboardItem({ [mimeType]: data })]);
+                };
+
+                try {
+                    await writeBlob(blob.type || 'image/png', blob);
+                } catch (error) {
+                    const pngBlob = await blobToPng(blob);
+                    await writeBlob('image/png', pngBlob);
+                }
+            };
+
             const setFormVisible = (visible) => {
                 formWrapper?.classList.toggle('is-hidden', !visible);
             };
@@ -386,9 +455,7 @@
                         if (text) {
                             await navigator.clipboard.writeText(text);
                         } else if (src) {
-                            const response = await fetch(src);
-                            const blob = await response.blob();
-                            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                            await copyImageToClipboard(src);
                         } else {
                             return;
                         }

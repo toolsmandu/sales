@@ -12,6 +12,7 @@ use App\Http\Controllers\Dashboard\EmployeeSettingController;
 use App\Http\Controllers\Dashboard\PaymentMethodController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\SaleController;
+use App\Http\Controllers\Dashboard\SettingsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\WithdrawalController;
 use App\Http\Controllers\Dashboard\QrController;
@@ -87,6 +88,7 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
     Route::post('/sheet/products/{recordProduct}/import', [RecordController::class, 'importEntries'])->name('sheet.entries.import');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
+    Route::get('/settings', [SettingsController::class, 'index'])->name('dashboard.settings.index');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
