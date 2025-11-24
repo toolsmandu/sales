@@ -1,5 +1,10 @@
 @extends('layouts.app')
 
+@php
+    $isEmployee = auth()->user()?->role === 'employee';
+    $canDeleteRecords = ! $isEmployee;
+@endphp
+
 @push('styles')
     @include('partials.dashboard-styles')
     @include('partials.product-combobox-styles')
@@ -192,6 +197,7 @@
             align-items: center;
             height: 2.6rem;
             box-sizing: border-box;
+            text-align: center;
         }
 
         .records-table textarea {
@@ -213,6 +219,8 @@
             align-items: center;
             box-sizing: border-box;
             transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            text-align: center;
+            justify-content: center;
         }
 
         .records-table [contenteditable="true"]:focus-visible {
@@ -335,6 +343,12 @@
             background: rgba(255, 255, 255, 0.96);
             box-shadow: 0 8px 16px rgba(15, 23, 42, 0.05);
         }
+
+        .records-copy {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
     </style>
 @endpush
 
@@ -428,6 +442,7 @@
     @include('partials.product-combobox-scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const canDeleteRecords = @json($canDeleteRecords);
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const routes = {
                 products: @json(route('sheet.products')),
@@ -1007,6 +1022,29 @@
                     editable.contentEditable = 'true';
                     editable.dataset.field = col.id;
                     editable.innerHTML = escapeHtml(value ?? '');
+
+                    if (['email', 'password', 'email2', 'password2'].includes(col.id)) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'records-copy';
+                        wrapper.appendChild(editable);
+
+                        const copyButton = document.createElement('button');
+                        copyButton.type = 'button';
+                        copyButton.className = 'cell-action-button';
+                        copyButton.dataset.action = 'copy';
+                        copyButton.dataset.copyField = col.id;
+                        copyButton.setAttribute('aria-label', `Copy ${col.label}`);
+                        copyButton.innerHTML = `
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        `;
+                        wrapper.appendChild(copyButton);
+
+                        return wrapper;
+                    }
+
                     return editable;
                 }
                 if (col.id === 'actions') {
@@ -1027,6 +1065,9 @@
                         wrapper.appendChild(save);
                         wrapper.appendChild(cancel);
                     } else {
+                        if (!canDeleteRecords) {
+                            return wrapper;
+                        }
                         const del = document.createElement('button');
                         del.type = 'button';
                         del.className = 'icon-button icon-button--danger';
@@ -1383,7 +1424,33 @@
                     return;
                 }
 
+                if (action === 'copy') {
+                    const field = button.dataset.copyField;
+                    if (!field) {
+                        return;
+                    }
+                    const target = row.querySelector(`[data-field="${field}"]`);
+                    const value = target?.textContent?.trim() ?? '';
+                    if (value === '') {
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        button.setAttribute('aria-label', 'Copied');
+                    } catch (error) {
+                        console.error('Unable to copy', error);
+                        button.setAttribute('aria-label', 'Copy failed');
+                    }
+                    setTimeout(() => {
+                        button.setAttribute('aria-label', `Copy ${field}`);
+                    }, 1500);
+                    return;
+                }
+
                 if (action === 'delete') {
+                    if (!canDeleteRecords) {
+                        return;
+                    }
                     if (!confirm('Delete this row?')) {
                         return;
                     }

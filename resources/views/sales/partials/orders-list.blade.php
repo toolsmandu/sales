@@ -18,6 +18,8 @@
     if ($filterProductValue && !$filterProductOptions->contains($filterProductValue)) {
         $filterProductOptions->prepend($filterProductValue);
     }
+
+    $isEmployee = auth()->user()?->role === 'employee';
 @endphp
 
 <form method="GET" action="{{ route('orders.index') }}" class="sales-filter-row" autocomplete="off">
@@ -257,22 +259,24 @@
                                     <path d="M14.5 5.5l4 4" stroke="currentColor" stroke-width="1.2"/>
                                 </svg>
                             </a>
-                            <form
-                                method="POST"
-                                action="{{ route('dashboard.orders.destroy', $sale) }}"
-                                onsubmit="return confirm('Delete sale {{ $sale->serial_number }}? This cannot be undone.');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="icon-button icon-button--danger" aria-label="Delete sale {{ $sale->serial_number }}">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                        <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                        <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                        <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                        <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                    </svg>
-                                </button>
-                            </form>
+                            @unless ($isEmployee)
+                                <form
+                                    method="POST"
+                                    action="{{ route('dashboard.orders.destroy', $sale) }}"
+                                    onsubmit="return confirm('Delete sale {{ $sale->serial_number }}? This cannot be undone.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="icon-button icon-button--danger" aria-label="Delete sale {{ $sale->serial_number }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                            @endunless
                         </div>
                     </td>
                 </tr>
@@ -347,6 +351,39 @@
             const colgroup = document.getElementById('orders-colgroup');
 
             if (!table || !colgroup) return;
+
+            document.querySelectorAll('#orders-table button[data-copy]').forEach((button) => {
+                const value = button.dataset.copy ?? '';
+                const originalLabel = button.getAttribute('aria-label') || 'Copy';
+                button.addEventListener('click', async () => {
+                    if (!value) return;
+                    try {
+                        await navigator.clipboard.writeText(value);
+                        button.setAttribute('aria-label', 'Copied');
+                    } catch (error) {
+                        console.warn('Clipboard API failed, using fallback.', error);
+                        const textarea = document.createElement('textarea');
+                        textarea.value = value;
+                        textarea.setAttribute('readonly', 'readonly');
+                        textarea.style.position = 'absolute';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        try {
+                            document.execCommand('copy');
+                            button.setAttribute('aria-label', 'Copied');
+                        } catch (fallbackError) {
+                            console.error('Fallback copy failed', fallbackError);
+                            button.setAttribute('aria-label', 'Copy failed');
+                        } finally {
+                            document.body.removeChild(textarea);
+                        }
+                    }
+                    setTimeout(() => {
+                        button.setAttribute('aria-label', originalLabel);
+                    }, 1500);
+                });
+            });
 
             const loadWidths = () => {
                 try {

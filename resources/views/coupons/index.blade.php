@@ -14,6 +14,7 @@
     $filterProduct = $products->firstWhere('id', (int) ($filters['product'] ?? null));
     $couponCodeError = $errors->first('coupon_entries.*.code');
     $couponRemarksError = $errors->first('coupon_entries.*.remarks');
+    $isEmployee = auth()->user()?->role === 'employee';
 @endphp
 
 @push('styles')
@@ -83,6 +84,12 @@
             gap: 0.85rem;
         }
 
+        .coupon-code {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
         .coupon-inline-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -114,6 +121,24 @@
 
         .is-hidden {
             display: none;
+        }
+
+        .coupon-code .cell-action-button {
+            padding: 0.35rem;
+            border-radius: 0.45rem;
+            background: rgba(79, 70, 229, 0.06);
+            color: #4338ca;
+            border: 1px solid rgba(79, 70, 229, 0.2);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .coupon-code .cell-action-button:hover,
+        .coupon-code .cell-action-button:focus-visible {
+            transform: translateY(-1px);
+            background: rgba(79, 70, 229, 0.12);
+            border-color: rgba(79, 70, 229, 0.4);
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+            outline: none;
         }
     </style>
 @endpush
@@ -318,28 +343,57 @@
                         <tbody>
                             @forelse ($coupons as $coupon)
                                 <tr>
-                                    <td>{{ $coupon->code }}</td>
+                                    <td>
+                                        <div class="coupon-code">
+                                            <span>{{ $coupon->code }}</span>
+                                            <button
+                                                type="button"
+                                                class="cell-action-button"
+                                                data-copy="{{ $coupon->code }}"
+                                                aria-label="Copy coupon {{ $coupon->code }}"
+                                            >
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                    <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td>{{ $coupon->product->name ?? 'N/A' }}</td>
                                     <td>{{ $coupon->remarks ?? '—' }}</td>
                                     <td>
                                         <div class="table-actions">
                                             <button
                                                 type="button"
-                                                class="ghost-button"
+                                                class="icon-button"
                                                 data-coupon-edit-toggle="{{ $coupon->id }}"
+                                                aria-label="Edit coupon {{ $coupon->code }}"
                                             >
-                                                Edit
+                                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                                    <path d="M4 15.5V20h4.5L19 9.5l-4.5-4.5L4 15.5z" fill="currentColor" />
+                                                    <path d="M14.5 5.5l4 4" stroke="currentColor" stroke-width="1.2" />
+                                                </svg>
                                             </button>
-                                            <form
-                                                method="POST"
-                                                action="{{ route('coupons.destroy', $coupon) }}"
-                                                data-coupon-delete-form
-                                                data-confirm="Delete coupon {{ $coupon->code }}?"
-                                            >
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="ghost-button button-danger">Delete</button>
-                                            </form>
+                                            @unless ($isEmployee)
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route('coupons.destroy', $coupon) }}"
+                                                    data-coupon-delete-form
+                                                    data-confirm="Delete coupon {{ $coupon->code }}?"
+                                                >
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="icon-button icon-button--danger" aria-label="Delete coupon {{ $coupon->code }}">
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                            <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                            <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                            <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                            <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                            <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            @endunless
                                         </div>
                                     </td>
                                 </tr>
@@ -570,6 +624,26 @@
                     if (!window.confirm(message)) {
                         event.preventDefault();
                     }
+                });
+            });
+
+            document.querySelectorAll('button[data-copy]').forEach((button) => {
+                const text = button.dataset.copy || '';
+                const originalLabel = button.getAttribute('aria-label') || 'Copy';
+                button.addEventListener('click', async () => {
+                    if (!text) {
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        button.setAttribute('aria-label', 'Copied');
+                    } catch (error) {
+                        console.error('Unable to copy coupon code', error);
+                        button.setAttribute('aria-label', 'Copy failed');
+                    }
+                    setTimeout(() => {
+                        button.setAttribute('aria-label', originalLabel);
+                    }, 1500);
                 });
             });
         });

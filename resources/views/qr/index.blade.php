@@ -250,7 +250,7 @@
                                 <center><strong>{{ $qr->name }}</strong></center>
                                 <img src="{{ $qrSrc }}" alt="QR code for {{ $qr->name }}">
                                 <div class="qr-available">
-                                    <span>Available Limit:</span>
+                                    <span> Limit:</span>
                                     <span>Rs {{ $availableText }}</span>
                                 </div>
                                 @if ($qr->payment_method_number)

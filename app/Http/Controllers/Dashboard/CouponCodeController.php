@@ -116,8 +116,14 @@ class CouponCodeController extends Controller
             ->with('status', 'Coupon updated successfully.');
     }
 
-    public function destroy(CouponCode $couponCode): RedirectResponse
+    public function destroy(Request $request, CouponCode $couponCode): RedirectResponse
     {
+        if ($request->user()?->role === 'employee') {
+            return redirect()
+                ->route('coupons.index', $request->only('filter_product', 'filter_code'))
+                ->with('status', 'Employees are not allowed to delete coupons.');
+        }
+
         $couponCode->delete();
 
         return redirect()

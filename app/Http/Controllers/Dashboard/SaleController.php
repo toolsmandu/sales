@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class SaleController extends Controller
 {
@@ -401,6 +402,18 @@ class SaleController extends Controller
 
     public function destroy(Request $request, Sale $sale)
     {
+        if ($request->user()?->role === 'employee') {
+            $message = 'Employees are not allowed to delete orders.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], Response::HTTP_FORBIDDEN);
+            }
+
+            return redirect()
+                ->route('orders.index')
+                ->with('status', $message);
+        }
+
         DB::transaction(function () use ($sale) {
             $method = $sale->paymentMethod;
 

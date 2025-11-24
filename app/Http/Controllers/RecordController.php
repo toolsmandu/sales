@@ -142,6 +142,12 @@ class RecordController extends Controller
         RecordProduct $recordProduct,
         int $entryId
     ): JsonResponse {
+        if (auth()->user()?->role === 'employee') {
+            return response()->json([
+                'message' => 'Employees are not allowed to delete records.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         $tableName = $recordProduct->table_name;
         $this->createTableIfMissing($tableName);
 
