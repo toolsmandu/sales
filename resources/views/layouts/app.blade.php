@@ -680,20 +680,22 @@
             @yield('content')
         </main>
 
-        <div class="modal is-hidden" id="duplicate-order-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-order-title">
-            <div class="modal__content">
-                <div class="modal__header">
-                    <h3 id="duplicate-order-title">Duplicate Order</h3>
-                    <button type="button" class="ghost-button" data-duplicate-close aria-label="Close duplicate order alert">Close</button>
-                </div>
-                <div class="modal__body">
-                    <p data-duplicate-message>Attention: There is duplicate order recorded into the system.</p>
-                    <div class="modal__actions" style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: flex-end;">
-                        <button type="button" class="ghost-button" data-duplicate-close>View Orders</button>
+        @auth
+            <div class="modal is-hidden" id="duplicate-order-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-order-title">
+                <div class="modal__content">
+                    <div class="modal__header">
+                        <h3 id="duplicate-order-title">Duplicate Order</h3>
+                        <button type="button" class="ghost-button" data-duplicate-close aria-label="Close duplicate order alert">Close</button>
+                    </div>
+                    <div class="modal__body">
+                        <p data-duplicate-message>Attention: There is duplicate order recorded into the system.</p>
+                        <div class="modal__actions" style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: flex-end;">
+                            <button type="button" class="ghost-button" data-duplicate-close>View Orders</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        @endauth
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
