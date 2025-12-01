@@ -50,8 +50,10 @@
             .app-header,
             .app-main {
                 width: 100%;
+                max-width: 100%;
                 margin: 0;
                 padding: 0 0.5rem;
+                box-sizing: border-box;
             }
 
             .app-header nav {

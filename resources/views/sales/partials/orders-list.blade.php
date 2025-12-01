@@ -60,6 +60,16 @@
         >
     </label>
 
+    <label for="filter-status">
+        Status
+        <select id="filter-status" name="status">
+            <option value="">Any</option>
+            <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
+            <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
+            <option value="refunded" @selected(($filters['status'] ?? '') === 'refunded')>Refunded</option>
+        </select>
+    </label>
+
     <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
         <label for="filter-product">
             Product
@@ -163,6 +173,7 @@
                 <th scope="col" data-col-id="phone">Phone<span class="sales-col-resizer" data-col-id="phone"></span></th>
                 <th scope="col" data-col-id="amount">Amount<span class="sales-col-resizer" data-col-id="amount"></span></th>
                 <th scope="col" data-col-id="payment">Payment<span class="sales-col-resizer" data-col-id="payment"></span></th>
+                <th scope="col" data-col-id="remarks">Remarks<span class="sales-col-resizer" data-col-id="remarks"></span></th>
                 <th scope="col" data-col-id="status">Status<span class="sales-col-resizer" data-col-id="status"></span></th>
                 <th scope="col" data-col-id="sold_by">Sold By<span class="sales-col-resizer" data-col-id="sold_by"></span></th>
                 <th scope="col" data-col-id="actions">Actions<span class="sales-col-resizer" data-col-id="actions"></span></th>
@@ -182,11 +193,20 @@
                     $phoneDisplay = $normalizedPhone !== '' ? $normalizedPhone : '—';
                     $phoneDigits = preg_replace('/\D+/', '', $rawPhone);
                 @endphp
-                <tr
-                    data-phone="{{ $phoneDigits }}"
-                    data-email="{{ trim((string) $sale->email) }}"
-                >
-                    <td>{{ $sale->serial_number }}</td>
+                @php
+                    $formId = 'sale-inline-' . $sale->id;
+                @endphp
+                <tr data-phone="{{ $phoneDigits }}" data-email="{{ trim((string) $sale->email) }}">
+                    <td>
+                        {{ $sale->serial_number }}
+                        <form id="{{ $formId }}" method="POST" action="{{ route('dashboard.orders.update', $sale) }}">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="purchase_date" value="{{ optional($sale->purchase_date)->format('Y-m-d') ?? now('Asia/Kathmandu')->toDateString() }}">
+                            <input type="hidden" name="phone" value="{{ $sale->phone }}">
+                            <input type="hidden" name="product_expiry_days" value="{{ $sale->product_expiry_days }}">
+                        </form>
+                    </td>
                     @php
                         $saleRecordedAt = $sale->created_at?->timezone('Asia/Kathmandu');
                     @endphp
@@ -200,11 +220,28 @@
                     @php
                         $productDisplay = trim($sale->product_name ?? '');
                     @endphp
-                    <td>{{ $productDisplay !== '' ? $productDisplay : '—' }}</td>
+                    <td>
+                        <input
+                            type="text"
+                            name="product_name"
+                            form="{{ $formId }}"
+                            value="{{ $sale->product_name }}"
+                            placeholder="Add product"
+                            required
+                        >
+                    </td>
                     @php
                         $emailDisplay = trim((string) $sale->email);
                     @endphp
-                    <td>{{ $emailDisplay !== '' ? $emailDisplay : '—' }}</td>
+                    <td>
+                        <input
+                            type="email"
+                            name="email"
+                            form="{{ $formId }}"
+                            value="{{ $emailDisplay }}"
+                            placeholder="Add email"
+                        >
+                    </td>
                     <td>
                         <div class="cell-with-action">
                             @php
@@ -233,36 +270,53 @@
                             @endif
                         </div>
                     </td>
-                    <td>Rs {{ number_format($sale->sales_amount, 0) }}</td>
-                    <td>{{ $sale->paymentMethod?->label ?? '—' }}</td>
+                    <td>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            name="sales_amount"
+                            form="{{ $formId }}"
+                            value="{{ $sale->sales_amount !== null ? $sale->sales_amount : '' }}"
+                            placeholder="Amount"
+                        >
+                    </td>
+                    <td>
+                        <select name="payment_method" form="{{ $formId }}">
+                            <option value="" @selected($sale->payment_method_id === null)>Select</option>
+                            @foreach ($paymentMethods as $method)
+                                <option value="{{ $method->slug }}" @selected(optional($sale->paymentMethod)->slug === $method->slug)>
+                                    {{ $method->label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </td>
+                    <td>
+                        <input
+                            type="text"
+                            name="remarks"
+                            form="{{ $formId }}"
+                            value="{{ $sale->remarks }}"
+                            placeholder="Remarks"
+                            maxlength="255"
+                        >
+                    </td>
                     @php
-                        $status = strtolower((string) ($sale->status ?? 'completed'));
-                        $statusLabel = $status === 'refunded' ? 'Refunded' : 'Completed';
+                        $status = strtolower((string) ($sale->status ?? 'pending'));
                     @endphp
-                    <td>{{ $statusLabel }}</td>
-                    <td>{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
+                    <td>
+                        <select name="status" form="{{ $formId }}">
+                            <option value="pending" @selected($status === 'pending')>Pending</option>
+                            <option value="completed" @selected($status === 'completed')>Completed</option>
+                            <option value="refunded" @selected($status === 'refunded')>Refunded</option>
+                        </select>
+                    </td>
+                    <td style="white-space: nowrap;">{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
                     <td>
                         <div class="table-actions">
-                            <button
-                                type="button"
-                                class="icon-button"
-                                data-action="show-remarks"
-                                data-remarks="{{ trim((string) $sale->remarks) }}"
-                                aria-label="View remarks for {{ $sale->serial_number }}">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 5c-4.5 0-8.2 3-10 7 1.8 4 5.5 7 10 7s8.2-3 10-7c-1.8-4-5.5-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                                </svg>
+                            <button type="submit" form="{{ $formId }}" class="icon-button" aria-label="Update {{ $sale->serial_number }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M345 273c9.4-9.4 9.4-24.6 0-33.9L201 95c-6.9-6.9-17.2-8.9-26.2-5.2S160 102.3 160 112l0 80-112 0c-26.5 0-48 21.5-48 48l0 32c0 26.5 21.5 48 48 48l112 0 0 80c0 9.7 5.8 18.5 14.8 22.2s19.3 1.7 26.2-5.2L345 273zm7 143c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0c53 0 96-43 96-96l0-256c0-53-43-96-96-96l-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0c17.7 0 32 14.3 32 32l0 256c0 17.7-14.3 32-32 32l-64 0z"/></svg>
                             </button>
-                            <a
-                                class="icon-button"
-                                href="{{ route('orders.index', ['edit' => $sale->id] + request()->except('page')) }}"
-                                aria-label="Edit sale {{ $sale->serial_number }}">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M4 15.5V20h4.5L19 9.5l-4.5-4.5L4 15.5z" fill="currentColor"/>
-                                    <path d="M14.5 5.5l4 4" stroke="currentColor" stroke-width="1.2"/>
-                                </svg>
-                            </a>
                             @unless ($isEmployee)
                                 <form
                                     method="POST"
@@ -350,7 +404,7 @@
     <script>
         (() => {
             const storageKey = 'orders_table_widths';
-            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'status', 'sold_by', 'actions'];
+            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'remarks', 'status', 'sold_by', 'actions'];
             const table = document.getElementById('orders-table');
             const colgroup = document.getElementById('orders-colgroup');
 
@@ -483,17 +537,9 @@
                 document.addEventListener('mouseup', onUp);
             };
 
-            const handleRemarksView = (event) => {
-                const button = event.target.closest('button[data-action="show-remarks"]');
-                if (!button) return;
-                const remarks = button.dataset.remarks?.trim();
-                alert(remarks && remarks !== '' ? remarks : 'No remarks available.');
-            };
-
             renderColgroup();
             applyHeaderWidths();
             setupResizers();
-            table.addEventListener('click', handleRemarksView);
         })();
     </script>
 @endpush

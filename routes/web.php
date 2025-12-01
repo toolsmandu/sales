@@ -12,7 +12,6 @@ use App\Http\Controllers\Dashboard\EmployeeSettingController;
 use App\Http\Controllers\Dashboard\PaymentMethodController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\SaleController;
-use App\Http\Controllers\Dashboard\SettingsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\WithdrawalController;
 use App\Http\Controllers\Dashboard\QrController;
@@ -77,6 +76,7 @@ Route::middleware('auth')->group(function (): void {
     Route::view('/payments', 'payments.index')->name('payments.index');
     Route::get('/payments/balance', [PaymentMethodController::class, 'balance'])->name('payments.balance');
     Route::get('/billing/statements', [PaymentMethodController::class, 'statements'])->name('payments.statements');
+    Route::post('/billing/statements/deposit', [PaymentMethodController::class, 'storeManualDeposit'])->name('payments.statements.deposit');
     Route::get('/billing/manage', [PaymentMethodController::class, 'index'])->name('payments.manage');
     Route::get('/billing/withdraw', [WithdrawalController::class, 'index'])->name('payments.withdraw');
     Route::get('/sheet', [RecordController::class, 'index'])->name('sheet.index');
@@ -88,7 +88,6 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
     Route::post('/sheet/products/{recordProduct}/import', [RecordController::class, 'importEntries'])->name('sheet.entries.import');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
-    Route::get('/settings', [SettingsController::class, 'index'])->name('dashboard.settings.index');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

@@ -412,6 +412,12 @@
                 <header class="records-toolbar" style="justify-content: space-between;">
                     <h2>Data Records</h2>
                     <div style="display: inline-flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                            <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                            <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
+                        </label>
                         <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
                         <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
                         <div class="pill" id="records-count">0 Data</div>
@@ -526,6 +532,8 @@
                 columnWidths: {},
                 newRow: null,
                 showColumnControls: false,
+                phoneFilter: '',
+                emailFilter: '',
                 sort: {
                     column: null,
                     direction: 'asc',
@@ -546,6 +554,8 @@
             const tableBody = document.getElementById('records-table-body');
             const emptyRow = document.getElementById('records-empty');
             const addRowButton = document.getElementById('records-add-row');
+            const filterPhoneInput = document.getElementById('records-filter-phone');
+            const filterEmailInput = document.getElementById('records-filter-email');
             const colgroup = document.getElementById('records-colgroup');
             const tableHead = document.getElementById('records-head');
             const columnControls = document.getElementById('column-controls');
@@ -553,6 +563,17 @@
             const createProductButton = document.getElementById('records-create-product');
             const newProductInput = document.getElementById('record-new-product');
             const importFileInput = document.getElementById('records-import-file');
+
+            const handleFilterInput = (input, key) => {
+                if (!input) return;
+                input.addEventListener('input', (event) => {
+                    state[key] = (event.target.value || '').toLowerCase();
+                    renderRecords();
+                });
+            };
+
+            handleFilterInput(filterPhoneInput, 'phoneFilter');
+            handleFilterInput(filterEmailInput, 'emailFilter');
 
             const resolveHighlightProduct = () => {
                 if (!state.products.length || !state.highlight) {
@@ -911,21 +932,31 @@
                     renderRowCells(state.newRow, 'new', 'New', true);
                 }
 
-                const recordsForDisplay = state.sort.column ? getSortedRecords() : state.records;
+                const filteredRecords = state.records.filter((record) => {
+                    const phone = (record.phone ?? '').toLowerCase();
+                    const emailPrimary = (record.email ?? '').toLowerCase();
+                    const emailSecondary = (record.email2 ?? '').toLowerCase();
+                    const phoneMatch = state.phoneFilter === '' || phone.includes(state.phoneFilter);
+                    const emailTarget = `${emailPrimary} ${emailSecondary}`.trim();
+                    const emailMatch = state.emailFilter === '' || emailPrimary.includes(state.emailFilter) || emailSecondary.includes(state.emailFilter) || emailTarget.includes(state.emailFilter);
+                    return phoneMatch && emailMatch;
+                });
+
+                const recordsForDisplay = state.sort.column ? getSortedRecords(filteredRecords) : filteredRecords;
                 recordsForDisplay.forEach((record, index) => {
                     renderRowCells(record, record.id, index + 1, false);
                 });
 
-                recordsCount.textContent = `${state.records.length} row${state.records.length === 1 ? '' : 's'}`;
+                recordsCount.textContent = `${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
                 applyColumnWidths();
                 focusHighlightedRow();
             };
 
-            const getSortedRecords = () => {
+            const getSortedRecords = (records = state.records) => {
                 if (state.sort.column !== 'remaining') {
-                    return [...state.records];
+                    return [...records];
                 }
-                const sorted = [...state.records];
+                const sorted = [...records];
                 const toNumber = (record) => {
                     const raw = computeRemainingDays(record);
                     if (raw === '' || raw === null || raw === undefined) {

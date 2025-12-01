@@ -485,20 +485,7 @@
                                         id="sales-phone"
                                         name="phone"
                                         value="{{ old('phone') }}"
-                                        placeholder="Phone"
-                                        required>
-                                </label>
-                            </div>
-
-                            <div class="orders-field orders-field--email">
-                                <label for="sales-email">
-                                    Email
-                                    <input
-                                        type="email"
-                                        id="sales-email"
-                                        name="email"
-                                        value="{{ old('email') }}"
-                                        placeholder="Email address"
+                                        placeholder="Phone (Required)"
                                         required>
                                 </label>
                             </div>
@@ -517,7 +504,7 @@
                                             class="product-combobox__input"
                                             name="product_name"
                                             value="{{ $createProductValue }}"
-                                            placeholder="Choose one"
+                                            placeholder="Choose one (Required)"
                                             autocomplete="off"
                                             data-selected-name="{{ $createProductValue }}"
                                             required
@@ -559,6 +546,18 @@
                                 </div>
                             </div>
 
+                            <div class="orders-field orders-field--email">
+                                <label for="sales-email">
+                                    Email
+                                    <input
+                                        type="email"
+                                        id="sales-email"
+                                        name="email"
+                                        value="{{ old('email') }}"
+                                        placeholder="Email address">
+                                </label>
+                            </div>
+
                           
                         </div>
 
@@ -567,8 +566,8 @@
     <div class="orders-field orders-field--payment">
         <label for="sales-payment-method">
             Payment Method
-            <select id="sales-payment-method" class="paymentmethodchoose" name="payment_method" required>
-                <option value="" disabled {{ old('payment_method') ? '' : 'selected' }}>Choose one</option>
+            <select id="sales-payment-method" class="paymentmethodchoose" name="payment_method">
+                <option value="" {{ old('payment_method') ? '' : 'selected' }}>Choose one</option>
                 @foreach ($paymentMethods as $method)
                     <option value="{{ $method->slug }}" @selected(old('payment_method') === $method->slug)>
                         {{ $method->label }}
@@ -590,7 +589,7 @@
                 name="sales_amount"
                 value="{{ old('sales_amount') }}"
                 placeholder="Rs."
-                required>
+            >
         </label>
     </div>
 
@@ -621,6 +620,7 @@
                             'productChoices' => $productChoices,
                             'sales' => $sales,
                             'perPage' => $perPage,
+                            'paymentMethods' => $paymentMethods,
                         ])
                     </div>
                 </section>
@@ -657,16 +657,16 @@
                             <label for="edit-sales-product-name">
                                 Product Name
                                 <input
-                                    type="text"
-                                    id="edit-sales-product-name"
-                                    class="product-combobox__input"
-                                    name="product_name"
-                                    value="{{ $editProductValue }}"
-                                    placeholder="Select product..."
-                                    autocomplete="off"
-                                    data-selected-name="{{ $editProductValue }}"
-                                    required
-                                >
+                                type="text"
+                                id="edit-sales-product-name"
+                                class="product-combobox__input"
+                                name="product_name"
+                                value="{{ $editProductValue }}"
+                                placeholder="Select product..."
+                                autocomplete="off"
+                                data-selected-name="{{ $editProductValue }}"
+                                required
+                            >
                                 <input
                                     type="hidden"
                                     name="product_expiry_days"
@@ -724,7 +724,7 @@
                                 id="edit-sales-payment-method"
                                 name="payment_method"
                                 class="paymentmethodchoose"
-                                required>
+                            >
                                 @foreach ($paymentMethods as $method)
                                     <option value="{{ $method->slug }}" @selected($editPaymentMethod === $method->slug)>
                                         {{ $method->label }}
@@ -774,7 +774,7 @@
                                 id="edit-sales-amount"
                                 name="sales_amount"
                                 value="{{ old('sales_amount', $saleToEdit->sales_amount) }}"
-                                required>
+                            >
                         </label>
 
                         
@@ -793,6 +793,7 @@
                         'productChoices' => $productChoices,
                         'sales' => $sales,
                         'perPage' => $perPage,
+                        'paymentMethods' => $paymentMethods,
                     ])
                 </section>
             @endif
@@ -823,7 +824,7 @@
             ? "𝐘𝐨𝐮𝐫 𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: {$orderId}\n\n"
                 ."𝐏𝐫𝐨𝐝𝐮𝐜𝐭 𝐍𝐚𝐦𝐞: {$productDisplay}\n\n"
                 ."We are processing your order now. Please wait patiently until we deliver your order.\n\n"
-                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in future."
+                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in the future."
             : null;
     @endphp
 
@@ -849,7 +850,7 @@
                 <div class="sale-confirmation-message">
                     <div class="sale-confirmation-hero">
                      
-                        <p>We are processing your order now. Please wait patiently while we work on delivering it.</p>
+                        <p>We are processing your order now. Please wait patiently until we deliver your order.</p>
                     </div>
                     <dl class="sale-confirmation-details">
                         <div>
@@ -862,7 +863,7 @@
                         </div>
                     </dl>
                     <div class="sale-confirmation-note">
-                        <strong>Important note:</strong> Please keep your Order ID safe to get support in Future.
+                        <strong>Important note:</strong> Please keep your Order ID safe to get support in the future.
                     </div>
                 </div>
                 <div class="sale-confirmation-actions">

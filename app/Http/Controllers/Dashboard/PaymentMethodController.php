@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Illuminate\Support\Carbon;
@@ -400,7 +403,7 @@ class PaymentMethodController extends Controller
                             ? ($sale?->product_name ?? '—')
                             : '—',
                         'remarks' => $transaction->type === 'income'
-                            ? ($sale?->remarks ?? '—')
+                            ? ($sale?->remarks ?? ($transaction->sale_id ? '—' : ($transaction->phone ?? '—')))
                             : $withdrawalNote,
                         'income' => $incomeAmount,
                         'expense' => $expenseAmount,
@@ -471,6 +474,46 @@ class PaymentMethodController extends Controller
             'dailySalesTotals' => $dailySalesTotals,
             'dailySalesTotalsSum' => $dailySalesTotalsSum,
         ]);
+    }
+
+    public function storeManualDeposit(Request $request): JsonResponse|RedirectResponse
+    {
+        $data = $request->validate([
+            'payment_method' => ['required', 'string', 'exists:payment_methods,slug'],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'remarks' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            $method = PaymentMethod::where('slug', $data['payment_method'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            PaymentTransaction::create([
+                'payment_method_id' => $method->id,
+                'type' => 'income',
+                'amount' => (float) $data['amount'],
+                'phone' => $data['remarks'] ?? null,
+                'occurred_at' => Carbon::parse($data['date'])->startOfDay(),
+            ]);
+
+            $method->recalculateBalance();
+        });
+
+        $message = 'Funds added to statement successfully.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()
+            ->route('payments.statements', [
+                'method' => $request->input('payment_method'),
+            ])
+            ->with('status', $message);
     }
 
     public function store(Request $request)

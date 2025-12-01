@@ -61,6 +61,31 @@
         .payment-ledger-table table td:nth-child(8) {
             min-width: 9rem;
         }
+
+        .manual-deposit {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .manual-deposit label {
+            display: grid;
+            gap: 0.35rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .manual-deposit input,
+        .manual-deposit select {
+            min-width: 10rem;
+        }
+
+        .manual-deposit button {
+            height: fit-content;
+            padding: 0.55rem 1rem;
+            margin: 27px
+        }
     </style>
 @endpush
 
@@ -186,6 +211,9 @@
 
             <section class="card stack">
                 @if ($methods->isNotEmpty())
+                    @php
+                        $todayDate = now()->format('Y-m-d');
+                    @endphp
                     <div class="payment-ledger-section">
                         <div class="payment-ledger-section__header">
                             <div>
@@ -210,6 +238,59 @@
                                 </div>
                             </form>
                         </div>
+
+                        <form
+                            method="POST"
+                            action="{{ route('payments.statements.deposit') }}"
+                            class="manual-deposit"
+                        >
+                            @csrf
+                            <label>
+                                <span>Amount</span>
+                                <input
+                                    type="number"
+                                    name="amount"
+                                    inputmode="decimal"
+                                    step="0.01"
+                                    min="0.01"
+                                    placeholder="0.00"
+                                    required
+                                >
+                            </label>
+                            <label>
+                                <span>Payment Method</span>
+                                <select name="payment_method" required>
+                                    @foreach ($methods as $method)
+                                        <option value="{{ $method->slug }}" @selected(optional($selectedMethod)->slug === $method->slug)>
+                                            {{ $method->label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label>
+                                <span>Date</span>
+                                <input
+                                    type="date"
+                                    name="date"
+                                    value="{{ $todayDate }}"
+                                    required
+                                >
+                            </label>
+                            <label>
+                                <span>Remarks</span>
+                                <input
+                                    type="text"
+                                    name="remarks"
+                                    placeholder="Payment Remarks"
+                                    maxlength="255"
+                                >
+                            </label>
+                            <div>
+                                <button type="submit" class="filter-apply">
+                                    Add Fund
+                                </button>
+                            </div>
+                        </form>
 
                         @if ($ledgerPaginator && $ledgerHasData)
                             <div class="table-wrapper table-wrapper--elevated payment-ledger-table">
