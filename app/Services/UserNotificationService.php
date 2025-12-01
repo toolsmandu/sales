@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use function route;
 
 class UserNotificationService
 {
@@ -52,6 +53,8 @@ class UserNotificationService
         $items = [];
         $taskLink = route('user-logs.tasks');
         $hidden = $session?->get('hidden_notifications', []) ?? [];
+
+        $items = array_merge($items, self::duplicateOrderNotifications($hidden));
 
         $todayKey = $today->toDateString();
 
@@ -101,6 +104,8 @@ class UserNotificationService
         $items = [];
         $hidden = $session?->get('hidden_notifications', []) ?? [];
 
+        $items = array_merge($items, self::duplicateOrderNotifications($hidden));
+
         $todaySales = Sale::query()
             ->whereDate('created_at', $today->toDateString())
             ->sum('sales_amount');
@@ -112,7 +117,7 @@ class UserNotificationService
                 'type' => 'sales',
                 'id' => 'sales_today_' . $todayKey,
                 'title' => 'Today\'s Sales',
-                'message' => 'You have sold total of Rs. ' . number_format((float) $todaySales, 2) . ' today.',
+                'message' => 'Rs. ' . number_format((float) $todaySales, 2) . '',
             ];
         }
 
@@ -380,6 +385,75 @@ class UserNotificationService
                     ]),
                 ];
             }
+        }
+
+        return $notifications;
+    }
+
+    /**
+     * Duplicate orders created today for the same product and customer (phone/email).
+     */
+    protected static function duplicateOrderNotifications(array $hidden = []): array
+    {
+        $notifications = [];
+        $today = Carbon::today('Asia/Kathmandu')->toDateString();
+
+        $sales = Sale::query()
+            ->select(['id', 'serial_number', 'product_name', 'phone', 'email', 'created_at'])
+            ->whereDate('created_at', $today)
+            ->orderBy('created_at')
+            ->get();
+
+        $grouped = [];
+
+        foreach ($sales as $sale) {
+            $normalizedPhone = preg_replace('/\\D+/', '', (string) ($sale->phone ?? ''));
+            $normalizedEmail = strtolower(trim((string) $sale->email));
+
+            if ($normalizedPhone === '' && $normalizedEmail === '') {
+                continue;
+            }
+
+            $key = implode('|', [
+                trim((string) $sale->product_name),
+                $normalizedPhone,
+                $normalizedEmail,
+            ]);
+
+            $grouped[$key][] = $sale;
+        }
+
+        foreach ($grouped as $group) {
+            if (count($group) < 2) {
+                continue;
+            }
+
+            usort($group, function (Sale $a, Sale $b) {
+                return $a->created_at <=> $b->created_at;
+            });
+
+            $latest = array_pop($group);
+            $previous = array_pop($group);
+
+            $notificationId = 'duplicate_order_' . $latest->id . '_' . $previous->id;
+            if (in_array($notificationId, $hidden, true)) {
+                continue;
+            }
+
+            $latestNormalizedPhone = preg_replace('/\\D+/', '', (string) ($latest->phone ?? ''));
+            $searchValue = $latestNormalizedPhone !== '' ? $latestNormalizedPhone : $latest->serial_number;
+
+            $notifications[] = [
+                'type' => 'duplicate_order',
+                'id' => $notificationId,
+                'title' => 'Duplicate order detected',
+                'message' => sprintf(
+                    'Order ID: %s & %s.',
+                    $latest->serial_number,
+                    $previous->serial_number
+                ),
+                'link' => route('orders.index', ['search' => $searchValue]),
+            ];
         }
 
         return $notifications;

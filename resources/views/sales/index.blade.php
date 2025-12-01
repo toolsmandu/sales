@@ -621,6 +621,8 @@
                             'sales' => $sales,
                             'perPage' => $perPage,
                             'paymentMethods' => $paymentMethods,
+                            'admins' => $admins ?? collect(),
+                            'employees' => $employees ?? collect(),
                         ])
                     </div>
                 </section>
@@ -794,6 +796,8 @@
                         'sales' => $sales,
                         'perPage' => $perPage,
                         'paymentMethods' => $paymentMethods,
+                        'admins' => $admins ?? collect(),
+                        'employees' => $employees ?? collect(),
                     ])
                 </section>
             @endif

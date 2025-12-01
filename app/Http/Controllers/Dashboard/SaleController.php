@@ -7,6 +7,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\PaymentTransaction;
+use App\Models\User;
 use App\Services\SerialNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -32,9 +33,8 @@ class SaleController extends Controller
         $perPage = in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
 
         $filters = [
-            'serial_number' => trim((string) $request->query('serial_number', '')),
-            'phone' => trim((string) $request->query('phone', '')),
-            'email' => trim((string) $request->query('email', '')),
+            'search' => trim((string) $request->query('search', '')),
+            'created_by' => trim((string) $request->query('created_by', '')),
             'product_name' => trim((string) $request->query('product_name', '')),
             'status' => trim((string) $request->query('status', '')),
         ];
@@ -48,19 +48,13 @@ class SaleController extends Controller
 
         $salesQuery = Sale::with(['paymentMethod', 'createdBy']);
 
-        if ($filters['serial_number'] !== '') {
-            $salesQuery->where('serial_number', 'like', '%' . $filters['serial_number'] . '%');
-        }
-
-        if ($filters['phone'] !== '') {
-            $salesQuery->where('phone', 'like', '%' . $filters['phone'] . '%');
-        }
-
-        if ($filters['email'] !== '') {
-            $emailTerm = '%' . $filters['email'] . '%';
-            $salesQuery->where(function ($query) use ($emailTerm) {
-                $query->where('email', 'like', $emailTerm)
-                    ->orWhere('remarks', 'like', $emailTerm);
+        if ($filters['search'] !== '') {
+            $searchTerm = '%' . $filters['search'] . '%';
+            $salesQuery->where(function ($query) use ($searchTerm) {
+                $query->where('serial_number', 'like', $searchTerm)
+                    ->orWhere('phone', 'like', $searchTerm)
+                    ->orWhere('email', 'like', $searchTerm)
+                    ->orWhere('remarks', 'like', $searchTerm);
             });
         }
 
@@ -70,6 +64,19 @@ class SaleController extends Controller
 
         if ($filters['status'] !== '' && in_array($filters['status'], ['pending', 'completed', 'refunded'], true)) {
             $salesQuery->where('status', $filters['status']);
+        }
+
+        if ($filters['created_by'] !== '') {
+            if ($filters['created_by'] === 'admin') {
+                $salesQuery->whereHas('createdBy', function ($query) {
+                    $query->where('role', 'admin');
+                });
+            } else {
+                $creatorId = (int) $filters['created_by'];
+                if ($creatorId > 0) {
+                    $salesQuery->where('created_by', $creatorId);
+                }
+            }
         }
 
         if ($filters['date_from']) {
@@ -143,6 +150,15 @@ class SaleController extends Controller
             $saleToEdit = Sale::with('paymentMethod')->find($request->input('edit'));
         }
 
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $employees = User::query()
+            ->where('role', 'employee')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('sales.index', [
             'sales' => $sales,
             'paymentMethods' => $paymentMethods,
@@ -151,6 +167,8 @@ class SaleController extends Controller
             'saleToEdit' => $saleToEdit,
             'perPage' => $perPage,
             'filters' => $filters,
+            'admins' => $admins,
+            'employees' => $employees,
         ]);
     }
 
@@ -361,6 +379,10 @@ class SaleController extends Controller
         }
         $data['status'] = $data['status']
             ?? ($hasAmount && $hasPaymentMethod ? 'completed' : ($sale->status ?? 'pending'));
+
+        if ($sale->status === 'pending' && ($data['status'] === null || $data['status'] === 'pending')) {
+            $data['status'] = 'completed';
+        }
 
         DB::transaction(function () use ($sale, $data) {
             $newMethod = $data['payment_method']

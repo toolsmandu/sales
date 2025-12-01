@@ -1,9 +1,9 @@
 @php
     $filters = $filters ?? [
-        'serial_number' => '',
-        'phone' => '',
-        'email' => '',
+        'search' => '',
+        'created_by' => '',
         'product_name' => '',
+        'status' => '',
         'date_from' => null,
         'date_to' => null,
     ];
@@ -27,47 +27,15 @@
         <input type="hidden" name="per_page" value="{{ request()->query('per_page') }}">
     @endif
 
-    <label for="filter-serial-number">
-        Order ID
+    <label for="filter-search">
+        Search
         <input
             type="text"
-            id="filter-serial-number"
-            name="serial_number"
-            value="{{ $filters['serial_number'] }}"
-            placeholder="TM123"
+            id="filter-search"
+            name="search"
+            value="{{ $filters['search'] }}"
+            placeholder="Search Order"
         >
-    </label>
-
-    <label for="filter-phone">
-        Phone
-        <input
-            type="text"
-            id="filter-phone"
-            name="phone"
-            value="{{ $filters['phone'] }}"
-            placeholder="98xxxxxxxx"
-        >
-    </label>
-
-    <label for="filter-email">
-        Email
-        <input
-            type="text"
-            id="filter-email"
-            name="email"
-            value="{{ $filters['email'] }}"
-            placeholder="Email"
-        >
-    </label>
-
-    <label for="filter-status">
-        Status
-        <select id="filter-status" name="status">
-            <option value="">Any</option>
-            <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
-            <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
-            <option value="refunded" @selected(($filters['status'] ?? '') === 'refunded')>Refunded</option>
-        </select>
     </label>
 
     <div class="product-combobox" data-product-combobox data-allow-free-entry="true">
@@ -130,6 +98,29 @@
         >
     </label>
 
+    <label for="filter-status">
+        Status
+        <select id="filter-status" name="status">
+            <option value="">Any</option>
+            <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
+            <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
+            <option value="refunded" @selected(($filters['status'] ?? '') === 'refunded')>Refunded</option>
+        </select>
+    </label>
+
+    <label for="filter-created-role">
+        Created By
+        <select id="filter-created-role" name="created_by">
+            <option value="">Any</option>
+            @foreach (($admins ?? []) as $admin)
+                <option value="{{ $admin->id }}" @selected(($filters['created_by'] ?? '') == $admin->id)>{{ $admin->name }}</option>
+            @endforeach
+            @foreach (($employees ?? []) as $employee)
+                <option value="{{ $employee->id }}" @selected(($filters['created_by'] ?? '') == $employee->id)>{{ $employee->name }}</option>
+            @endforeach
+        </select>
+    </label>
+
     <div class="sales-filter-actions">
         <button type="submit">Filter</button>
     </div>
@@ -173,7 +164,6 @@
                 <th scope="col" data-col-id="phone">Phone<span class="sales-col-resizer" data-col-id="phone"></span></th>
                 <th scope="col" data-col-id="amount">Amount<span class="sales-col-resizer" data-col-id="amount"></span></th>
                 <th scope="col" data-col-id="payment">Payment<span class="sales-col-resizer" data-col-id="payment"></span></th>
-                <th scope="col" data-col-id="remarks">Remarks<span class="sales-col-resizer" data-col-id="remarks"></span></th>
                 <th scope="col" data-col-id="status">Status<span class="sales-col-resizer" data-col-id="status"></span></th>
                 <th scope="col" data-col-id="sold_by">Sold By<span class="sales-col-resizer" data-col-id="sold_by"></span></th>
                 <th scope="col" data-col-id="actions">Actions<span class="sales-col-resizer" data-col-id="actions"></span></th>
@@ -290,16 +280,7 @@
                                 </option>
                             @endforeach
                         </select>
-                    </td>
-                    <td>
-                        <input
-                            type="text"
-                            name="remarks"
-                            form="{{ $formId }}"
-                            value="{{ $sale->remarks }}"
-                            placeholder="Remarks"
-                            maxlength="255"
-                        >
+                        <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
                     </td>
                     @php
                         $status = strtolower((string) ($sale->status ?? 'pending'));
@@ -316,6 +297,30 @@
                         <div class="table-actions">
                             <button type="submit" form="{{ $formId }}" class="icon-button" aria-label="Update {{ $sale->serial_number }}">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M345 273c9.4-9.4 9.4-24.6 0-33.9L201 95c-6.9-6.9-17.2-8.9-26.2-5.2S160 102.3 160 112l0 80-112 0c-26.5 0-48 21.5-48 48l0 32c0 26.5 21.5 48 48 48l112 0 0 80c0 9.7 5.8 18.5 14.8 22.2s19.3 1.7 26.2-5.2L345 273zm7 143c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0c53 0 96-43 96-96l0-256c0-53-43-96-96-96l-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0c17.7 0 32 14.3 32 32l0 256c0 17.7-14.3 32-32 32l-64 0z"/></svg>
+                            </button>
+                            <a
+                                class="icon-button"
+                                href="{{ route('orders.index', array_merge(request()->query(), ['edit' => $sale->id])) }}"
+                                aria-label="Edit {{ $sale->serial_number }}"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M16.86 4.14a3 3 0 114.24 4.24L8.96 20.52 3 21l.48-5.96L16.86 4.14z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M15 6l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                            <button
+                                type="button"
+                                class="icon-button"
+                                aria-label="View remarks for {{ $sale->serial_number }}"
+                                data-sale-remarks="{{ trim((string) $sale->remarks) }}"
+                                data-sale-number="{{ $sale->serial_number }}"
+                                data-sale-product="{{ $sale->product_name }}"
+                                data-sale-poster="{{ $sale->createdBy?->name ?? '' }}"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 5c-5 0-9 7-9 7s4 7 9 7 9-7 9-7-4-7-9-7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+                                </svg>
                             </button>
                             @unless ($isEmployee)
                                 <form
@@ -340,7 +345,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9">
+                    <td colspan="10">
                         <p class="helper-text">No sales recorded yet.</p>
                     </td>
                 </tr>
@@ -404,9 +409,9 @@
     <script>
         (() => {
             const storageKey = 'orders_table_widths';
-            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'remarks', 'status', 'sold_by', 'actions'];
+            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'status', 'sold_by', 'actions'];
             const table = document.getElementById('orders-table');
-            const colgroup = document.getElementById('orders-colgroup');
+        const colgroup = document.getElementById('orders-colgroup');
 
             if (!table || !colgroup) return;
 

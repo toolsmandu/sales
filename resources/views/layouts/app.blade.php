@@ -453,7 +453,7 @@
                 margin: 0;
                 font-size: 0.85rem;
                 color: rgba(15, 23, 42, 0.75);
-                line-height: 1.4;
+                line-height: 0.5;
                 white-space: pre-line;
             }
 
@@ -680,6 +680,21 @@
             @yield('content')
         </main>
 
+        <div class="modal is-hidden" id="duplicate-order-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-order-title">
+            <div class="modal__content">
+                <div class="modal__header">
+                    <h3 id="duplicate-order-title">Duplicate Order</h3>
+                    <button type="button" class="ghost-button" data-duplicate-close aria-label="Close duplicate order alert">Close</button>
+                </div>
+                <div class="modal__body">
+                    <p data-duplicate-message>Attention: There is duplicate order recorded into the system.</p>
+                    <div class="modal__actions" style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button type="button" class="ghost-button" data-duplicate-close>View Orders</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const profileMenu = document.querySelector('.profile-menu');
@@ -851,6 +866,52 @@
                         });
                     }
                 }
+            });
+        </script>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const modal = document.getElementById('duplicate-order-modal');
+                if (!modal) return;
+
+                const duplicateNotification = document.querySelector('[data-notification-type="duplicate_order"]');
+                if (!duplicateNotification) return;
+
+                const messageEl = modal.querySelector('[data-duplicate-message]');
+                const closeButtons = modal.querySelectorAll('[data-duplicate-close]');
+                const messageText = duplicateNotification.querySelector('.header-notifications__message')?.textContent?.trim() ?? '';
+                const linkHref = duplicateNotification.getAttribute('data-notification-link') || '#';
+                const notificationId = duplicateNotification.getAttribute('data-notification-id') || 'duplicate_order';
+                const dismissalKey = `duplicate_order_dismissed_${notificationId}`;
+
+                if (localStorage.getItem(dismissalKey) === 'hidden') {
+                    return;
+                }
+
+                if (messageText && messageEl) {
+                    messageEl.textContent = messageText;
+                }
+
+                const showModal = () => modal.classList.remove('is-hidden');
+                const hideModal = () => modal.classList.add('is-hidden');
+                const closeAndRemember = () => {
+                    localStorage.setItem(dismissalKey, 'hidden');
+                    hideModal();
+                };
+
+                closeButtons.forEach((btn) => btn.addEventListener('click', () => {
+                    closeAndRemember();
+                    if (linkHref && linkHref !== '#') {
+                        window.location.href = linkHref;
+                    }
+                }));
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        hideModal();
+                    }
+                });
+
+                showModal();
             });
         </script>
 
