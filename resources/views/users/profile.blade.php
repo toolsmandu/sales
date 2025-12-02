@@ -94,7 +94,7 @@
 
             </section>
 
-            @if (in_array($user?->role, ['admin', 'employee'], true))
+            @if ($user?->role === 'employee')
                 <section class="card stack">
                     <h2>Work Schedule</h2>
 
