@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\SaleEditNotification;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Services\SerialNumberGenerator;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -379,6 +381,16 @@ class SaleController extends Controller
 
     public function update(Request $request, Sale $sale)
     {
+        $originalSnapshot = [
+            'status' => $sale->status,
+            'sales_amount' => $sale->sales_amount,
+            'phone' => $sale->phone,
+            'email' => $sale->email,
+            'product_name' => $sale->product_name,
+            'payment_method_id' => $sale->payment_method_id,
+            'payment_method_label' => $sale->paymentMethod?->label,
+        ];
+
         $data = $this->validatePayload($request, $sale);
 
         $hasAmount = $data['sales_amount'] !== null;
@@ -394,11 +406,13 @@ class SaleController extends Controller
             $data['status'] = 'completed';
         }
 
-        DB::transaction(function () use ($sale, $data) {
-            $newMethod = $data['payment_method']
-                ? PaymentMethod::where('slug', $data['payment_method'])->firstOrFail()
-                : null;
-            $previousMethod = $sale->paymentMethod;
+        $newMethod = $data['payment_method']
+            ? PaymentMethod::where('slug', $data['payment_method'])->firstOrFail()
+            : null;
+        $previousMethod = $sale->paymentMethod;
+        $actorId = $request->user()?->id;
+
+        DB::transaction(function () use ($sale, $data, $newMethod, $previousMethod) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
             $occurredAt = Carbon::now('Asia/Kathmandu');
 
@@ -450,6 +464,65 @@ class SaleController extends Controller
                 }
             }
         });
+
+        $sale->refresh()->load('paymentMethod');
+
+        if (($originalSnapshot['status'] ?? null) === 'completed') {
+            $changeMessages = [];
+
+            $formatAmount = static fn ($value) => $value === null
+                ? 'N/A'
+                : number_format((float) $value, 2);
+
+            $originalAmount = $originalSnapshot['sales_amount'];
+            $newAmount = $sale->sales_amount;
+            if ($originalAmount != $newAmount) {
+                $changeMessages[] = 'Changed Amount from ' . $formatAmount($originalAmount) . ' to ' . $formatAmount($newAmount);
+            }
+
+            $originalPhone = trim((string) ($originalSnapshot['phone'] ?? ''));
+            $newPhone = trim((string) ($sale->phone ?? ''));
+            if ($originalPhone !== $newPhone) {
+                $changeMessages[] = 'Changed Phone from ' . ($originalPhone !== '' ? $originalPhone : 'N/A') . ' to ' . ($newPhone !== '' ? $newPhone : 'N/A');
+            }
+
+            $originalEmail = trim((string) ($originalSnapshot['email'] ?? ''));
+            $newEmail = trim((string) ($sale->email ?? ''));
+            if ($originalEmail !== $newEmail) {
+                $changeMessages[] = 'Changed Email from ' . ($originalEmail !== '' ? $originalEmail : 'N/A') . ' to ' . ($newEmail !== '' ? $newEmail : 'N/A');
+            }
+
+            $originalProduct = trim((string) ($originalSnapshot['product_name'] ?? ''));
+            $newProduct = trim((string) ($sale->product_name ?? ''));
+            if ($originalProduct !== $newProduct) {
+                $changeMessages[] = 'Changed Product from ' . ($originalProduct !== '' ? $originalProduct : 'N/A') . ' to ' . ($newProduct !== '' ? $newProduct : 'N/A');
+            }
+
+            $originalStatus = $originalSnapshot['status'] ?? null;
+            $newStatus = $sale->status ?? null;
+            if ($originalStatus !== $newStatus) {
+                $changeMessages[] = 'Changed Status from ' . ($originalStatus ?? 'N/A') . ' to ' . ($newStatus ?? 'N/A');
+            }
+
+            $originalMethodLabel = $originalSnapshot['payment_method_label'] ?? 'N/A';
+            $newMethodLabel = $sale->paymentMethod?->label ?? 'N/A';
+            $originalMethodId = $originalSnapshot['payment_method_id'] ?? null;
+            $newMethodId = $sale->payment_method_id ?? null;
+            if ($originalMethodId !== $newMethodId) {
+                $changeMessages[] = 'Changed Payment Method from ' . $originalMethodLabel . ' to ' . $newMethodLabel;
+            }
+
+            if (count($changeMessages) > 0 && Schema::hasTable('sale_edit_notifications')) {
+                $actorName = $request->user()?->name ?? 'Employee';
+                $message = $actorName . ' edited the ' . ($sale->serial_number ?? 'order') . ': ' . implode('; ', $changeMessages);
+
+                SaleEditNotification::create([
+                    'sale_id' => $sale->id,
+                    'actor_id' => $actorId,
+                    'message' => $message,
+                ]);
+            }
+        }
 
         $message = 'Sale updated successfully.';
 
