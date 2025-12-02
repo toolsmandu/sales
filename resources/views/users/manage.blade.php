@@ -128,7 +128,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @for ($row = 1; $row <= 5; $row++)
+                                @for ($row = 1; $row < 4; $row++)
                                     <tr>
                                         @for ($col = 0; $col < 4; $col++)
                                             <td>
