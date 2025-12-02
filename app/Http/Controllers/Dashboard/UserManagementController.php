@@ -49,7 +49,7 @@ class UserManagementController extends Controller
         }
 
         $storedSchedule = json_decode(SiteSetting::value('work_schedule_table', '[]'), true);
-        $workSchedule = array_fill(0, 4, array_fill(0, 4, ''));
+        $workSchedule = array_fill(0, 7, array_fill(0, 4, ''));
 
         if (is_array($storedSchedule)) {
             foreach ($storedSchedule as $rowIndex => $row) {

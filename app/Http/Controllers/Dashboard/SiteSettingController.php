@@ -36,7 +36,7 @@ class SiteSettingController extends Controller
         }
 
         $validated = $request->validate([
-            'work_schedule' => ['required', 'array', 'size:4'],
+            'work_schedule' => ['required', 'array', 'size:7'],
             'work_schedule.*' => ['required', 'array', 'size:4'],
             'work_schedule.*.*' => ['nullable', 'string', 'max:255'],
         ]);
