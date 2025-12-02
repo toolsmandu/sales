@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,8 +18,34 @@ class UserProfileController extends Controller
     {
         $user = $request->user();
 
+        $storedSchedule = json_decode(SiteSetting::value('work_schedule_table', '[]'), true);
+        $rows = 7;
+        $cols = 4;
+        $workSchedule = array_fill(0, $rows, array_fill(0, $cols, ''));
+
+        if (is_array($storedSchedule)) {
+            foreach ($storedSchedule as $rowIndex => $row) {
+                foreach ((array) $row as $colIndex => $value) {
+                    if (isset($workSchedule[$rowIndex][$colIndex])) {
+                        $workSchedule[$rowIndex][$colIndex] = $value ?? '';
+                    }
+                }
+            }
+        }
+
+        $storedRules = json_decode(SiteSetting::value('work_schedule_rules', '[]'), true);
+        $workScheduleRules = is_array($storedRules)
+            ? collect($storedRules)
+                ->map(fn ($line) => trim((string) $line))
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
         return view('users.profile', [
             'user' => $user,
+            'workSchedule' => $workSchedule,
+            'workScheduleRules' => $workScheduleRules,
         ]);
     }
 

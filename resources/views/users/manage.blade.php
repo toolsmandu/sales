@@ -147,8 +147,9 @@
                     </div>
 
                     <div class="stack" style="margin-top: 1rem;">
+                        <h2>Rules</h2>
                         <label for="work-schedule-rules">
-                            Work Schedule Rules
+                            <span class="helper-text">Enter one rule per line (admins and employees)</span>
                             <textarea
                                 id="work-schedule-rules"
                                 name="work_schedule_rules"
@@ -157,11 +158,13 @@
                             >{{ old('work_schedule_rules', implode(PHP_EOL, $workScheduleRules ?? [])) }}</textarea>
                         </label>
                         @if (!empty($workScheduleRules))
-                            <ul class="helper-text" style="padding-left: 1.2rem; margin: 0;">
+                            <div class="stack" style="margin: 0;">
                                 @foreach ($workScheduleRules as $rule)
-                                    <li>{{ $rule }}</li>
+                                    <h3 class="helper-text" style="margin: 0;">{{ $loop->iteration }}. {{ $rule }}</h3>
                                 @endforeach
-                            </ul>
+                            </div>
+                        @else
+                            <p class="helper-text" style="margin: 0;">No rules have been provided.</p>
                         @endif
                         <p class="helper-text" style="margin: 0;">Admins can edit the rules above; each line becomes a bullet item.</p>
                     </div>

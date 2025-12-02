@@ -93,6 +93,60 @@
                 </form>
 
             </section>
+
+            @if (in_array($user?->role, ['admin', 'employee'], true))
+                <section class="card stack">
+                    <h2>Work Schedule</h2>
+
+                    @php
+                        $schedule = is_array($workSchedule ?? null) ? $workSchedule : [];
+                        $headerRow = $schedule[0] ?? [];
+                        $bodyRows = array_slice($schedule, 1);
+                    @endphp
+
+                    @if (empty(array_filter($schedule)))
+                        <p class="helper-text">Work schedule is not set yet.</p>
+                    @else
+                        <div class="table-wrapper">
+                            <table class="sales-table">
+                                @if (!empty($headerRow))
+                                    <thead>
+                                        <tr>
+                                            @foreach ($headerRow as $cell)
+                                                <th>{{ $cell !== '' ? $cell : '—' }}</th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                @endif
+                                <tbody>
+                                    @forelse ($bodyRows as $row)
+                                        <tr>
+                                            @foreach ($row as $cell)
+                                                <td>{{ $cell !== '' ? $cell : '—' }}</td>
+                                            @endforeach
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="helper-text">No schedule rows available.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+
+                    <h2 style="margin-bottom: 0.35rem;">Rules</h2>
+                    @if (!empty($workScheduleRules))
+                        <div class="stack" style="margin: 0;">
+                            @foreach ($workScheduleRules as $rule)
+                                <h3 class="helper-text" style="margin: 0;">{{ $loop->iteration }}. {{ $rule }}</h3>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="helper-text" style="margin: 0;">No rules have been provided.</p>
+                    @endif
+                </section>
+            @endif
         </section>
     </div>
 @endsection
