@@ -265,7 +265,7 @@
     }
 
     .card button {
-        margin: 0;
+        margin: 0 10 0 0;
     }
 
     .dashboard-panel {

@@ -106,7 +106,6 @@ class UserNotificationService
         $hidden = $session?->get('hidden_notifications', []) ?? [];
 
         $items = array_merge($items, self::duplicateOrderNotifications($hidden));
-        $items = array_merge($items, self::orderEditNotifications($hidden));
 
         $todaySales = Sale::query()
             ->whereDate('created_at', $today->toDateString())
@@ -212,48 +211,6 @@ class UserNotificationService
         ];
     }
 
-    /**
-     * Order edit notifications visible to admins.
-     *
-     * @param  array<int, string>  $hidden
-     * @return array<int, array<string, mixed>>
-     */
-    protected static function orderEditNotifications(array $hidden): array
-    {
-        if (! Schema::hasTable('sale_edit_notifications')) {
-            return [];
-        }
-
-        $notifications = [];
-
-        $edits = SaleEditNotification::query()
-            ->with(['sale:id,serial_number', 'actor:id,name'])
-            ->latest()
-            ->limit(15)
-            ->get();
-
-        foreach ($edits as $edit) {
-            $id = 'order_edit_' . $edit->id;
-            if (in_array($id, $hidden, true)) {
-                continue;
-            }
-
-            $message = $edit->message ?? '';
-            $link = $edit->sale
-                ? route('orders.index', ['search' => $edit->sale->serial_number])
-                : route('orders.index');
-
-            $notifications[] = [
-                'type' => 'order_edit',
-                'id' => $id,
-                'title' => 'Order edited',
-                'message' => $message,
-                'link' => $link,
-            ];
-        }
-
-        return $notifications;
-    }
 
     protected static function pendingTasksForDate(Collection $tasks, Carbon $date): Collection
     {

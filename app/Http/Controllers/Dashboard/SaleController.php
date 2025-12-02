@@ -467,61 +467,59 @@ class SaleController extends Controller
 
         $sale->refresh()->load('paymentMethod');
 
-        if (($originalSnapshot['status'] ?? null) === 'completed') {
-            $changeMessages = [];
+        $changeMessages = [];
 
-            $formatAmount = static fn ($value) => $value === null
-                ? 'N/A'
-                : number_format((float) $value, 2);
+        $formatAmount = static fn ($value) => $value === null
+            ? 'N/A'
+            : number_format((float) $value, 2);
 
-            $originalAmount = $originalSnapshot['sales_amount'];
-            $newAmount = $sale->sales_amount;
-            if ($originalAmount != $newAmount) {
-                $changeMessages[] = 'Changed Amount from ' . $formatAmount($originalAmount) . ' to ' . $formatAmount($newAmount);
-            }
+        $originalAmount = $originalSnapshot['sales_amount'];
+        $newAmount = $sale->sales_amount;
+        if ($originalAmount != $newAmount) {
+            $changeMessages[] = 'Changed Amount from ' . $formatAmount($originalAmount) . ' to ' . $formatAmount($newAmount);
+        }
 
-            $originalPhone = trim((string) ($originalSnapshot['phone'] ?? ''));
-            $newPhone = trim((string) ($sale->phone ?? ''));
-            if ($originalPhone !== $newPhone) {
-                $changeMessages[] = 'Changed Phone from ' . ($originalPhone !== '' ? $originalPhone : 'N/A') . ' to ' . ($newPhone !== '' ? $newPhone : 'N/A');
-            }
+        $originalPhone = trim((string) ($originalSnapshot['phone'] ?? ''));
+        $newPhone = trim((string) ($sale->phone ?? ''));
+        if ($originalPhone !== $newPhone) {
+            $changeMessages[] = 'Changed Phone from ' . ($originalPhone !== '' ? $originalPhone : 'N/A') . ' to ' . ($newPhone !== '' ? $newPhone : 'N/A');
+        }
 
-            $originalEmail = trim((string) ($originalSnapshot['email'] ?? ''));
-            $newEmail = trim((string) ($sale->email ?? ''));
-            if ($originalEmail !== $newEmail) {
-                $changeMessages[] = 'Changed Email from ' . ($originalEmail !== '' ? $originalEmail : 'N/A') . ' to ' . ($newEmail !== '' ? $newEmail : 'N/A');
-            }
+        $originalEmail = trim((string) ($originalSnapshot['email'] ?? ''));
+        $newEmail = trim((string) ($sale->email ?? ''));
+        if ($originalEmail !== $newEmail) {
+            $changeMessages[] = 'Changed Email from ' . ($originalEmail !== '' ? $originalEmail : 'N/A') . ' to ' . ($newEmail !== '' ? $newEmail : 'N/A');
+        }
 
-            $originalProduct = trim((string) ($originalSnapshot['product_name'] ?? ''));
-            $newProduct = trim((string) ($sale->product_name ?? ''));
-            if ($originalProduct !== $newProduct) {
-                $changeMessages[] = 'Changed Product from ' . ($originalProduct !== '' ? $originalProduct : 'N/A') . ' to ' . ($newProduct !== '' ? $newProduct : 'N/A');
-            }
+        $originalProduct = trim((string) ($originalSnapshot['product_name'] ?? ''));
+        $newProduct = trim((string) ($sale->product_name ?? ''));
+        if ($originalProduct !== $newProduct) {
+            $changeMessages[] = 'Changed Product from ' . ($originalProduct !== '' ? $originalProduct : 'N/A') . ' to ' . ($newProduct !== '' ? $newProduct : 'N/A');
+        }
 
-            $originalStatus = $originalSnapshot['status'] ?? null;
-            $newStatus = $sale->status ?? null;
-            if ($originalStatus !== $newStatus) {
-                $changeMessages[] = 'Changed Status from ' . ($originalStatus ?? 'N/A') . ' to ' . ($newStatus ?? 'N/A');
-            }
+        $originalStatus = $originalSnapshot['status'] ?? null;
+        $newStatus = $sale->status ?? null;
+        if ($originalStatus !== $newStatus) {
+            $changeMessages[] = 'Changed Status from ' . ($originalStatus ?? 'N/A') . ' to ' . ($newStatus ?? 'N/A');
+        }
 
-            $originalMethodLabel = $originalSnapshot['payment_method_label'] ?? 'N/A';
-            $newMethodLabel = $sale->paymentMethod?->label ?? 'N/A';
-            $originalMethodId = $originalSnapshot['payment_method_id'] ?? null;
-            $newMethodId = $sale->payment_method_id ?? null;
-            if ($originalMethodId !== $newMethodId) {
-                $changeMessages[] = 'Changed Payment Method from ' . $originalMethodLabel . ' to ' . $newMethodLabel;
-            }
+        $originalMethodLabel = $originalSnapshot['payment_method_label'] ?? 'N/A';
+        $newMethodLabel = $sale->paymentMethod?->label ?? 'N/A';
+        $originalMethodId = $originalSnapshot['payment_method_id'] ?? null;
+        $newMethodId = $sale->payment_method_id ?? null;
+        if ($originalMethodId !== $newMethodId) {
+            $changeMessages[] = 'Changed Payment Method from ' . $originalMethodLabel . ' to ' . $newMethodLabel;
+        }
 
-            if (count($changeMessages) > 0 && Schema::hasTable('sale_edit_notifications')) {
-                $actorName = $request->user()?->name ?? 'Employee';
-                $message = $actorName . ' edited the ' . ($sale->serial_number ?? 'order') . ': ' . implode('; ', $changeMessages);
+        if (count($changeMessages) > 0 && Schema::hasTable('sale_edit_notifications')) {
+            $actorName = $request->user()?->name ?? 'Employee';
+            $message = $actorName . ' edited the ' . ($sale->serial_number ?? 'order') . ': ' . implode('; ', $changeMessages);
 
-                SaleEditNotification::create([
-                    'sale_id' => $sale->id,
-                    'actor_id' => $actorId,
-                    'message' => $message,
-                ]);
-            }
+            SaleEditNotification::create([
+                'sale_id' => $sale->id,
+                'actor_id' => $actorId,
+                'message' => $message,
+            ]);
         }
 
         $message = 'Sale updated successfully.';
@@ -535,6 +533,43 @@ class SaleController extends Controller
         return redirect()
             ->route('orders.index')
             ->with('status', $message);
+    }
+
+    public function logs(Request $request): View
+    {
+        $user = $request->user();
+        abort_unless($user && $user->role === 'admin', 403);
+
+        $pageSize = 50;
+        $hasTable = Schema::hasTable('sale_edit_notifications');
+        $search = trim((string) $request->query('search', ''));
+
+        $logs = collect();
+
+        if ($hasTable) {
+            $logsQuery = SaleEditNotification::query()
+                ->with(['sale:id,serial_number', 'actor:id,name'])
+                ->latest();
+
+            if ($search !== '') {
+                $logsQuery->whereHas('sale', function ($query) use ($search) {
+                    $query->where('serial_number', 'like', '%' . $search . '%');
+                });
+            }
+
+            $logs = $logsQuery
+                ->paginate($pageSize)
+                ->appends($request->query());
+        }
+
+        $timezone = 'Asia/Kathmandu';
+
+        return view('sales.logs', [
+            'logs' => $logs,
+            'timezone' => $timezone,
+            'hasTable' => $hasTable,
+            'search' => $search,
+        ]);
     }
 
     public function destroy(Request $request, Sale $sale)

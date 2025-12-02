@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/coupons/{couponCode}', [CouponCodeController::class, 'destroy'])->name('coupons.destroy');
     Route::get('/orders', [SaleController::class, 'index'])->name('orders.index');
     Route::get('/orders/expired', [SaleController::class, 'expiredOrders'])->name('orders.expired');
+    Route::get('/orders/logs', [SaleController::class, 'logs'])->name('orders.logs');
     Route::get('/orders/customer/{phone}', [SaleController::class, 'customerProfile'])
         ->where('phone', '.*')
         ->name('orders.customer');
