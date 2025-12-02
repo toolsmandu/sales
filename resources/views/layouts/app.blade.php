@@ -453,7 +453,7 @@
                 margin: 0;
                 font-size: 0.85rem;
                 color: rgba(15, 23, 42, 0.75);
-                line-height: 0.5;
+                line-height: 1.5;
                 white-space: pre-line;
             }
 
