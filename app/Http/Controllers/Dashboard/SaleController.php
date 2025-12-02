@@ -50,11 +50,21 @@ class SaleController extends Controller
 
         if ($filters['search'] !== '') {
             $searchTerm = '%' . $filters['search'] . '%';
-            $salesQuery->where(function ($query) use ($searchTerm) {
+            $numericSearch = preg_replace('/\D+/', '', $filters['search']);
+            $normalizedPhoneTerm = $numericSearch !== '' ? '%' . $numericSearch . '%' : null;
+
+            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm) {
                 $query->where('serial_number', 'like', $searchTerm)
                     ->orWhere('phone', 'like', $searchTerm)
                     ->orWhere('email', 'like', $searchTerm)
                     ->orWhere('remarks', 'like', $searchTerm);
+
+                if ($normalizedPhoneTerm !== null) {
+                    $query->orWhereRaw(
+                        "REGEXP_REPLACE(phone, '[^0-9]+', '') like ?",
+                        [$normalizedPhoneTerm]
+                    );
+                }
             });
         }
 
