@@ -146,6 +146,26 @@
                         </table>
                     </div>
 
+                    <div class="stack" style="margin-top: 1rem;">
+                        <label for="work-schedule-rules">
+                            Work Schedule Rules
+                            <textarea
+                                id="work-schedule-rules"
+                                name="work_schedule_rules"
+                                rows="4"
+                                placeholder="Enter one rule per line (admins and employees)"
+                            >{{ old('work_schedule_rules', implode(PHP_EOL, $workScheduleRules ?? [])) }}</textarea>
+                        </label>
+                        @if (!empty($workScheduleRules))
+                            <ul class="helper-text" style="padding-left: 1.2rem; margin: 0;">
+                                @foreach ($workScheduleRules as $rule)
+                                    <li>{{ $rule }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                        <p class="helper-text" style="margin: 0;">Admins can edit the rules above; each line becomes a bullet item.</p>
+                    </div>
+
                     @error('work_schedule')
                         <small role="alert">{{ $message }}</small>
                     @enderror
@@ -153,6 +173,9 @@
                         <small role="alert">{{ $message }}</small>
                     @enderror
                     @error('work_schedule.*.*')
+                        <small role="alert">{{ $message }}</small>
+                    @enderror
+                    @error('work_schedule_rules')
                         <small role="alert">{{ $message }}</small>
                     @enderror
 

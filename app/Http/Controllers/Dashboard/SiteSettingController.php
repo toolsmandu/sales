@@ -39,6 +39,7 @@ class SiteSettingController extends Controller
             'work_schedule' => ['required', 'array', 'size:7'],
             'work_schedule.*' => ['required', 'array', 'size:4'],
             'work_schedule.*.*' => ['nullable', 'string', 'max:255'],
+            'work_schedule_rules' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $schedule = array_map(
@@ -46,7 +47,14 @@ class SiteSettingController extends Controller
             $validated['work_schedule'],
         );
 
+        $rules = collect(preg_split("/\r\n|\r|\n/", $validated['work_schedule_rules'] ?? ''))
+            ->map(fn ($line) => trim((string) $line))
+            ->filter()
+            ->values()
+            ->all();
+
         SiteSetting::set('work_schedule_table', json_encode($schedule));
+        SiteSetting::set('work_schedule_rules', json_encode($rules));
 
         return back()->with('status', 'Work schedule saved.');
     }

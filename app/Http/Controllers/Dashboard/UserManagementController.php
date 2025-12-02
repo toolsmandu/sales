@@ -51,6 +51,15 @@ class UserManagementController extends Controller
         $storedSchedule = json_decode(SiteSetting::value('work_schedule_table', '[]'), true);
         $workSchedule = array_fill(0, 7, array_fill(0, 4, ''));
 
+        $storedRules = json_decode(SiteSetting::value('work_schedule_rules', '[]'), true);
+        $workScheduleRules = is_array($storedRules)
+            ? collect($storedRules)
+                ->map(fn ($line) => trim((string) $line))
+                ->filter()
+                ->values()
+                ->all()
+            : [];
+
         if (is_array($storedSchedule)) {
             foreach ($storedSchedule as $rowIndex => $row) {
                 foreach ($row as $colIndex => $value) {
@@ -66,6 +75,7 @@ class UserManagementController extends Controller
             'employeeToEdit' => $employeeToEdit,
             'activeAttendanceLogs' => $activeAttendanceLogs,
             'workSchedule' => $workSchedule,
+            'workScheduleRules' => $workScheduleRules,
         ]);
     }
 
