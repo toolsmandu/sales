@@ -651,59 +651,18 @@
                             $editExpiryValue = old('product_expiry_days', $saleToEdit->product_expiry_days);
                             $editOptions = $ensureOptionPresent($normalizedProductOptions, $editProductValue, $editExpiryValue);
                         @endphp
-                        <div
-                            class="product-combobox"
-                            data-product-combobox
-                            data-allow-free-entry="true"
-                            data-expiry-input="edit-product-expiry">
-                            <label for="edit-sales-product-name">
-                                Product Name
-                                <input
+                        <label for="edit-sales-product-name">
+                            Product Name
+                            <input
                                 type="text"
                                 id="edit-sales-product-name"
-                                class="product-combobox__input"
-                                name="product_name"
                                 value="{{ $editProductValue }}"
-                                placeholder="Select product..."
-                                autocomplete="off"
-                                data-selected-name="{{ $editProductValue }}"
-                                required
+                                disabled
                             >
-                                <input
-                                    type="hidden"
-                                    name="product_expiry_days"
-                                    id="edit-product-expiry"
-                                    value="{{ $editExpiryValue }}"
-                                >
-                            </label>
-
-                            <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                                @if ($editOptions->isEmpty())
-                                    <p class="product-combobox__empty">No products available yet.</p>
-                                @else
-                                    <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
-                                    @foreach ($editOptions as $option)
-                                        @php
-                                            $label = $option['label'];
-                                            $expiryDays = $option['expiry_days'];
-                                            $isSelectedOption = $editProductValue === $label;
-                                        @endphp
-                                        <button
-                                            type="button"
-                                            class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
-                                            data-product-option
-                                            data-product-name="{{ $label }}"
-                                            data-product-id="{{ $label }}"
-                                            data-product-expiry-days="{{ $expiryDays ?? '' }}"
-                                            role="option"
-                                            aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
-                                        >
-                                            {{ $label }}
-                                        </button>
-                                    @endforeach
-                                @endif
-                            </div>
-                        </div>
+                            <input type="hidden" name="product_name" value="{{ $editProductValue }}">
+                            <input type="hidden" name="product_expiry_days" value="{{ $editExpiryValue }}">
+                            <span class="helper-text">Update the name from the Products page if it needs to change.</span>
+                        </label>
 
                         <label for="edit-sales-remarks">
                             Remarks

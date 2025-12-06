@@ -269,6 +269,7 @@
                         @include('products.partials.variation-fields', [
                             'fieldLabelId' => 'product-edit-variation-label',
                             'values' => old('variations', $productToEdit->variations->map(fn ($variation) => [
+                                'id' => $variation->id,
                                 'name' => $variation->name,
                                 'expiry_days' => $variation->expiry_days,
                                 'is_in_stock' => $variation->is_in_stock,

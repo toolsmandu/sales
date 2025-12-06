@@ -659,8 +659,10 @@ class SaleController extends Controller
      */
     private function validatePayload(Request $request, ?Sale $sale = null): array
     {
+        $isUpdate = $sale !== null;
+
         $data = $request->validate([
-            'product_name' => ['required', 'string', 'max:255'],
+            'product_name' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'sales_amount' => ['nullable', 'numeric', 'min:0'],
@@ -683,12 +685,16 @@ class SaleController extends Controller
 
         $expiryInput = $data['product_expiry_days'] ?? null;
         $expiryDays = isset($expiryInput) && $expiryInput !== '' ? max(0, (int) $expiryInput) : null;
+        $productName = $isUpdate
+            ? trim((string) $sale->product_name)
+            : trim((string) $data['product_name']);
 
         return [
             ...$data,
             'payment_method' => $hasPayment ? $data['payment_method'] : null,
             'sales_amount' => $hasAmount ? (float) $data['sales_amount'] : null,
             'product_expiry_days' => $expiryDays,
+            'product_name' => $productName,
             'status' => $data['status'] ?? null,
         ];
     }

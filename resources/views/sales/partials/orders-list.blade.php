@@ -208,17 +208,12 @@
                         @endif
                     </td>
                     @php
-                        $productDisplay = trim($sale->product_name ?? '');
+                        $productDisplayRaw = trim($sale->product_name ?? '');
+                        $productDisplay = $productDisplayRaw !== '' ? $productDisplayRaw : '—';
                     @endphp
                     <td>
-                        <input
-                            type="text"
-                            name="product_name"
-                            form="{{ $formId }}"
-                            value="{{ $sale->product_name }}"
-                            placeholder="Add product"
-                            required
-                        >
+                        <span>{{ $productDisplay }}</span>
+                        <input type="hidden" name="product_name" form="{{ $formId }}" value="{{ $sale->product_name }}">
                     </td>
                     @php
                         $emailDisplay = trim((string) $sale->email);

@@ -22,6 +22,7 @@
         ->map(function ($value) use ($normalizeBoolean) {
             if (is_array($value)) {
                 return [
+                    'id' => isset($value['id']) && is_numeric($value['id']) ? (int) $value['id'] : null,
                     'name' => trim((string) ($value['name'] ?? '')),
                     'expiry_days' => isset($value['expiry_days']) && $value['expiry_days'] !== ''
                         ? max(0, (int) $value['expiry_days'])
@@ -31,6 +32,7 @@
             }
 
             return [
+                'id' => null,
                 'name' => is_string($value) ? trim($value) : '',
                 'expiry_days' => null,
                 'is_in_stock' => true,
@@ -192,6 +194,12 @@
                             }
                         }
 
+                        const idInput = field.querySelector('[data-variation-id-input]');
+                        if (idInput) {
+                            idInput.name = `variations[${index}][id]`;
+                            idInput.value = value.id ?? '';
+                        }
+
                         const expiryInput = field.querySelector('[data-variation-expiry-input]');
                         if (expiryInput) {
                             expiryInput.name = `variations[${index}][expiry_days]`;
@@ -279,6 +287,12 @@
                     aria-labelledby="{{ $fieldLabelId }}"
                     placeholder="Variation name"
                 >
+                <input
+                    type="hidden"
+                    name="variations[{{ $index }}][id]"
+                    value="{{ $value['id'] ?? '' }}"
+                    data-variation-id-input
+                >
                 <div class="variation-expiry">
                     <input
                         type="number"
@@ -329,6 +343,10 @@
                 data-variation-name-input
                 maxlength="255"
                 placeholder="Variation name"
+            >
+            <input
+                type="hidden"
+                data-variation-id-input
             >
             <div class="variation-expiry">
                 <input
