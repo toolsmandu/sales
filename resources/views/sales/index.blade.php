@@ -410,6 +410,86 @@
             margin-bottom: 0.35rem;
         }
 
+        .orders-card__actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .orders-layout-toggle {
+            border: 1px solid rgba(79, 70, 229, 0.35);
+            background: #fff;
+            color: #1d4ed8;
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+            cursor: pointer;
+        }
+
+        .orders-layout-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 0.75rem;
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        .orders-layout-panel label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .orders-layout-panel input[type="range"] {
+            accent-color: #2563eb;
+        }
+
+        .orders-card__actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .orders-layout-toggle {
+            border: 1px solid rgba(79, 70, 229, 0.35);
+            background: #fff;
+            color: #1d4ed8;
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+            cursor: pointer;
+        }
+
+        .orders-layout-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 0.75rem;
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        .orders-layout-panel label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .orders-layout-panel input[type="range"] {
+            accent-color: #2563eb;
+        }
+
 
 /* === NEW FIXED LAYOUT (FULL COPY–PASTE) === */
 
@@ -600,7 +680,44 @@
                         <div>
                             <h1>Add Order</h1>
                         </div>
+                        <div class="orders-card__actions">
+                            <button class="orders-layout-toggle" id="orders-layout-toggle">✍️</button>
+                        </div>
                     </header>
+                    <div class="orders-layout-panel" id="orders-layout-panel" hidden>
+                        <label>
+                            Purchase Date Width (%)
+                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="1">
+                        </label>
+                        <label>
+                            Phone Number Width (%)
+                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="2">
+                        </label>
+                        <label>
+                            Email Width (%)
+                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="3">
+                        </label>
+                        <label>
+                            Row Gap (px)
+                            <input type="range" min="0" max="24" value="0" data-layout-input data-row="primary" data-gap>
+                        </label>
+                        <label>
+                            Product Width (%)
+                            <input type="range" min="20" max="70" value="45" data-layout-input data-row="secondary" data-col="1">
+                        </label>
+                        <label>
+                            Amount Width (%)
+                            <input type="range" min="15" max="50" value="25" data-layout-input data-row="secondary" data-col="2">
+                        </label>
+                        <label>
+                            Submit Width (%)
+                            <input type="range" min="15" max="50" value="30" data-layout-input data-row="secondary" data-col="3">
+                        </label>
+                        <label>
+                            Second Row Gap (px)
+                            <input type="range" min="0" max="24" value="8" data-layout-input data-row="secondary" data-gap>
+                        </label>
+                    </div>
                     <div class="orders-card__section">
                     <form method="POST" action="{{ route('dashboard.orders.store') }}" class="orders-form">
                         @csrf
@@ -1050,12 +1167,10 @@
                 });
             };
 
-            if (layoutCard) {
+            if (layoutToggle && layoutPanel && layoutCard) {
                 hydrateInputs();
                 applyLayout();
-            }
 
-            if (layoutToggle && layoutPanel && layoutCard) {
                 layoutToggle.addEventListener('click', () => {
                     const editing = layoutCard.classList.toggle('orders-card--editing');
                     layoutPanel.hidden = !editing;
