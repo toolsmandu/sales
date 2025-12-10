@@ -214,6 +214,8 @@ class RecordController extends Controller
                 'password' => 'password',
                 'phone' => 'phone',
                 'product' => 'product',
+                'sales_amount' => 'sales_amount',
+                'price' => 'sales_amount',
                 'expiry' => 'expiry',
                 'period' => 'expiry',
                 'remaining_days' => 'remaining_days',
@@ -246,6 +248,12 @@ class RecordController extends Controller
                     }
                 }
 
+                if (isset($payload['sales_amount'])) {
+                    $payload['sales_amount'] = is_numeric($payload['sales_amount'])
+                        ? (int) $payload['sales_amount']
+                        : null;
+                }
+
                 if (isset($payload['expiry'])) {
                     $payload['expiry'] = is_numeric($payload['expiry'])
                         ? (int) $payload['expiry']
@@ -275,6 +283,7 @@ class RecordController extends Controller
             'password' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:255'],
             'phone' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:60'],
             'product' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:190'],
+            'sales_amount' => [$partial ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
             'purchase_date' => [$partial ? 'sometimes' : 'required', 'date'],
             'expiry' => [$partial ? 'sometimes' : 'nullable', 'integer', 'min:0'],
             'remaining_days' => [$partial ? 'sometimes' : 'nullable', 'integer'],
@@ -295,6 +304,12 @@ class RecordController extends Controller
 
         if (isset($data['purchase_date'])) {
             $data['purchase_date'] = Carbon::parse($data['purchase_date'])->toDateString();
+        }
+
+        if (array_key_exists('sales_amount', $data)) {
+            $data['sales_amount'] = $data['sales_amount'] === null || $data['sales_amount'] === ''
+                ? null
+                : (int) $data['sales_amount'];
         }
 
         return $data;
@@ -338,25 +353,33 @@ class RecordController extends Controller
 
     private function createTableIfMissing(string $tableName): void
     {
-        if (Schema::hasTable($tableName)) {
+        $tableExists = Schema::hasTable($tableName);
+
+        if (!$tableExists) {
+            Schema::create($tableName, function (Blueprint $table): void {
+                $table->id();
+                $table->string('email')->nullable();
+                $table->string('password')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('product')->nullable();
+                $table->integer('sales_amount')->nullable();
+                $table->date('purchase_date')->nullable();
+                $table->integer('expiry')->nullable(); // manual number input
+                $table->integer('remaining_days')->nullable();
+                $table->text('remarks')->nullable();
+                $table->string('two_factor')->nullable();
+                $table->string('email2')->nullable();
+                $table->string('password2')->nullable();
+                $table->timestamps();
+            });
             return;
         }
 
-        Schema::create($tableName, function (Blueprint $table): void {
-            $table->id();
-            $table->string('email')->nullable();
-            $table->string('password')->nullable();
-            $table->string('phone')->nullable();
-            $table->string('product')->nullable();
-            $table->date('purchase_date')->nullable();
-            $table->integer('expiry')->nullable(); // manual number input
-            $table->integer('remaining_days')->nullable();
-            $table->text('remarks')->nullable();
-            $table->string('two_factor')->nullable();
-            $table->string('email2')->nullable();
-            $table->string('password2')->nullable();
-            $table->timestamps();
-        });
+        // Add any missing columns for existing tables
+        if (!Schema::hasColumn($tableName, 'sales_amount')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->integer('sales_amount')->nullable()->after('product');
+            });
+        }
     }
-
 }

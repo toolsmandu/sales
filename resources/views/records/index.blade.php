@@ -421,12 +421,51 @@
                         <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
                         <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
                         <div class="pill" id="records-count">0 Data</div>
-                        <label class="secondary outline" style="margin: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
-                            <input type="file" id="records-import-file" accept=".csv" style="display: none;">
-                            Import CSV
-                        </label>
+                        <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
+                        <input type="file" id="records-import-file" accept=".csv" style="display: none;">
                     </div>
                 </header>
+                <div class="modal is-hidden" id="records-import-modal" role="dialog" aria-modal="true" aria-labelledby="records-import-title">
+                    <div class="modal__content">
+                        <div class="modal__header">
+                            <div>
+                                <h3 id="records-import-title">Import CSV</h3>
+                                <p class="helper-text" style="margin: 0;">Download the sample, fill it, then upload your CSV.</p>
+                            </div>
+                            <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                <button type="button" class="ghost-button" id="records-download-sample">Download sample</button>
+                                <button type="button" class="ghost-button" id="records-import-close" aria-label="Close import modal">Close</button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper" style="max-height: 320px; overflow: auto;">
+                            <table class="records-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">product_name</th>
+                                <th style="text-align: left;">email</th>
+                                <th style="text-align: left;">phone</th>
+                                <th style="text-align: left;">price (sales_amount)</th>
+                                <th style="text-align: left;">purchase_date (YYYY-MM-DD)</th>
+                                <th style="text-align: left;">period</th>
+                                <th style="text-align: left;">password</th>
+                                <th style="text-align: left;">two_factor</th>
+                                <th style="text-align: left;">email2</th>
+                                <th style="text-align: left;">password2</th>
+                                <th style="text-align: left;">remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="11" class="records-empty" style="text-align: center;">(Your CSV will contain headers only; add rows below them.)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                        <div class="form-actions" style="justify-content: flex-end;">
+                            <button type="button" class="primary" id="records-import-choose">Choose CSV to upload</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="column-controls" id="column-controls" style="display: none;"></div>
                 <div class="records-table-wrapper">
                     <table class="records-table" id="records-table">
@@ -479,6 +518,7 @@
                 { id: 'email', label: 'Email', type: 'text-editable' },
                 { id: 'password', label: 'Password', type: 'text-editable' },
                 { id: 'phone', label: 'Phone', type: 'text-editable' },
+                { id: 'sales_amount', label: 'Price', type: 'text-editable' },
                 { id: 'expiry', label: 'Period', type: 'number' },
                 { id: 'remaining', label: 'Remaining', type: 'computed' },
                 { id: 'remarks', label: 'Remarks', type: 'textarea' },
@@ -563,6 +603,11 @@
             const createProductButton = document.getElementById('records-create-product');
             const newProductInput = document.getElementById('record-new-product');
             const importFileInput = document.getElementById('records-import-file');
+            const importTrigger = document.getElementById('records-import-trigger');
+            const importModal = document.getElementById('records-import-modal');
+            const importClose = document.getElementById('records-import-close');
+            const importChoose = document.getElementById('records-import-choose');
+            const importDownload = document.getElementById('records-download-sample');
 
             const handleFilterInput = (input, key) => {
                 if (!input) return;
@@ -571,6 +616,39 @@
                     renderRecords();
                 });
             };
+
+            const parseCsvLine = (line) => {
+                const cells = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i += 1) {
+                    const char = line[i];
+                    const next = line[i + 1];
+                    if (char === '"') {
+                        if (inQuotes && next === '"') {
+                            current += '"';
+                            i += 1;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                        continue;
+                    }
+                    if (char === ',' && !inQuotes) {
+                        cells.push(current);
+                        current = '';
+                        continue;
+                    }
+                    current += char;
+                }
+                cells.push(current);
+                return cells;
+            };
+
+            const parseCsvText = (text) => text
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter(Boolean)
+                .map(parseCsvLine);
 
             handleFilterInput(filterPhoneInput, 'phoneFilter');
             handleFilterInput(filterEmailInput, 'emailFilter');
@@ -870,6 +948,7 @@
                     email: record.email ?? '',
                     password: record.password ?? '',
                     phone: record.phone ?? '',
+                    sales_amount: record.sales_amount ?? '',
                     expiry: record.expiry ?? '',
                     remaining_days: record.remaining_days ?? '',
                     remarks: record.remarks ?? '',
@@ -1006,6 +1085,18 @@
                     input.className = 'records-field';
                     input.dataset.field = 'expiry';
                     input.value = formatExpiryDisplay(value);
+                    return input;
+                }
+                if (col.id === 'sales_amount') {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '0';
+                    input.step = '1';
+                    input.className = 'records-field';
+                    input.dataset.field = 'sales_amount';
+                    const numeric = Number(value);
+                    input.value = Number.isFinite(numeric) ? Math.trunc(numeric) : '';
+                    input.placeholder = '0';
                     return input;
                 }
                 if (col.id === 'purchase_date') {
@@ -1357,6 +1448,7 @@
                     email: '',
                     password: '',
                     phone: '',
+                    sales_amount: '',
                     expiry: '',
                     remaining_days: '',
                     remarks: '',
@@ -1589,14 +1681,89 @@
                     createProduct();
                 }
             });
+
+            const openImportModal = () => {
+                importModal?.classList.remove('is-hidden');
+            };
+
+            const closeImportModal = () => {
+                importModal?.classList.add('is-hidden');
+            };
+
+            importTrigger?.addEventListener('click', openImportModal);
+            importClose?.addEventListener('click', closeImportModal);
+            importModal?.addEventListener('click', (event) => {
+                if (event.target === importModal) {
+                    closeImportModal();
+                }
+            });
+
+            importDownload?.addEventListener('click', () => {
+                const headers = ['product_name','email','phone','price','purchase_date','period','password','two_factor','email2','password2','remarks'];
+                const csv = headers.join(',');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'import-sample.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            importChoose?.addEventListener('click', () => {
+                importFileInput?.click();
+            });
+
             importFileInput?.addEventListener('change', async () => {
                 if (!importFileInput.files.length || !state.selectedProductId) {
                     return;
                 }
                 const file = importFileInput.files[0];
-                const formData = new FormData();
-                formData.append('file', file);
                 try {
+                    const text = await file.text();
+                    const rows = parseCsvText(text);
+                    if (!rows.length) {
+                        setStatus('CSV is empty');
+                        return;
+                    }
+
+                    const expectedHeaders = ['product_name', 'email', 'phone', 'sales_amount', 'purchase_date', 'period', 'password', 'two_factor', 'email2', 'password2', 'remarks'];
+                    const headerRow = rows.shift().map((h) => h.trim().toLowerCase());
+
+                    const indexMap = {};
+                    headerRow.forEach((header, idx) => {
+                        const canonical = header === 'price' ? 'sales_amount' : header;
+                        if (expectedHeaders.includes(canonical)) {
+                            indexMap[canonical] = idx;
+                        }
+                    });
+
+                    if (!Object.keys(indexMap).length) {
+                        setStatus('CSV headers not recognized');
+                        return;
+                    }
+
+                    const normalizedRows = rows
+                        .map((row) => expectedHeaders.map((header) => {
+                            const idx = indexMap[header];
+                            return idx !== undefined && row[idx] !== undefined ? row[idx] : '';
+                        }))
+                        .filter((row) => row.some((cell) => String(cell).trim() !== ''));
+
+                    if (!normalizedRows.length) {
+                        setStatus('No data rows found');
+                        return;
+                    }
+
+                    const normalizedCsv = [
+                        expectedHeaders.join(','),
+                        ...normalizedRows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')),
+                    ].join('\n');
+
+                    const blob = new Blob([normalizedCsv], { type: 'text/csv;charset=utf-8;' });
+                    const formData = new FormData();
+                    formData.append('file', blob, file.name || 'import.csv');
+
                     setStatus('Importing CSV...');
                     const response = await fetch(routes.importEntries(state.selectedProductId), {
                         method: 'POST',
