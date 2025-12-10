@@ -135,6 +135,52 @@
 
 @push('styles')
     <style>
+        .table-wrapper {
+            overflow: auto;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        #orders-table {
+            width: 100%;
+            min-width: 960px;
+            border-collapse: collapse;
+            table-layout: fixed;
+            background: linear-gradient(180deg, #fff, #f8fafc 18%, #fff 100%);
+        }
+
+        #orders-table th,
+        #orders-table td {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 0.55rem 0.65rem;
+            background: #fff;
+            text-align: center;
+            min-width: 0;
+            word-break: break-word;
+        }
+
+        #orders-table thead th {
+            background: linear-gradient(180deg, rgba(226, 232, 240, 0.9), rgba(241, 245, 249, 0.9));
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        #orders-table tbody tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        #orders-table tbody tr:hover td {
+            background: #eef2ff;
+            border-color: rgba(79, 70, 229, 0.35);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
         .sales-table th {
             position: relative;
         }
@@ -142,12 +188,12 @@
         .sales-col-resizer {
             position: absolute;
             top: 0;
-            right: -4px;
-            width: 8px;
+            right: -6px;
+            width: 12px;
             height: 100%;
             cursor: col-resize;
             user-select: none;
-            z-index: 2;
+            z-index: 3;
         }
     </style>
 @endpush
@@ -466,11 +512,25 @@
 
             const widths = loadWidths();
 
-            const renderColgroup = () => {
-                colgroup.innerHTML = columnIds.map((id) => {
-                    const width = widths[id];
-                    return `<col data-col-id="${id}" style="${width ? `width:${width}px` : ''}">`;
-                }).join('');
+            const ensureColgroup = () => {
+                if (!colgroup.children.length) {
+                    columnIds.forEach((id) => {
+                        const col = document.createElement('col');
+                        col.dataset.colId = id;
+                        if (widths[id]) {
+                            col.style.width = `${widths[id]}px`;
+                        }
+                        colgroup.appendChild(col);
+                    });
+                } else {
+                    Array.from(colgroup.children).forEach((col, idx) => {
+                        const id = columnIds[idx];
+                        if (!id) return;
+                        const width = widths[id];
+                        col.dataset.colId = id;
+                        col.style.width = width ? `${width}px` : '';
+                    });
+                }
             };
 
             const persist = () => {
@@ -481,12 +541,17 @@
                 }
             };
 
-            const applyHeaderWidths = () => {
-                columnIds.forEach((id) => {
-                    const header = table.querySelector(`th[data-col-id="${id}"]`);
-                    if (!header) return;
+            const applyWidths = () => {
+                columnIds.forEach((id, idx) => {
                     const width = widths[id];
-                    header.style.width = width ? `${width}px` : '';
+                    const col = colgroup.children[idx];
+                    if (col) {
+                        col.style.width = width ? `${width}px` : '';
+                    }
+                    const header = table.querySelector(`th[data-col-id="${id}"]`);
+                    if (header) {
+                        header.style.width = width ? `${width}px` : '';
+                    }
                 });
             };
 
@@ -504,7 +569,9 @@
                 event.preventDefault();
                 const startX = event.pageX;
                 const header = table.querySelector(`th[data-col-id="${colId}"]`);
+                const colEl = colgroup.querySelector(`col[data-col-id="${colId}"]`);
                 const startWidth = widths[colId]
+                    ?? colEl?.getBoundingClientRect().width
                     ?? header?.getBoundingClientRect().width
                     ?? 140;
 
@@ -513,8 +580,7 @@
                     const delta = moveEvent.pageX - startX;
                     const nextWidth = Math.max(80, startWidth + delta);
                     widths[colId] = nextWidth;
-                    renderColgroup();
-                    applyHeaderWidths();
+                    applyWidths();
                 };
 
                 const onUp = () => {
@@ -527,8 +593,8 @@
                 document.addEventListener('mouseup', onUp);
             };
 
-            renderColgroup();
-            applyHeaderWidths();
+            ensureColgroup();
+            applyWidths();
             setupResizers();
         })();
     </script>
