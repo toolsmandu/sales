@@ -559,7 +559,9 @@ class SaleController extends Controller
         $isUpdate = $sale !== null;
 
         $data = $request->validate([
-            'product_name' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
+            'product_name' => $isUpdate
+                ? ['sometimes', 'nullable', 'string', 'max:255']
+                : ['nullable', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'sales_amount' => ['nullable', 'numeric', 'min:0'],
@@ -573,9 +575,9 @@ class SaleController extends Controller
 
         $expiryInput = $data['product_expiry_days'] ?? null;
         $expiryDays = isset($expiryInput) && $expiryInput !== '' ? max(0, (int) $expiryInput) : null;
-        $productName = $isUpdate
-            ? trim((string) $sale->product_name)
-            : trim((string) $data['product_name']);
+        $productName = array_key_exists('product_name', $data)
+            ? trim((string) $data['product_name'])
+            : ($isUpdate ? trim((string) $sale->product_name) : '');
 
         return [
             ...$data,

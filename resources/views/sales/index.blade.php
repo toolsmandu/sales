@@ -775,17 +775,16 @@
                                     data-expiry-input="create-product-expiry">
                                     <label for="sales-product-name">
                                         Product
-                                        <input
-                                            type="text"
-                                            id="sales-product-name"
-                                            class="product-combobox__input"
-                                            name="product_name"
-                                            value="{{ $createProductValue }}"
-                                            placeholder="Choose one (Required)"
-                                            autocomplete="off"
-                                            data-selected-name="{{ $createProductValue }}"
-                                            required
-                                        >
+                                    <input
+                                        type="text"
+                                        id="sales-product-name"
+                                        class="product-combobox__input"
+                                        name="product_name"
+                                        value="{{ $createProductValue }}"
+                                        placeholder="Choose one (optional)"
+                                        autocomplete="off"
+                                        data-selected-name="{{ $createProductValue }}"
+                                    >
                                         <input
                                             type="hidden"
                                             name="product_expiry_days"
@@ -832,7 +831,7 @@
                                         min="0"
                                         id="sales-amount"
                                         name="sales_amount"
-                                        value="{{ old('sales_amount') }}"
+                                        value="{{ old('sales_amount') !== null ? (int) old('sales_amount') : '' }}"
                                         placeholder="Rs."
                                     >
                                 </label>
@@ -909,18 +908,61 @@
                             $editExpiryValue = old('product_expiry_days', $saleToEdit->product_expiry_days);
                             $editOptions = $ensureOptionPresent($normalizedProductOptions, $editProductValue, $editExpiryValue);
                         @endphp
-                        <label for="edit-sales-product-name">
-                            Product Name
-                            <input
-                                type="text"
-                                id="edit-sales-product-name"
-                                value="{{ $editProductValue }}"
-                                disabled
-                            >
-                            <input type="hidden" name="product_name" value="{{ $editProductValue }}">
-                            <input type="hidden" name="product_expiry_days" value="{{ $editExpiryValue }}">
-                            <span class="helper-text">Update the name from the Products page if it needs to change.</span>
-                        </label>
+                        <div class="orders-field orders-field--product">
+                            <div
+                                class="product-combobox"
+                                data-product-combobox
+                                data-allow-free-entry="true"
+                                data-expiry-input="edit-product-expiry">
+                                <label for="edit-sales-product-name">
+                                    Product
+                                    <input
+                                        type="text"
+                                        id="edit-sales-product-name"
+                                        class="product-combobox__input"
+                                        name="product_name"
+                                        value="{{ $editProductValue }}"
+                                        placeholder="Choose one (Required)"
+                                        autocomplete="off"
+                                        data-selected-name="{{ $editProductValue }}"
+                                        required
+                                    >
+                                    <input
+                                        type="hidden"
+                                        name="product_expiry_days"
+                                        id="edit-product-expiry"
+                                        value="{{ $editExpiryValue }}"
+                                    >
+                                </label>
+
+                                <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                    @if ($editOptions->isEmpty())
+                                        <p class="product-combobox__empty">No products available yet.</p>
+                                    @else
+                                        <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                        @foreach ($editOptions as $option)
+                                            @php
+                                                $label = $option['label'];
+                                                $expiryDays = $option['expiry_days'];
+                                                $isSelectedOption = $editProductValue === $label;
+                                            @endphp
+                                            <button
+                                                type="button"
+                                                class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
+                                                data-product-option
+                                                data-product-name="{{ $label }}"
+                                                data-product-id="{{ $label }}"
+                                                data-product-expiry-days="{{ $expiryDays ?? '' }}"
+                                                role="option"
+                                                aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
+                                            >
+                                                {{ $label }}
+                                            </button>
+                                        @endforeach
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
 
                         <label for="edit-sales-remarks">
                             Remarks
@@ -974,7 +1016,7 @@
                                 min="0"
                                 id="edit-sales-amount"
                                 name="sales_amount"
-                                value="{{ old('sales_amount', $saleToEdit->sales_amount) }}"
+                                value="{{ old('sales_amount', $saleToEdit->sales_amount !== null ? (int) $saleToEdit->sales_amount : null) }}"
                             >
                         </label>
 

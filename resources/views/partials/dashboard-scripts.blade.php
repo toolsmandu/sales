@@ -839,7 +839,7 @@
                         emptyLine.textContent = 'Add a payment method to begin tracking balances.';
                         paymentSummaryItems.appendChild(emptyLine);
                         if (totalElement) {
-                            totalElement.querySelector('strong').textContent = 'Rs 0.00';
+                            totalElement.querySelector('strong').textContent = 'Rs 0';
                         }
                         updateMonthlySummaryYearOptions();
                         renderMonthlySummaryTable();

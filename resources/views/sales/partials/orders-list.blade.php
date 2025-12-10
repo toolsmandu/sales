@@ -202,6 +202,15 @@
             user-select: none;
             z-index: 3;
         }
+
+        .sales-product-input {
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            border-radius: 0.35rem;
+            padding: 0.3rem 0.4rem;
+            font: inherit;
+            background: #fff;
+        }
     </style>
 @endpush
 
@@ -264,8 +273,16 @@
                         $productDisplay = $productDisplayRaw !== '' ? $productDisplayRaw : '—';
                     @endphp
                     <td>
-                        <span class="sales-product-text">{{ $productDisplay }}</span>
-                        <input type="hidden" name="product_name" form="{{ $formId }}" value="{{ $sale->product_name }}">
+                        <input
+                            type="text"
+                            name="product_name"
+                            form="{{ $formId }}"
+                            class="sales-product-text sales-product-input"
+                            value="{{ $sale->product_name }}"
+                            placeholder="Product"
+                            list="sales-product-options"
+                            autocomplete="off"
+                        >
                     </td>
                     @php
                         $emailDisplay = trim((string) $sale->email);
@@ -310,11 +327,12 @@
                     <td>
                         <input
                             type="number"
-                            step="0.01"
+                            step="1"
                             min="0"
+                            inputmode="numeric"
                             name="sales_amount"
                             form="{{ $formId }}"
-                            value="{{ $sale->sales_amount !== null ? $sale->sales_amount : '' }}"
+                            value="{{ $sale->sales_amount !== null ? (int) $sale->sales_amount : '' }}"
                             placeholder="Amount"
                         >
                     </td>

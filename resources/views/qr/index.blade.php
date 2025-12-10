@@ -273,7 +273,7 @@
                                 $availableText = $methodStats
                                     ? ($methodStats['available'] === null
                                         ? 'Unlimited'
-                                        : number_format($methodStats['available'], 2))
+                                        : number_format($methodStats['available'], 0))
                                     : 'N/A';
                             @endphp
                             <article class="qr-card">

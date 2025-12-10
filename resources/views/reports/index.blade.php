@@ -245,15 +245,15 @@
                             @foreach ($monthlyStatement['days'] as $day)
                                 <tr>
                                     <td style="text-align: left;">{{ $day['date'] }}</td>
-                                    <td>Rs {{ number_format((float) $day['amount'], 2) }}</td>
-                                    <td>Rs {{ number_format((float) $day['running_total'], 2) }}</td>
+                                    <td>Rs {{ number_format((float) $day['amount'], 0) }}</td>
+                                    <td>Rs {{ number_format((float) $day['running_total'], 0) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot>
                             <tr>
                                 <th style="text-align: left;">Monthly Total</th>
-                                <th colspan="2" style="text-align: right;">Rs {{ number_format($monthlyStatement['total'], 2) }}</th>
+                                <th colspan="2" style="text-align: right;">Rs {{ number_format($monthlyStatement['total'], 0) }}</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -331,7 +331,7 @@
                                 <tr>
                                     <td>{{ $product->product_name }}</td>
                                     <td>{{ $product->sales_count }}</td>
-                                    <td>Rs. {{ number_format((float) $product->total_sales, 2) }}</td>
+                                    <td>Rs. {{ number_format((float) $product->total_sales, 0) }}</td>
                                 </tr>
                             @empty
                                 <tr>
