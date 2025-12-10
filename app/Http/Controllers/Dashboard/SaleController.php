@@ -366,6 +366,7 @@ class SaleController extends Controller
 
             $sale->update([
                 'purchase_date' => $purchaseDate,
+                'product_name' => $data['product_name'],
                 'product_expiry_days' => $data['product_expiry_days'],
                 'remarks' => $data['remarks'],
                 'phone' => $data['phone'],
