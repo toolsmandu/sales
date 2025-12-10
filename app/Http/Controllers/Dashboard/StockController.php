@@ -115,7 +115,7 @@ class StockController extends Controller
 
             $payload[] = [
                 'product_id' => (int) $data['product_id'],
-                'activation_key' => Crypt::encryptString($normalized),
+                'activation_key' => Crypt::encryptString($key),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -160,7 +160,8 @@ class StockController extends Controller
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
         ]);
 
-        $normalizedKey = strtolower(trim($data['activation_key']));
+        $activationKey = trim($data['activation_key']);
+        $normalizedKey = strtolower($activationKey);
 
         $existingKeys = StockKey::query()
             ->whereKeyNot($stockKey->getKey())
@@ -181,7 +182,7 @@ class StockController extends Controller
             ]);
         }
 
-        $payload = ['activation_key' => Crypt::encryptString($normalizedKey)];
+        $payload = ['activation_key' => $activationKey];
 
         if (array_key_exists('product_id', $data) && $data['product_id'] !== null) {
             $payload['product_id'] = (int) $data['product_id'];
