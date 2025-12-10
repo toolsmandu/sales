@@ -181,6 +181,13 @@
             transition: background 0.2s ease, border-color 0.2s ease;
         }
 
+        .sales-product-text {
+            display: inline-block;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+
         .sales-table th {
             position: relative;
         }
@@ -257,7 +264,7 @@
                         $productDisplay = $productDisplayRaw !== '' ? $productDisplayRaw : '—';
                     @endphp
                     <td>
-                        <span>{{ $productDisplay }}</span>
+                        <span class="sales-product-text">{{ $productDisplay }}</span>
                         <input type="hidden" name="product_name" form="{{ $formId }}" value="{{ $sale->product_name }}">
                     </td>
                     @php
@@ -314,14 +321,23 @@
                     <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
                     @php
                         $status = strtolower((string) ($sale->status ?? 'pending'));
+                        $statusLabel = match ($status) {
+                            'completed' => 'Completed',
+                            'refunded' => 'Refunded',
+                            default => 'Pending',
+                        };
                     @endphp
                     <td>
                         <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
-                        <select name="status" form="{{ $formId }}">
-                            <option value="pending" @selected($status === 'pending')>Pending</option>
-                            <option value="completed" @selected($status === 'completed')>Completed</option>
-                            <option value="refunded" @selected($status === 'refunded')>Refunded</option>
-                        </select>
+                        <input type="hidden" name="status" form="{{ $formId }}" value="{{ $status }}">
+                        @php
+                            $statusIcon = match ($status) {
+                                'completed' => '☑️',
+                                'refunded' => '♻',
+                                default => '⌛',
+                            };
+                        @endphp
+                        <span aria-label="{{ $statusLabel }}" title="{{ $statusLabel }}" style="font-size: 1.1rem;">{{ $statusIcon }}</span>
                     </td>
                     <td style="white-space: nowrap;">{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
                     <td>
