@@ -90,12 +90,43 @@
             font-size: 0.95rem;
         }
 
+        .qr-visibility-badge {
+            align-self: flex-start;
+            padding: 0.35rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .qr-visibility-badge--visible {
+            background: rgba(22, 163, 74, 0.12);
+            color: #15803d;
+        }
+
+        .qr-visibility-badge--hidden {
+            background: rgba(239, 68, 68, 0.12);
+            color: #b91c1c;
+        }
+
         .qr-card__footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 0.5rem;
             flex-wrap: wrap;
+        }
+
+        .qr-visibility-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            margin-top: 0.35rem;
+        }
+
+        .qr-visibility-toggle input {
+            width: 16px;
+            height: 16px;
         }
 
         .qr-copy-btn {
@@ -209,15 +240,14 @@
                             >{{ old('description') }}</textarea>
                         </label>
 
-                        <label for="qr-payment-number">
-                            Payment method number
+                        <label class="qr-visibility-toggle">
                             <input
-                                type="text"
-                                id="qr-payment-number"
-                                name="payment_method_number"
-                                placeholder="Matches payment method unique number"
-                                value="{{ old('payment_method_number') }}"
+                                type="checkbox"
+                                name="visible_to_employees"
+                                value="1"
+                                {{ old('visible_to_employees', '1') ? 'checked' : '' }}
                             >
+                            Show to employees
                         </label>
 
                         <div class="form-actions form-actions--row">
@@ -248,6 +278,11 @@
                             @endphp
                             <article class="qr-card">
                                 <center><strong>{{ $qr->name }}</strong></center>
+                                @if (auth()->user()?->isAdmin())
+                                    <div class="qr-visibility-badge {{ $qr->visible_to_employees ? 'qr-visibility-badge--visible' : 'qr-visibility-badge--hidden' }}">
+                                        {{ $qr->visible_to_employees ? 'Visible to employees' : 'Hidden from employees' }}
+                                    </div>
+                                @endif
                                 <img src="{{ $qrSrc }}" alt="QR code for {{ $qr->name }}">
                                 <div class="qr-available">
                                     <span> Limit:</span>
@@ -320,9 +355,14 @@
                                             Description
                                             <textarea name="description" rows="2" placeholder="Optional description">{{ $qr->description }}</textarea>
                                         </label>
-                                        <label>
-                                            Payment method number
-                                            <input type="text" name="payment_method_number" value="{{ $qr->payment_method_number }}">
+                                        <label class="qr-visibility-toggle">
+                                            <input
+                                                type="checkbox"
+                                                name="visible_to_employees"
+                                                value="1"
+                                                {{ $qr->visible_to_employees ? 'checked' : '' }}
+                                            >
+                                            Show to employees
                                         </label>
                                         <div class="form-actions form-actions--row">
                                             <button type="submit">Update</button>

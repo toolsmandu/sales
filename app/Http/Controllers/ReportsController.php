@@ -13,7 +13,13 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
+        if ($request->user()?->isEmployee()) {
+            abort(403);
+        }
+
         $today = Carbon::today('Asia/Kathmandu');
+        $defaultMonth = $today->month;
+        $defaultYear = $today->year;
 
         $rangeOptions = [
             'last_7_days' => 'In Last 7 Days',
@@ -24,19 +30,21 @@ class ReportsController extends Controller
             'lifetime' => 'Lifetime',
         ];
 
-        $selectedRange = $request->query('range', 'last_30_days');
-        $selectedMonth = (int) $request->query('month', 0);
-        $selectedYear = (int) $request->query('year', 0);
+        $selectedRange = $request->query('range', 'custom_month');
+        $selectedMonth = $request->has('month') ? (int) $request->query('month', 0) : $defaultMonth;
+        $selectedYear = $request->has('year') ? (int) $request->query('year', 0) : $defaultYear;
         $topPerPage = $this->perPage($request->query('top_per_page'));
         $contactPerPage = $this->perPage($request->query('contact_per_page'));
 
         $startDate = null;
         $endDate = $today;
 
-        if ($selectedMonth > 0 && $selectedYear > 0) {
+        if ($selectedRange === 'custom_month') {
+            $selectedMonth = $selectedMonth > 0 ? $selectedMonth : $defaultMonth;
+            $selectedYear = $selectedYear > 0 ? $selectedYear : $defaultYear;
+
             $startDate = Carbon::create($selectedYear, $selectedMonth, 1, 0, 0, 0, 'Asia/Kathmandu')->startOfMonth();
             $endDate = (clone $startDate)->endOfMonth();
-            $selectedRange = 'custom_month';
         } else {
             switch ($selectedRange) {
                 case 'last_7_days':
@@ -99,6 +107,7 @@ class ReportsController extends Controller
             'topPerPage' => $topPerPage,
             'contactPerPage' => $contactPerPage,
             'products' => Product::query()->select(['id', 'name'])->orderBy('name')->get(),
+            'monthlyStatement' => $this->monthlyStatement($selectedMonth, $selectedYear),
         ]);
     }
 
@@ -158,5 +167,53 @@ class ReportsController extends Controller
         }, $filename, [
             'Content-Type' => 'text/csv',
         ]);
+    }
+
+    private function monthlyStatement(int $month, int $year): array
+    {
+        $today = Carbon::today('Asia/Kathmandu');
+        $month = $month > 0 ? $month : $today->month;
+        $year = $year > 0 ? $year : $today->year;
+
+        $start = Carbon::create($year, $month, 1, 0, 0, 0, 'Asia/Kathmandu')->startOfMonth();
+        $end = (clone $start)->endOfMonth();
+        if ($end->gt($today)) {
+            $end = $today;
+        }
+
+        $dailySales = Sale::query()
+            ->whereBetween('purchase_date', [$start, $end])
+            ->selectRaw('DATE(purchase_date) as sale_day')
+            ->selectRaw('COALESCE(SUM(sales_amount), 0) as total_sales')
+            ->groupBy('sale_day')
+            ->orderBy('sale_day')
+            ->get()
+            ->mapWithKeys(fn ($row) => [$row->sale_day => (float) $row->total_sales]);
+
+        $days = [];
+        $runningTotal = 0.0;
+        $cursor = $start->copy();
+
+        while ($cursor->lte($end)) {
+            $key = $cursor->toDateString();
+            $amount = $dailySales[$key] ?? 0.0;
+            $runningTotal += $amount;
+
+            $days[] = [
+                'date' => $cursor->toDateString(),
+                'label' => $cursor->format('jS'),
+                'amount' => $amount,
+                'running_total' => $runningTotal,
+            ];
+
+            $cursor->addDay();
+        }
+
+        return [
+            'month_label' => $start->format('F'),
+            'year' => $year,
+            'days' => $days,
+            'total' => $runningTotal,
+        ];
     }
 }

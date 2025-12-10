@@ -16,7 +16,7 @@
             display: flex;
             gap: 0.65rem;
             align-items: flex-end;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             justify-content: flex-end;
             margin-left: auto;
         }
@@ -170,6 +170,27 @@
         .reports-subsection .product-combobox {
             min-width: 220px;
         }
+
+        .reports-table-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: center;
+            padding: 0.25rem 0;
+        }
+
+        .reports-table-toolbar label {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+
+        .reports-table-toolbar select {
+            min-width: 140px;
+        }
     </style>
 @endpush
 
@@ -185,13 +206,78 @@
             <section class="card stack">
                 <header class="reports-header">
                     <div>
+                        <h2 style="margin: 0;">Sales Statement</h2>
+                        <p class="reports-meta" style="margin: 0;">{{ $monthlyStatement['month_label'] }} {{ $monthlyStatement['year'] }}</p>
+                    </div>
+                    <form method="GET" action="{{ route('reports') }}" style="display: flex; align-items: flex-end; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; width: 100%; max-width: 520px;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <label style="display: inline-flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; color: #0f172a;">
+                                <span>Month</span>
+                                <select name="month">
+                                    @foreach ($months as $month)
+                                        <option value="{{ $month['value'] }}" @selected($selectedMonth === $month['value'])>{{ $month['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label style="display: inline-flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; color: #0f172a;">
+                                <span>Year</span>
+                                <select name="year">
+                                    @foreach ($years as $year)
+                                        <option value="{{ $year }}" @selected($selectedYear === $year)>{{ $year }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        </div>
+                        <input type="hidden" name="range" value="custom_month">
+                        <button type="submit" style="width: auto;">Apply</button>
+                    </form>
+                </header>
+                <div class="table-wrapper">
+                    <table class="reports-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Date</th>
+                                <th>Total Sales</th>
+                                <th>Running Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($monthlyStatement['days'] as $day)
+                                <tr>
+                                    <td style="text-align: left;">{{ $day['date'] }}</td>
+                                    <td>Rs {{ number_format((float) $day['amount'], 2) }}</td>
+                                    <td>Rs {{ number_format((float) $day['running_total'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th style="text-align: left;">Monthly Total</th>
+                                <th colspan="2" style="text-align: right;">Rs {{ number_format($monthlyStatement['total'], 2) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card stack">
+                <header class="reports-header">
+                    <div>
                         <h2 style="margin: 0;">Top Selling Reports</h2>
                     </div>
+                </header>
+                <div class="reports-meta">
+                    @if ($selectedRange === 'custom_month')
+                        Showing results for {{ $months->firstWhere('value', $selectedMonth)['label'] ?? 'selected month' }} {{ $selectedYear ?: '' }}
+                    @else
+                        Showing {{ $rangeOptions[$selectedRange] ?? 'selected range' }}
+                    @endif
+                </div>
+                <div class="reports-table-toolbar">
                     <form class="reports-filters" method="GET" action="{{ route('reports') }}">
                         <label>
                             <span>Month</span>
                             <select name="month">
-                                <option value="">Any</option>
                                 @foreach ($months as $month)
                                     <option value="{{ $month['value'] }}" @selected($selectedMonth === $month['value'])>
                                         {{ $month['label'] }}
@@ -202,7 +288,6 @@
                         <label>
                             <span>Year</span>
                             <select name="year">
-                                <option value="">Any</option>
                                 @foreach ($years as $year)
                                     <option value="{{ $year }}" @selected($selectedYear === $year)>
                                         {{ $year }}
@@ -221,7 +306,6 @@
                                 @endif
                             </select>
                         </label>
-                        <button type="submit" style="margin: 20px;">Filter</button>
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; margin: 0;">
                             <span>Rows:</span>
                             <select name="top_per_page" onchange="this.form.submit()">
@@ -230,14 +314,8 @@
                                 @endforeach
                             </select>
                         </label>
+                        <button type="submit" style="margin: 10px 0;">Apply</button>
                     </form>
-                </header>
-                <div class="reports-meta">
-                    @if ($selectedRange === 'custom_month')
-                        Showing results for {{ $months->firstWhere('value', $selectedMonth)['label'] ?? 'selected month' }} {{ $selectedYear ?: '' }}
-                    @else
-                        Showing {{ $rangeOptions[$selectedRange] ?? 'selected range' }}
-                    @endif
                 </div>
                 <div class="table-wrapper">
                     <table class="reports-table">

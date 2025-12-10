@@ -17,7 +17,7 @@
         position: sticky;
         top: 1rem;
         display: grid;
-        gap: 1rem;
+        gap: 0.1rem;
         max-height: calc(100vh - 2rem);
         overflow: hidden;
     }
@@ -27,7 +27,7 @@
         width: 100%;
         align-items: center;
         justify-content: space-between;
-        gap: 0.5rem;
+        gap: 0.2rem;
         padding: 0.6rem 0.9rem;
         border-radius: 0.65rem;
         border: 1px solid rgba(79, 70, 229, 0.2);
@@ -44,7 +44,7 @@
 
     .dashboard-nav__content {
         display: grid;
-        gap: 1rem;
+        gap: 0.5rem;
         max-height: calc(100vh - 4rem);
         overflow-y: auto;
         padding-right: 0.35rem;
@@ -60,8 +60,9 @@
         list-style: none;
         margin: 0;
         padding: 0;
-        display: grid;
-        gap: 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
     }
 
     .dashboard-nav__heading {
@@ -832,24 +833,6 @@
         justify-content: flex-end;
     }
 
-    .statements-page-size {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        white-space: nowrap;
-    }
-
-    .statements-page-size label {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        white-space: nowrap;
-    }
-
-    .statements-page-size select {
-        min-width: 4.5rem;
-    }
-
     @media (min-width: 960px) {
         .payments-layout__summary {
             grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1fr);
@@ -1179,22 +1162,22 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.25rem;
-        border-radius: 0.4rem;
-        border: 1px solid transparent;
-        background: rgba(79, 70, 229, 0.1);
-        color: rgba(79, 70, 229, 0.8);
+        padding: 0.3rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: transparent;
+        color: #0f172a;
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         line-height: 0;
-        margin-top: 12px;
+        margin-top: 0;
     }
 
     .cell-action-button:hover,
     .cell-action-button:focus-visible {
         border-color: rgba(79, 70, 229, 0.35);
-        background: rgba(79, 70, 229, 0.16);
-        color: rgba(49, 46, 129, 0.9);
+        background: rgba(79, 70, 229, 0.1);
+        color: rgba(49, 46, 129, 0.95);
         outline: none;
     }
 
@@ -1247,7 +1230,9 @@
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        }
+        flex-wrap: nowrap;
+        white-space: nowrap;
+    }
 
     .table-actions form {
         margin: 0;
@@ -1474,17 +1459,18 @@
     }
 
     .icon-button {
-        width: 2rem;
-        height: 2rem;
+        width: 1.9rem;
+        height: 1.9rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 0.5rem;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        background: #fff;
-        color: rgba(15, 23, 42, 0.72);
+        vertical-align: middle;
+        border-radius: 999px;
+        border: none;
+        background: transparent;
+        color: rgba(15, 23, 42, 0.75);
         cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+        transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
         padding: 0;
     }
 
@@ -1496,22 +1482,19 @@
     .icon-button:hover,
     .icon-button:focus-visible {
         transform: translateY(-1px);
-        border-color: rgba(79, 70, 229, 0.35);
-        color: rgba(79, 70, 229, 0.8);
-        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.18);
+        color: rgba(79, 70, 229, 0.95);
+        background: rgba(79, 70, 229, 0.08);
         outline: none;
     }
 
     .icon-button--danger {
-        border-color: rgba(220, 38, 38, 0.25);
-        color: rgba(220, 38, 38, 0.72);
+        color: rgba(220, 38, 38, 0.78);
     }
 
     .icon-button--danger:hover,
     .icon-button--danger:focus-visible {
-        border-color: rgba(220, 38, 38, 0.5);
-        color: rgba(185, 28, 28, 0.85);
-        box-shadow: 0 8px 16px rgba(220, 38, 38, 0.18);
+        color: rgba(185, 28, 28, 0.92);
+        background: rgba(220, 38, 38, 0.08);
     }
 
     @media (max-width: 1024px) {

@@ -32,17 +32,21 @@
         .sales-filter-row > .product-combobox {
             flex: 0 0 auto;
             min-width: 210px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            align-self: flex-start;
+            margin-top: 0;
         }
 
         .sales-filter-actions  {
-         
             align-items: center;
             gap: 0.5rem;
             margin: 30px;
         }
 
 
-             .createorderbutton  {
+        .createorderbutton  {
             margin: 20px;
         }
 
@@ -205,6 +209,15 @@
             color: rgba(15, 23, 42, 0.65);
         }
 
+        .cell-with-action {
+            align-items: center;
+        }
+
+        .cell-action-button {
+            margin-top: 0;
+            background: transparent;
+        }
+
         .phone-link--clean,
         .whatsapp-link {
             text-decoration: none;
@@ -217,6 +230,10 @@
 
         .orders-card {
             gap: 0;
+        }
+
+        .orders-card--create{
+            width: 800px;
         }
 
         .orders-form {
@@ -235,7 +252,7 @@
         }
 
         .orders-row--secondary {
-            grid-template-columns: repeat(4, minmax(150px, 1fr));
+            grid-template-columns: repeat(3, minmax(200px, 1fr));
         }
 
         .orders-field label {
@@ -259,7 +276,7 @@
         }
 
         .orders-field--amount {
-            max-width: 160px;
+            max-width: 125px;
             justify-self: start;
         }
 
@@ -268,18 +285,56 @@
             max-width: 200px;
         }
 
-        .orders-field--remarks input {
-            min-width: 220px;
+        .orders-field--remarks {
+            align-self: center;
         }
 
         .orders-field--submit {
             align-self: end;
-            justify-self: start;
+            justify-self: stretch;
+        }
+
+        /* Hide number input spinners for amount */
+        .orders-field--amount input::-webkit-outer-spin-button,
+        .orders-field--amount input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .orders-field--amount input[type="number"] {
+            -moz-appearance: textfield;
         }
 
         .orders-submit-button {
             white-space: nowrap;
         }
+
+        .remarks-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-left: 8px;
+        }
+
+        .remarks-toggle input[type="checkbox"] {
+            width: 12px;
+            height: 16px;
+            min-width: 10px;
+        }
+
+        .remarks-toggle-checkbox {
+            width: 12px;
+            height: 16px;
+            min-width: 10px;
+        }
+
+        .orders-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            justify-content: flex-end;
+        }
+
 
         @media (max-width: 960px) {
             .orders-row--primary,
@@ -302,6 +357,59 @@
             margin-top: 0.5rem;
         }
 
+        .orders-card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            padding-bottom: 0.75rem;
+        }
+
+        .orders-card__eyebrow {
+            margin: 0;
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(79, 70, 229, 0.8);
+            font-weight: 700;
+        }
+
+        .orders-card__badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12);
+            color: #1d4ed8;
+            font-weight: 700;
+            border: 1px solid rgba(37, 99, 235, 0.2);
+        }
+
+        .orders-card--create {
+            --orders-primary-col1: 1fr;
+            --orders-primary-col2: 1fr;
+            --orders-primary-col3: 1fr;
+            --orders-primary-gap: 0;
+            --orders-secondary-col1: 1fr;
+            --orders-secondary-col2: 0.5fr;
+            --orders-secondary-col3: 0.7fr;
+            --orders-secondary-gap: 0.5rem;
+            background: linear-gradient(180deg, rgba(226, 232, 240, 0.6), rgba(248, 250, 252, 0.95));
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+        }
+
+        .orders-card--list {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: #fff;
+        }
+
+        .orders-card__list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.35rem;
+        }
+
 
 /* === NEW FIXED LAYOUT (FULL COPY–PASTE) === */
 
@@ -313,13 +421,22 @@
     gap: 0.75rem;
 }
 
+.orders-row--primary {
+    grid-template-columns: var(--orders-primary-col1, 1fr) var(--orders-primary-col2, 1fr) var(--orders-primary-col3, 1fr);
+    gap: var(--orders-primary-gap, 0);
+}
+
+.orders-row--secondary {
+    grid-template-columns: var(--orders-secondary-col1, 1fr) var(--orders-secondary-col2, 0.5fr) var(--orders-secondary-col3, 0.7fr);
+    gap: var(--orders-secondary-gap, 0.5rem);
+}
+
 /* Make every field stretch to fill its column */
 .orders-field--purchase-date,
 .orders-field--phone,
 .orders-field--email,
 .orders-field--product,
 .orders-field--payment,
-.orders-field--amount,
 .orders-field--remarks,
 .orders-field--submit {
     max-width: none !important;
@@ -335,9 +452,28 @@
 
 /* Remove restrictive widths from earlier code */
 .orders-field--purchase-date,
-.orders-field--product,
-.orders-field--amount {
+.orders-field--product {
     max-width: none !important;
+}
+
+@media (min-width: 961px) {
+    .orders-field--purchase-date {
+        max-width: 150px !important;
+        width: 200px !important;
+        justify-self: start !important;
+    }
+
+    .orders-field--phone {
+        max-width: 250px !important;
+        width: 250px !important;
+        justify-self: start !important;
+    }
+    
+
+    .orders-field--amount {
+        max-width: 125px !important;
+        justify-self: start !important;
+    }
 }
 
 .paymentmethodchoose {
@@ -352,11 +488,17 @@
      
 }
 
+
 /* Responsive layout below 960px */
 @media (max-width: 960px) {
     .orders-row--primary,
     .orders-row--secondary {
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .orders-field--amount {
+        max-width: none !important;
+        justify-self: stretch !important;
     }
 
     .orders-field--submit {
@@ -453,9 +595,13 @@
             @endphp
 
             @if (!$saleToEdit)
-                <section class="card stack orders-card">
+                <section class="card stack orders-card orders-card--create">
+                    <header class="orders-card__header">
+                        <div>
+                            <h1>Add Order</h1>
+                        </div>
+                    </header>
                     <div class="orders-card__section">
-                    <h2>Add Order</h2><br>
                     <form method="POST" action="{{ route('dashboard.orders.store') }}" class="orders-form">
                         @csrf
                         @php
@@ -490,6 +636,20 @@
                                 </label>
                             </div>
 
+                            <div class="orders-field orders-field--email">
+                                <label for="sales-email">
+                                    Email
+                                    <input
+                                        type="email"
+                                        id="sales-email"
+                                        name="email"
+                                        value="{{ old('email') }}"
+                                        placeholder="Email address">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="orders-row orders-row--secondary">
                             <div class="orders-field orders-field--product">
                                 <div
                                     class="product-combobox"
@@ -546,81 +706,62 @@
                                 </div>
                             </div>
 
-                            <div class="orders-field orders-field--email">
-                                <label for="sales-email">
-                                    Email
+                            <div class="orders-field orders-field--amount">
+                                <label for="sales-amount">
+                                    Amount
                                     <input
-                                        type="email"
-                                        id="sales-email"
-                                        name="email"
-                                        value="{{ old('email') }}"
-                                        placeholder="Email address">
+                                        type="number"
+                                        step="1"
+                                        min="0"
+                                        id="sales-amount"
+                                        name="sales_amount"
+                                        value="{{ old('sales_amount') }}"
+                                        placeholder="Rs."
+                                    >
                                 </label>
                             </div>
 
-                          
+                            <div class="orders-field orders-field--submit">
+                                <div class="orders-actions">
+                                    <label class="remarks-toggle" aria-label="Add remarks">
+                                        <input
+                                            type="checkbox"
+                                            class="remarks-toggle-checkbox"
+                                            id="sales-remarks-toggle"
+                                            {{ old('remarks') ? 'checked' : '' }}
+                                            title="Add remarks">
+                                    </label>
+                                    <input
+                                        type="hidden"
+                                        id="sales-remarks"
+                                        name="remarks"
+                                        value="{{ old('remarks') }}"
+                                    >
+                                    <button type="submit" class="createorder" style="margin:20px;">
+                                        Create Order
+                                    </button>
+                                </div>
+                                
+                            </div>
+                            
                         </div>
-
-  <div class="orders-row orders-row--secondary">
-    
-    <div class="orders-field orders-field--payment">
-        <label for="sales-payment-method">
-            Payment Method
-            <select id="sales-payment-method" class="paymentmethodchoose" name="payment_method">
-                <option value="" {{ old('payment_method') ? '' : 'selected' }}>Choose one</option>
-                @foreach ($paymentMethods as $method)
-                    <option value="{{ $method->slug }}" @selected(old('payment_method') === $method->slug)>
-                        {{ $method->label }}
-                    </option>
-                @endforeach
-            </select>
-        </label>
-    </div>
-
-    <!-- Amount MOVED HERE -->
-    <div class="orders-field orders-field--amount">
-        <label for="sales-amount">
-            Amount
-            <input
-                type="number"
-                step="0.01"
-                min="0"
-                id="sales-amount"
-                name="sales_amount"
-                value="{{ old('sales_amount') }}"
-                placeholder="Rs."
-            >
-        </label>
-    </div>
-
-    <div class="orders-field orders-field--remarks">
-        <label for="sales-remarks">
-            Remarks
-            <input
-                type="text"
-                id="sales-remarks"
-                name="remarks"
-                value="{{ old('remarks') }}"
-                placeholder="Remarks"
-                maxlength="255">
-        </label>
-    </div>
-
-    <div class="createorderbutton">
-        <button type="submit" class="createorderbutton">Create Order</button>
-    </div>
-</div>
 
                     </form>
                     </div>
+                    
+                </section>
+                <section class="card stack orders-card orders-card--list">
                     <div class="orders-card__section">
-                        <h2>All Orders List</h2><br>
+                        <div class="orders-card__list-header">
+                            <div>
+                                <h2>All Orders List</h2>
+                            </div>
+                        </div>
                         @include('sales.partials.orders-list', [
                             'filters' => $filters ?? [],
                             'productChoices' => $productChoices,
                             'sales' => $sales,
                             'perPage' => $perPage,
-                            'paymentMethods' => $paymentMethods,
                             'admins' => $admins ?? collect(),
                             'employees' => $employees ?? collect(),
                         ])
@@ -676,24 +817,6 @@
                             >
                         </label>
 
-                        <label for="edit-sales-payment-method">
-                            Payment Method
-                            @php
-                                $editPaymentMethod = old('payment_method', $saleToEdit->paymentMethod?->slug);
-                            @endphp
-                            <select
-                                id="edit-sales-payment-method"
-                                name="payment_method"
-                                class="paymentmethodchoose"
-                            >
-                                @foreach ($paymentMethods as $method)
-                                    <option value="{{ $method->slug }}" @selected($editPaymentMethod === $method->slug)>
-                                        {{ $method->label }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </label>
-
                         <label for="edit-sales-status">
                             Status
                             @php
@@ -730,7 +853,7 @@
                             Amount
                             <input
                                 type="number"
-                                step="0.01"
+                                step="1"
                                 min="0"
                                 id="edit-sales-amount"
                                 name="sales_amount"
@@ -754,7 +877,6 @@
                         'productChoices' => $productChoices,
                         'sales' => $sales,
                         'perPage' => $perPage,
-                        'paymentMethods' => $paymentMethods,
                         'admins' => $admins ?? collect(),
                         'employees' => $employees ?? collect(),
                     ])
@@ -851,9 +973,108 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const layoutCard = document.querySelector('.orders-card--create');
+            const layoutToggle = document.getElementById('orders-layout-toggle');
+            const layoutPanel = document.getElementById('orders-layout-panel');
+            const layoutInputs = layoutPanel?.querySelectorAll('[data-layout-input]') || [];
+            const primaryRow = document.querySelector('.orders-row--primary');
+            const secondaryRow = document.querySelector('.orders-row--secondary');
+            const layoutStorageKey = 'ordersLayoutConfig';
+
+            const defaultLayout = {
+                primary: { col1: 33, col2: 33, col3: 33, gap: 0 },
+                secondary: { col1: 45, col2: 25, col3: 30, gap: 8 },
+            };
+
+            const loadLayoutConfig = () => {
+                try {
+                    const raw = localStorage.getItem(layoutStorageKey);
+                    if (!raw) return { ...defaultLayout };
+                    const parsed = JSON.parse(raw);
+                    return {
+                        primary: { ...defaultLayout.primary, ...(parsed.primary || {}) },
+                        secondary: { ...defaultLayout.secondary, ...(parsed.secondary || {}) },
+                    };
+                } catch (_err) {
+                    return { ...defaultLayout };
+                }
+            };
+
+            const persistLayoutConfig = (config) => {
+                try {
+                    localStorage.setItem(layoutStorageKey, JSON.stringify(config));
+                } catch (_err) {
+                    /* ignore */
+                }
+            };
+
+            const applyLayout = () => {
+                const rowValues = loadLayoutConfig();
+
+                layoutInputs.forEach((input) => {
+                    const rowKey = input.dataset.row || 'primary';
+                    const parsed = parseFloat(input.value || '0');
+                    if (input.dataset.gap !== undefined) {
+                        const gapValue = `${parsed}${input.type === 'range' ? 'px' : ''}`;
+                        layoutCard?.style.setProperty(`--orders-${rowKey}-gap`, gapValue);
+                        rowValues[rowKey].gap = parsed;
+                    } else if (input.dataset.col) {
+                        const track = `${parsed}%`;
+                        layoutCard?.style.setProperty(`--orders-${rowKey}-col${input.dataset.col}`, track);
+                        rowValues[rowKey][`col${input.dataset.col}`] = parsed;
+                    }
+                });
+
+                if (primaryRow) {
+                    primaryRow.style.gridTemplateColumns = `${rowValues.primary.col1}% ${rowValues.primary.col2}% ${rowValues.primary.col3}%`;
+                    primaryRow.style.gap = `${rowValues.primary.gap}px`;
+                }
+
+                if (secondaryRow) {
+                    secondaryRow.style.gridTemplateColumns = `${rowValues.secondary.col1}% ${rowValues.secondary.col2}% ${rowValues.secondary.col3}%`;
+                    secondaryRow.style.gap = `${rowValues.secondary.gap}px`;
+                }
+
+                persistLayoutConfig(rowValues);
+            };
+
+            const hydrateInputs = () => {
+                const config = loadLayoutConfig();
+                layoutInputs.forEach((input) => {
+                    const rowKey = input.dataset.row || 'primary';
+                    if (input.dataset.gap !== undefined) {
+                        input.value = config[rowKey]?.gap ?? 0;
+                    } else if (input.dataset.col) {
+                        input.value = config[rowKey]?.[`col${input.dataset.col}`] ?? 0;
+                    }
+                });
+            };
+
+            if (layoutCard) {
+                hydrateInputs();
+                applyLayout();
+            }
+
+            if (layoutToggle && layoutPanel && layoutCard) {
+                layoutToggle.addEventListener('click', () => {
+                    const editing = layoutCard.classList.toggle('orders-card--editing');
+                    layoutPanel.hidden = !editing;
+                    layoutToggle.textContent = editing ? 'Close Edit' : 'Edit Layout';
+                    if (editing) {
+                        applyLayout();
+                    }
+                });
+
+                layoutInputs.forEach((input) => {
+                    input.addEventListener('input', applyLayout);
+                });
+            }
+
             const addPhoneInput = document.getElementById('sales-phone');
             const addEmailInput = document.getElementById('sales-email');
             const addEmailDefaultPlaceholder = addEmailInput?.getAttribute('placeholder') || 'Email address';
+            const remarksToggle = document.getElementById('sales-remarks-toggle');
+            const remarksInput = document.getElementById('sales-remarks');
             const collectPhoneEmailMap = () => {
                 const map = new Map();
                 document.querySelectorAll('#orders-table tbody tr').forEach((row) => {
@@ -888,6 +1109,23 @@
                     autofillEmail();
                 }
             });
+
+            const handleRemarksToggle = () => {
+                if (!remarksToggle || !remarksInput) return;
+                if (remarksToggle.checked) {
+                    const value = window.prompt('Enter remarks') ?? '';
+                    const trimmed = value.trim();
+                    if (trimmed === '') {
+                        remarksToggle.checked = false;
+                        remarksInput.value = '';
+                    } else {
+                        remarksInput.value = trimmed;
+                    }
+                } else {
+                    remarksInput.value = '';
+                }
+            };
+            remarksToggle?.addEventListener('change', handleRemarksToggle);
             const remarksModal = document.getElementById('sale-remarks-modal');
 
             if (remarksModal) {

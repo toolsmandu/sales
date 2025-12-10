@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleEditNotification;
-use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Services\SerialNumberGenerator;
 use Illuminate\Http\Request;
@@ -18,7 +16,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
@@ -48,7 +45,7 @@ class SaleController extends Controller
             [$filters['date_from'], $filters['date_to']] = [$filters['date_to'], $filters['date_from']];
         }
 
-        $salesQuery = Sale::with(['paymentMethod', 'createdBy']);
+        $salesQuery = Sale::with(['createdBy']);
 
         if ($filters['search'] !== '') {
             $searchTerm = '%' . $filters['search'] . '%';
@@ -104,26 +101,6 @@ class SaleController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $paymentMethods = PaymentMethod::orderBy('label')->get();
-        $salesByMethod = Sale::query()
-            ->selectRaw('payment_method_id, COUNT(*) as sale_count, COALESCE(SUM(sales_amount), 0) as total_sales')
-            ->groupBy('payment_method_id')
-            ->get()
-            ->keyBy('payment_method_id');
-
-        $paymentMethodSummaries = $paymentMethods->map(function (PaymentMethod $method) use ($salesByMethod) {
-            $summary = $salesByMethod->get($method->id);
-            $total = (float) ($summary->total_sales ?? 0);
-            $count = (int) ($summary->sale_count ?? 0);
-
-            return [
-                'label' => $method->label,
-                'slug' => $method->slug,
-                'available_balance' => $total,
-                'sale_count' => $count,
-            ];
-        });
-
         $productOptions = Product::query()
             ->where('is_in_stock', true)
             ->with([
@@ -159,7 +136,7 @@ class SaleController extends Controller
 
         $saleToEdit = null;
         if ($request->filled('edit')) {
-            $saleToEdit = Sale::with('paymentMethod')->find($request->input('edit'));
+            $saleToEdit = Sale::find($request->input('edit'));
         }
 
         $admins = User::query()
@@ -173,8 +150,6 @@ class SaleController extends Controller
 
         return view('sales.index', [
             'sales' => $sales,
-            'paymentMethods' => $paymentMethods,
-            'paymentMethodSummaries' => $paymentMethodSummaries,
             'productOptions' => $productOptions,
             'saleToEdit' => $saleToEdit,
             'perPage' => $perPage,
@@ -193,7 +168,7 @@ class SaleController extends Controller
 
         $page = LengthAwarePaginator::resolveCurrentPage();
         $expiredSalesCollection = Sale::query()
-            ->with(['paymentMethod', 'createdBy'])
+            ->with(['createdBy'])
             ->orderByDesc('purchase_date')
             ->orderByDesc('id')
             ->get();
@@ -311,24 +286,19 @@ class SaleController extends Controller
         $data = $this->validatePayload($request);
 
         $hasAmount = $data['sales_amount'] !== null;
-        $hasPaymentMethod = $data['payment_method'] !== null;
 
         if ($data['product_expiry_days'] === null && $data['product_name']) {
             $data['product_expiry_days'] = $this->inferExpiryDaysFromProductName($data['product_name']);
         }
         $data['status'] = $data['status']
-            ?? ($hasAmount && $hasPaymentMethod ? 'completed' : 'pending');
+            ?? ($hasAmount ? 'completed' : 'pending');
 
         $createdBy = $request->user()?->id;
 
         $createdSale = null;
 
-        DB::transaction(function () use ($data, $nowKathmandu, $createdBy, $hasPaymentMethod, $hasAmount, &$createdSale) {
-            $method = $hasPaymentMethod
-                ? PaymentMethod::where('slug', $data['payment_method'])->firstOrFail()
-                : null;
+        DB::transaction(function () use ($data, $nowKathmandu, $createdBy, &$createdSale) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
-            $occurredAt = $nowKathmandu->copy();
 
             $sale = Sale::create([
                 'serial_number' => $this->serials->next(),
@@ -339,23 +309,9 @@ class SaleController extends Controller
                 'phone' => $data['phone'],
                 'email' => $data['email'] ? trim($data['email']) : null,
                 'sales_amount' => $data['sales_amount'],
-                'payment_method_id' => $method?->id,
                 'created_by' => $createdBy,
                 'status' => $data['status'],
             ]);
-
-            if ($method && $hasAmount) {
-                PaymentTransaction::create([
-                    'payment_method_id' => $method->id,
-                    'sale_id' => $sale->id,
-                    'type' => 'income',
-                    'amount' => $sale->sales_amount,
-                    'phone' => $sale->phone,
-                    'occurred_at' => $occurredAt,
-                ]);
-
-                $method->recalculateBalance();
-            }
 
             $createdSale = $sale;
         });
@@ -387,34 +343,26 @@ class SaleController extends Controller
             'phone' => $sale->phone,
             'email' => $sale->email,
             'product_name' => $sale->product_name,
-            'payment_method_id' => $sale->payment_method_id,
-            'payment_method_label' => $sale->paymentMethod?->label,
         ];
 
         $data = $this->validatePayload($request, $sale);
 
         $hasAmount = $data['sales_amount'] !== null;
-        $hasPaymentMethod = $data['payment_method'] !== null;
 
         if ($data['product_expiry_days'] === null && $data['product_name']) {
             $data['product_expiry_days'] = $this->inferExpiryDaysFromProductName($data['product_name']);
         }
         $data['status'] = $data['status']
-            ?? ($hasAmount && $hasPaymentMethod ? 'completed' : ($sale->status ?? 'pending'));
+            ?? ($hasAmount ? 'completed' : ($sale->status ?? 'pending'));
 
         if ($sale->status === 'pending' && ($data['status'] === null || $data['status'] === 'pending')) {
             $data['status'] = 'completed';
         }
 
-        $newMethod = $data['payment_method']
-            ? PaymentMethod::where('slug', $data['payment_method'])->firstOrFail()
-            : null;
-        $previousMethod = $sale->paymentMethod;
         $actorId = $request->user()?->id;
 
-        DB::transaction(function () use ($sale, $data, $newMethod, $previousMethod) {
+        DB::transaction(function () use ($sale, $data) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
-            $occurredAt = Carbon::now('Asia/Kathmandu');
 
             $sale->update([
                 'purchase_date' => $purchaseDate,
@@ -423,49 +371,11 @@ class SaleController extends Controller
                 'phone' => $data['phone'],
                 'email' => $data['email'] ? trim($data['email']) : null,
                 'sales_amount' => $data['sales_amount'],
-                'payment_method_id' => $newMethod?->id,
                 'status' => $data['status'],
             ]);
-
-            $transaction = $sale->transaction;
-
-            if ($newMethod && $data['sales_amount'] !== null) {
-                if (!$transaction) {
-                    $transaction = new PaymentTransaction([
-                        'sale_id' => $sale->id,
-                        'type' => 'income',
-                    ]);
-                }
-
-                $transaction->fill([
-                    'payment_method_id' => $newMethod->id,
-                    'amount' => $sale->sales_amount,
-                    'phone' => $sale->phone,
-                    'occurred_at' => $occurredAt,
-                ]);
-
-                $transaction->save();
-
-                if ($previousMethod && $previousMethod->isNot($newMethod)) {
-                    $previousMethod->recalculateBalance();
-                }
-
-                $newMethod->recalculateBalance();
-            } else {
-                if ($transaction) {
-                    $transactionMethod = $transaction->paymentMethod;
-                    $transaction->delete();
-                    if ($transactionMethod) {
-                        $transactionMethod->recalculateBalance();
-                    }
-                }
-                if ($previousMethod && $previousMethod->isNot($newMethod)) {
-                    $previousMethod->recalculateBalance();
-                }
-            }
         });
 
-        $sale->refresh()->load('paymentMethod');
+        $sale->refresh();
 
         $changeMessages = [];
 
@@ -501,14 +411,6 @@ class SaleController extends Controller
         $newStatus = $sale->status ?? null;
         if ($originalStatus !== $newStatus) {
             $changeMessages[] = 'Changed Status from ' . ($originalStatus ?? 'N/A') . ' to ' . ($newStatus ?? 'N/A');
-        }
-
-        $originalMethodLabel = $originalSnapshot['payment_method_label'] ?? 'N/A';
-        $newMethodLabel = $sale->paymentMethod?->label ?? 'N/A';
-        $originalMethodId = $originalSnapshot['payment_method_id'] ?? null;
-        $newMethodId = $sale->payment_method_id ?? null;
-        if ($originalMethodId !== $newMethodId) {
-            $changeMessages[] = 'Changed Payment Method from ' . $originalMethodLabel . ' to ' . $newMethodLabel;
         }
 
         if (count($changeMessages) > 0 && Schema::hasTable('sale_edit_notifications')) {
@@ -587,12 +489,8 @@ class SaleController extends Controller
         }
 
         DB::transaction(function () use ($sale) {
-            $method = $sale->paymentMethod;
-
             $sale->transaction()->delete();
             $sale->delete();
-
-            $method?->recalculateBalance();
         });
 
         $message = 'Sale deleted successfully.';
@@ -616,7 +514,7 @@ class SaleController extends Controller
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 
         $salesQuery = Sale::query()
-            ->with(['paymentMethod', 'createdBy'])
+            ->with(['createdBy'])
             ->whereRaw(
                 "REGEXP_REPLACE(phone, '[^0-9]+', '') = ?",
                 [$decodedPhone]
@@ -650,7 +548,6 @@ class SaleController extends Controller
      *     phone: string,
      *     email?: string|null,
      *     sales_amount: float,
-     *     payment_method: string,
      *     purchase_date: string,
      *     remarks: string,
      *     product_expiry_days: ?int,
@@ -666,22 +563,13 @@ class SaleController extends Controller
             'phone' => ['required', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'sales_amount' => ['nullable', 'numeric', 'min:0'],
-            'payment_method' => ['nullable', 'string', 'exists:payment_methods,slug'],
             'purchase_date' => ['required', 'date_format:Y-m-d'],
             'remarks' => ['nullable', 'string', 'max:255'],
             'product_expiry_days' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', Rule::in(['completed', 'refunded', 'pending'])],
         ]);
 
-        $hasPayment = ($data['payment_method'] ?? null) !== null && $data['payment_method'] !== '';
         $hasAmount = array_key_exists('sales_amount', $data) && $data['sales_amount'] !== null && $data['sales_amount'] !== '';
-
-        if ($hasPayment xor $hasAmount) {
-            throw ValidationException::withMessages([
-                'sales_amount' => 'Payment method and amount must both be provided to record a payment.',
-                'payment_method' => 'Payment method and amount must both be provided to record a payment.',
-            ]);
-        }
 
         $expiryInput = $data['product_expiry_days'] ?? null;
         $expiryDays = isset($expiryInput) && $expiryInput !== '' ? max(0, (int) $expiryInput) : null;
@@ -691,7 +579,6 @@ class SaleController extends Controller
 
         return [
             ...$data,
-            'payment_method' => $hasPayment ? $data['payment_method'] : null,
             'sales_amount' => $hasAmount ? (float) $data['sales_amount'] : null,
             'product_expiry_days' => $expiryDays,
             'product_name' => $productName,

@@ -480,8 +480,8 @@
         }
 
         .icon-button svg {
-            width: 22px;
-            height: 22px;
+            width: 25px;
+            height: 25px;
         }
 
         .icon-button:hover,
@@ -507,7 +507,48 @@
             color: rgba(153, 27, 27, 0.95);
         }
 
-       
+       .icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            border: none;
+            background: rgba(79, 70, 229, 0.12);
+            color: rgba(79, 70, 229, 0.95);
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+
+        .icon-button svg {
+            width: 25px;
+            height: 25px;
+        }
+
+        .icon-button:hover,
+        .icon-button:focus-visible {
+            background: rgba(79, 70, 229, 0.2);
+            color: rgba(49, 46, 129, 0.95);
+            transform: translateY(-1px);
+        }
+
+        .icon-button--primary {
+            background: rgba(79, 70, 229, 0.12);
+            color: rgba(79, 70, 229, 0.95);
+        }
+
+        .icon-button--danger {
+            background: rgba(220, 38, 38, 0.12);
+            color: rgba(220, 38, 38, 0.88);
+        }
+
+        .icon-button--danger:hover,
+        .icon-button--danger:focus-visible {
+            background: rgba(220, 38, 38, 0.2);
+            color: rgba(153, 27, 27, 0.95);
+        }
+
 
     </style>
 @endpush

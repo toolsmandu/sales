@@ -1121,7 +1121,7 @@
                         }
                         const del = document.createElement('button');
                         del.type = 'button';
-                        del.className = 'icon-button icon-button--danger';
+                        del.className = 'icon-button';
                         del.setAttribute('aria-label', 'Delete row');
                         del.dataset.action = 'delete';
                         del.innerHTML = `

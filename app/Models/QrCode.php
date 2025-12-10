@@ -15,6 +15,11 @@ class QrCode extends Model
         'file_path',
         'description',
         'payment_method_number',
+        'visible_to_employees',
+    ];
+
+    protected $casts = [
+        'visible_to_employees' => 'boolean',
     ];
 
     public function getImageDataAttribute(): ?string

@@ -13,7 +13,6 @@ use App\Http\Controllers\Dashboard\PaymentMethodController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\SaleController;
 use App\Http\Controllers\Dashboard\StockController;
-use App\Http\Controllers\Dashboard\WithdrawalController;
 use App\Http\Controllers\Dashboard\QrController;
 use App\Http\Controllers\Dashboard\NotificationController;
 use App\Http\Controllers\Dashboard\ImpersonationController;
@@ -76,10 +75,6 @@ Route::middleware('auth')->group(function (): void {
     });
     Route::view('/payments', 'payments.index')->name('payments.index');
     Route::get('/payments/balance', [PaymentMethodController::class, 'balance'])->name('payments.balance');
-    Route::get('/billing/statements', [PaymentMethodController::class, 'statements'])->name('payments.statements');
-    Route::post('/billing/statements/deposit', [PaymentMethodController::class, 'storeManualDeposit'])->name('payments.statements.deposit');
-    Route::get('/billing/manage', [PaymentMethodController::class, 'index'])->name('payments.manage');
-    Route::get('/billing/withdraw', [WithdrawalController::class, 'index'])->name('payments.withdraw');
     Route::get('/sheet', [RecordController::class, 'index'])->name('sheet.index');
     Route::get('/sheet/products', [RecordController::class, 'products'])->name('sheet.products');
     Route::post('/sheet/products', [RecordController::class, 'storeProduct'])->name('sheet.products.store');
@@ -108,9 +103,6 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::put('/orders/{sale}', [SaleController::class, 'update'])->name('orders.update');
     Route::delete('/orders/{sale}', [SaleController::class, 'destroy'])->name('orders.destroy');
 
-
-
-    Route::post('/withdrawals', [WithdrawalController::class, 'store'])->name('withdrawals.store');
 
     Route::get('/profile', [UserProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [UserProfileController::class, 'update'])->name('profile.update');

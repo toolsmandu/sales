@@ -36,11 +36,6 @@
                 const paymentNextPageButton = document.getElementById('payment-next-page');
                 const paymentSalesTableBody = document.getElementById('payment-sales-table');
                 const paymentSalesEmpty = document.getElementById('payment-sales-empty');
-                const withdrawForm = document.getElementById('withdraw-form');
-                const withdrawMethodSelect = document.getElementById('withdraw-method');
-                const withdrawDateInput = document.getElementById('withdraw-date');
-                const withdrawAmountInput = document.getElementById('withdraw-amount');
-                const withdrawNoteInput = document.getElementById('withdraw-note');
                 const salesModal = document.getElementById('sales-modal');
                 const openSalesModalButton = document.getElementById('open-sales-modal');
                 const closeSalesModalButton = document.getElementById('close-sales-modal');
@@ -214,7 +209,6 @@
                     products: '{{ route('dashboard.products.store') }}',
                     paymentMethods: '{{ route('dashboard.payment-methods.store') }}',
                     sales: '{{ route('dashboard.orders.store') }}',
-                    withdrawals: '{{ route('dashboard.withdrawals.store') }}',
                 };
 
                 async function apiRequest(url, options = {}) {
@@ -624,7 +618,6 @@
                     activePaymentFilter = event.target.value;
                     paymentCurrentPage = 1;
                     renderPaymentLedger();
-                    renderWithdrawOptions(activePaymentFilter);
                 });
 
                 paymentSummaryMonthSelect?.addEventListener('change', renderMonthlySummaryTable);
@@ -1019,48 +1012,6 @@
                     }
                 }
 
-                function renderWithdrawOptions(preservedValue = '') {
-                    if (!withdrawMethodSelect) {
-                        return;
-                    }
-
-                    const desiredValue = preservedValue || withdrawMethodSelect.value || activePaymentFilter || '';
-                    withdrawMethodSelect.innerHTML = '';
-
-                    if (paymentMethods.size === 0) {
-                        const option = document.createElement('option');
-                        option.value = '';
-                        option.textContent = 'No payment methods available';
-                        option.disabled = true;
-                        option.selected = true;
-                        withdrawMethodSelect.appendChild(option);
-                        withdrawMethodSelect.disabled = true;
-                        return;
-                    }
-
-                    withdrawMethodSelect.disabled = false;
-
-                    paymentMethods.forEach((method, key) => {
-                        const option = document.createElement('option');
-                        option.value = key;
-                        option.textContent = method.label;
-                        if (desiredValue && desiredValue === key) {
-                            option.selected = true;
-                        }
-                        withdrawMethodSelect.appendChild(option);
-                    });
-
-                    if (withdrawMethodSelect.options.length > 0) {
-                        if (desiredValue && paymentMethods.has(desiredValue)) {
-                            withdrawMethodSelect.value = desiredValue;
-                        }
-
-                        if (!withdrawMethodSelect.value) {
-                            withdrawMethodSelect.selectedIndex = 0;
-                        }
-                    }
-                }
-
                 function renderPaymentSalesRecords(methodKey) {
                     if (!paymentSalesTableBody || !paymentSalesEmpty) {
                         return;
@@ -1154,7 +1105,6 @@
                         if (paymentNextPageButton) {
                             paymentNextPageButton.disabled = true;
                         }
-                        renderWithdrawOptions();
                         renderPaymentSalesRecords(null);
                         return;
                     }
@@ -1189,7 +1139,6 @@
                         if (paymentNextPageButton) {
                             paymentNextPageButton.disabled = true;
                         }
-                        renderWithdrawOptions();
                         renderPaymentSalesRecords(null);
                         return;
                     }
@@ -1274,7 +1223,6 @@
                         if (paymentNextPageButton) {
                             paymentNextPageButton.disabled = true;
                         }
-                        renderWithdrawOptions(activePaymentFilter);
                         return;
                     }
 
@@ -1333,7 +1281,6 @@
                     }
 
                     renderMonthlySummaryTable();
-                    renderWithdrawOptions(activePaymentFilter);
                 }
 
                 async function renamePaymentMethod(methodKey) {
@@ -1408,7 +1355,6 @@
                     }
 
                     renderPaymentMethodOptions();
-                    renderWithdrawOptions(activePaymentFilter);
                     renderPaymentSummary();
                     renderPaymentLedger();
                 }
@@ -2158,58 +2104,6 @@
                     URL.revokeObjectURL(url);
                     closeAllDropdowns();
                 });
-
-                withdrawForm?.addEventListener('submit', async (event) => {
-                    event.preventDefault();
-
-                    const methodKey = withdrawMethodSelect?.value ?? '';
-                    const amountValue = parseFloat(withdrawAmountInput?.value ?? '0');
-                    const dateValue = withdrawDateInput?.value ?? '';
-                    const noteValue = withdrawNoteInput?.value ?? '';
-
-                    if (!methodKey || Number.isNaN(amountValue) || amountValue <= 0) {
-                        withdrawAmountInput?.reportValidity();
-                        return;
-                    }
-
-                    const method = paymentMethods.get(methodKey);
-                    if (method && amountValue > method.balance) {
-                        window.alert('Withdrawal amount exceeds the available balance for this payment method.');
-                        return;
-                    }
-
-                    const withdrawalDate = parseDateInput(dateValue) ?? startOfDay(new Date());
-                    const payload = {
-                        payment_method: methodKey,
-                        amount: amountValue,
-                        date: formatDateForInput(withdrawalDate),
-                        note: noteValue.trim(),
-                    };
-
-                    const submitButton = withdrawForm.querySelector('button[type="submit"]');
-
-                    try {
-                        submitButton?.setAttribute('disabled', 'disabled');
-                        activePaymentFilter = methodKey;
-                        paymentCurrentPage = 1;
-                        await apiRequest(routes.withdrawals, { method: 'POST', body: payload });
-                        await refreshDashboardState({ keepPaymentFilter: true });
-                        withdrawForm.reset();
-                        renderWithdrawOptions(methodKey);
-
-                        if (withdrawDateInput) {
-                            withdrawDateInput.value = formatDateForInput(startOfDay(new Date()));
-                        }
-                    } catch (error) {
-                        window.alert(error.message ?? 'Unable to record withdrawal.');
-                    } finally {
-                        submitButton?.removeAttribute('disabled');
-                    }
-                });
-
-                if (withdrawDateInput) {
-                    withdrawDateInput.value = formatDateForInput(startOfDay(new Date()));
-                }
 
                 await refreshDashboardState();
 

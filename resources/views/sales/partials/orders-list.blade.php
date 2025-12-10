@@ -163,7 +163,6 @@
                 <th scope="col" data-col-id="email">Email<span class="sales-col-resizer" data-col-id="email"></span></th>
                 <th scope="col" data-col-id="phone">Phone<span class="sales-col-resizer" data-col-id="phone"></span></th>
                 <th scope="col" data-col-id="amount">Amount<span class="sales-col-resizer" data-col-id="amount"></span></th>
-                <th scope="col" data-col-id="payment">Payment<span class="sales-col-resizer" data-col-id="payment"></span></th>
                 <th scope="col" data-col-id="status">Status<span class="sales-col-resizer" data-col-id="status"></span></th>
                 <th scope="col" data-col-id="sold_by">Sold By<span class="sales-col-resizer" data-col-id="sold_by"></span></th>
                 <th scope="col" data-col-id="actions">Actions<span class="sales-col-resizer" data-col-id="actions"></span></th>
@@ -266,21 +265,12 @@
                             placeholder="Amount"
                         >
                     </td>
-                    <td>
-                        <select name="payment_method" form="{{ $formId }}">
-                            <option value="" @selected($sale->payment_method_id === null)>Select</option>
-                            @foreach ($paymentMethods as $method)
-                                <option value="{{ $method->slug }}" @selected(optional($sale->paymentMethod)->slug === $method->slug)>
-                                    {{ $method->label }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
-                    </td>
+                    <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
                     @php
                         $status = strtolower((string) ($sale->status ?? 'pending'));
                     @endphp
                     <td>
+                        <input type="hidden" name="remarks" form="{{ $formId }}" value="{{ $sale->remarks }}">
                         <select name="status" form="{{ $formId }}">
                             <option value="pending" @selected($status === 'pending')>Pending</option>
                             <option value="completed" @selected($status === 'completed')>Completed</option>
@@ -324,7 +314,7 @@
                                     onsubmit="return confirm('Delete sale {{ $sale->serial_number }}? This cannot be undone.');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="icon-button icon-button--danger" aria-label="Delete sale {{ $sale->serial_number }}">
+                                    <button type="submit" class="icon-button" aria-label="Delete sale {{ $sale->serial_number }}">
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
                                             <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                                             <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -404,7 +394,7 @@
     <script>
         (() => {
             const storageKey = 'orders_table_widths';
-            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'payment', 'status', 'sold_by', 'actions'];
+            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'status', 'sold_by', 'actions'];
             const table = document.getElementById('orders-table');
         const colgroup = document.getElementById('orders-colgroup');
 

@@ -14,9 +14,15 @@ use Illuminate\View\View;
 
 class QrController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $qrs = QrCode::query()->latest()->get();
+        $qrsQuery = QrCode::query()->latest();
+
+        if (! $request->user()?->isAdmin()) {
+            $qrsQuery->where('visible_to_employees', true);
+        }
+
+        $qrs = $qrsQuery->get();
 
         $methods = PaymentMethod::query()
             ->whereNotNull('unique_number')
@@ -60,6 +66,7 @@ class QrController extends Controller
             'qr_image' => ['required', 'image', 'max:4096'],
             'description' => ['nullable', 'string', 'max:500'],
              'payment_method_number' => ['nullable', 'string', 'max:255'],
+            'visible_to_employees' => ['nullable', 'boolean'],
         ]);
 
         $path = $request->file('qr_image')->store('qr-codes', 'public');
@@ -69,6 +76,7 @@ class QrController extends Controller
             'file_path' => $path,
             'description' => $data['description'] ?? null,
             'payment_method_number' => $data['payment_method_number'] ?? null,
+            'visible_to_employees' => $request->boolean('visible_to_employees', true),
         ]);
 
         return redirect()
@@ -83,12 +91,14 @@ class QrController extends Controller
             'qr_image' => ['nullable', 'image', 'max:4096'],
             'description' => ['nullable', 'string', 'max:500'],
             'payment_method_number' => ['nullable', 'string', 'max:255'],
+            'visible_to_employees' => ['nullable', 'boolean'],
         ]);
 
         $payload = [
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'payment_method_number' => $data['payment_method_number'] ?? null,
+            'visible_to_employees' => $request->boolean('visible_to_employees', $qrCode->visible_to_employees),
         ];
 
         if ($request->hasFile('qr_image')) {
