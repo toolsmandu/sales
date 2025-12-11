@@ -191,19 +191,18 @@ class ReportsController extends Controller
             ->mapWithKeys(fn ($row) => [$row->sale_day => (float) $row->total_sales]);
 
         $days = [];
-        $runningTotal = 0.0;
+        $monthlyTotal = 0.0;
         $cursor = $start->copy();
 
         while ($cursor->lte($end)) {
             $key = $cursor->toDateString();
             $amount = $dailySales[$key] ?? 0.0;
-            $runningTotal += $amount;
+            $monthlyTotal += $amount;
 
             $days[] = [
                 'date' => $cursor->toDateString(),
                 'label' => $cursor->format('jS'),
                 'amount' => $amount,
-                'running_total' => $runningTotal,
             ];
 
             $cursor->addDay();
@@ -213,7 +212,7 @@ class ReportsController extends Controller
             'month_label' => $start->format('F'),
             'year' => $year,
             'days' => $days,
-            'total' => $runningTotal,
+            'total' => $monthlyTotal,
         ];
     }
 }

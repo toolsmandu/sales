@@ -238,7 +238,6 @@
                             <tr>
                                 <th style="text-align: left;">Date</th>
                                 <th>Total Sales</th>
-                                <th>Running Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -246,14 +245,13 @@
                                 <tr>
                                     <td style="text-align: left;">{{ $day['date'] }}</td>
                                     <td>Rs {{ number_format((float) $day['amount'], 0) }}</td>
-                                    <td>Rs {{ number_format((float) $day['running_total'], 0) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot>
                             <tr>
-                                <th style="text-align: left;">Monthly Total</th>
-                                <th colspan="2" style="text-align: right;">Rs {{ number_format($monthlyStatement['total'], 0) }}</th>
+                                <th style="text-align: center;">Monthly Total</th>
+                                <th style="text-align: center;">Rs {{ number_format($monthlyStatement['total'], 0) }}</th>
                             </tr>
                         </tfoot>
                     </table>
