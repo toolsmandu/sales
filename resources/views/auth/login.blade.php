@@ -6,7 +6,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --login-primary: #2f63f6;
+            --login-primary: #5aae54ff;
             --login-primary-strong: #2940d3;
             --login-surface: #ffffff;
             --login-ink: #0f172a;
@@ -29,6 +29,11 @@
             align-items: stretch;
             justify-content: center;
             gap: 1.25rem;
+        }
+
+        .login-page--home {
+            background: #092651;
+            color: #ffffff;
         }
 
         .login-ambient {
@@ -63,6 +68,25 @@
             gap: 1.25rem;
         }
 
+        .login-page--home .login-hero,
+        .login-page--home .login-heading,
+        .login-page--home .login-lead,
+        .login-page--home .login-badge,
+        .login-page--home .login-perks li,
+        .login-page--home .login-brand {
+            color: #ffffff;
+        }
+
+        .login-page--home .login-badge {
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: none;
+        }
+
+        .login-page--home .login-perks li {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
         .login-brand {
             display: inline-flex;
             align-items: center;
@@ -75,6 +99,10 @@
 
         .login-brand__accent {
             color: var(--login-primary);
+        }
+
+        .login-page--home .login-brand__accent {
+            color: #ffffff;
         }
 
         .login-badge {
@@ -191,6 +219,13 @@
             box-shadow: 0 25px 50px rgba(15, 23, 42, 0.12);
         }
 
+        .login-page--home .login-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+        }
+
         .login-card__chip {
             display: inline-flex;
             align-items: center;
@@ -209,9 +244,18 @@
             color: var(--login-ink);
         }
 
+        .login-page--home .login-card__title {
+            color: #ffffff;
+        }
+
         .login-card__subtitle {
             margin: 0;
             color: var(--login-muted);
+        }
+
+        .login-page--home .login-card__subtitle,
+        .login-page--home .login-status {
+            color: #e5ecff;
         }
 
         .login-form {
@@ -262,6 +306,10 @@
             font-size: 0.95rem;
         }
 
+        .login-page--home .tracking-table {
+            color: #ffffff;
+        }
+
         .tracking-table th,
         .tracking-table td {
             text-align: left;
@@ -269,15 +317,27 @@
             border-bottom: 1px solid var(--login-border);
         }
 
+        .login-page--home .tracking-table th,
+        .login-page--home .tracking-table td {
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
         .tracking-table th {
             color: var(--login-muted);
             font-weight: 700;
+        }
+
+        .login-page--home .tracking-table th {
+            color: #e5ecff;
         }
 
         .tracking-table tbody tr:hover {
             background: rgba(47, 99, 246, 0.04);
         }
 
+        .login-page--home .tracking-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
         .tracking-orders {
             width: 100%;
             max-width: 1280px;
@@ -295,6 +355,10 @@
             color: var(--login-ink);
         }
 
+        .login-page--home .login-field label {
+            color: #ffffff;
+        }
+
         .login-field input {
             width: 100%;
             padding: 0.85rem 0.9rem;
@@ -303,6 +367,16 @@
             background: #f9fbff;
             font-size: 1rem;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .login-page--home .login-field input {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        .login-page--home .login-field input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
         }
 
         .login-field input:focus {
@@ -379,7 +453,7 @@
         $trackingOrders = $trackingOrders ?? collect();
     @endphp
 
-    <section class="login-page">
+    <section class="login-page {{ $isHome ? 'login-page--home' : '' }}">
         <div class="login-ambient" aria-hidden="true"></div>
 
         <div class="login-shell {{ $isLoginRoute ? 'login-shell--center' : '' }}">
