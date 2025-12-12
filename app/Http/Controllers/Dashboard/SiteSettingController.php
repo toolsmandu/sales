@@ -83,14 +83,17 @@ class SiteSettingController extends Controller
             'headline_accent' => ['required', 'string', 'max:150'],
             'headline_suffix' => ['required', 'string', 'max:150'],
             'lead' => ['required', 'string', 'max:400'],
-            'cta_primary_label' => ['required', 'string', 'max:120'],
-            'cta_primary_link' => ['nullable', 'url', 'max:255'],
-            'cta_secondary_label' => ['required', 'string', 'max:120'],
             'perks' => ['nullable', 'string', 'max:600'],
-            'card_chip' => ['required', 'string', 'max:120'],
             'card_title' => ['required', 'string', 'max:180'],
-            'card_subtitle' => ['required', 'string', 'max:300'],
+            'logo' => ['nullable', 'image', 'max:1024'],
         ]);
+
+        $currentContent = \App\Support\LoginContent::current();
+
+        $logoPath = $currentContent['logo_path'] ?? null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('login', 'public');
+        }
 
         $perks = array_values(array_filter(array_map(
             static fn ($line) => trim((string) $line),
@@ -104,13 +107,9 @@ class SiteSettingController extends Controller
             'headline_accent' => $validated['headline_accent'],
             'headline_suffix' => $validated['headline_suffix'],
             'lead' => $validated['lead'],
-            'cta_primary_label' => $validated['cta_primary_label'],
-            'cta_primary_link' => $validated['cta_primary_link'] ?: null,
-            'cta_secondary_label' => $validated['cta_secondary_label'],
             'perks' => $perks,
-            'card_chip' => $validated['card_chip'],
             'card_title' => $validated['card_title'],
-            'card_subtitle' => $validated['card_subtitle'],
+            'logo_path' => $logoPath,
         ];
 
         SiteSetting::set('login_content', json_encode($content));

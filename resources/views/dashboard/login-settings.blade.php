@@ -18,12 +18,20 @@
             </div>
         </header>
 
-        <form method="POST" action="{{ route('dashboard.login.customize.update') }}" class="login-settings__form">
+        <form method="POST" action="{{ route('dashboard.login.customize.update') }}" class="login-settings__form" enctype="multipart/form-data">
             @csrf
 
             <div class="login-settings__grid">
                 <div class="login-settings__card">
                     <h2>Hero</h2>
+                    <label>
+                        Logo (optional)
+                        <input type="file" name="logo" accept="image/*">
+                        @if (!empty($loginContent['logo_path']))
+                            <small>Current logo:</small>
+                            <img src="{{ asset('storage/'.$loginContent['logo_path']) }}" alt="Login logo" style="max-height:60px; max-width:180px; display:block; margin-top:0.25rem;">
+                        @endif
+                    </label>
                     <label>
                         Badge text
                         <input type="text" name="badge" value="{{ old('badge', $loginContent['badge'] ?? '') }}" required>
@@ -53,18 +61,6 @@
                 <div class="login-settings__card">
                     <h2>Calls to action</h2>
                     <label>
-                        Primary button label
-                        <input type="text" name="cta_primary_label" value="{{ old('cta_primary_label', $loginContent['cta_primary_label'] ?? '') }}" required>
-                    </label>
-                    <label>
-                        Primary button link (optional)
-                        <input type="url" name="cta_primary_link" value="{{ old('cta_primary_link', $loginContent['cta_primary_link'] ?? '') }}" placeholder="https://example.com/signup">
-                    </label>
-                    <label>
-                        Secondary button label
-                        <input type="text" name="cta_secondary_label" value="{{ old('cta_secondary_label', $loginContent['cta_secondary_label'] ?? '') }}" required>
-                    </label>
-                    <label>
                         Perks (one per line)
                         <textarea name="perks" rows="4" placeholder="Instant Access&#10;99.9% Uptime&#10;Simple Pricing">{{ old('perks', $perks) }}</textarea>
                     </label>
@@ -73,16 +69,8 @@
                 <div class="login-settings__card">
                     <h2>Login card</h2>
                     <label>
-                        Chip label
-                        <input type="text" name="card_chip" value="{{ old('card_chip', $loginContent['card_chip'] ?? '') }}" required>
-                    </label>
-                    <label>
                         Card title
                         <input type="text" name="card_title" value="{{ old('card_title', $loginContent['card_title'] ?? '') }}" required>
-                    </label>
-                    <label>
-                        Card subtitle
-                        <textarea name="card_subtitle" rows="3" required>{{ old('card_subtitle', $loginContent['card_subtitle'] ?? '') }}</textarea>
                     </label>
                 </div>
             </div>

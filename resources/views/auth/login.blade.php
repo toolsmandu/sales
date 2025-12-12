@@ -25,7 +25,10 @@
             overflow: hidden;
             font-family: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: center;
+            gap: 1.25rem;
         }
 
         .login-ambient {
@@ -42,11 +45,17 @@
             position: relative;
             z-index: 1;
             max-width: 1280px;
+            width: 100%;
             margin: 0 auto;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: clamp(2rem, 5vw, 3.5rem);
             align-items: center;
+        }
+
+        .login-shell--center {
+            grid-template-columns: minmax(320px, 520px);
+            justify-content: center;
         }
 
         .login-hero {
@@ -211,6 +220,71 @@
             margin-top: 1.2rem;
         }
 
+        .track-otp-row {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: 2fr auto;
+            align-items: end;
+            margin-top: 1rem;
+        }
+
+        .otp-actions {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 0.35rem;
+        }
+
+        .login-status {
+            margin-top: 0.9rem;
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--login-border);
+            color: var(--login-ink);
+        }
+
+        .login-status--info {
+            background: #eef4ff;
+            border-color: rgba(47, 99, 246, 0.25);
+        }
+
+        .login-status--success {
+            background: #f0fdf4;
+            border-color: rgba(21, 128, 61, 0.25);
+            color: #166534;
+        }
+
+        .tracking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.2rem;
+            font-size: 0.95rem;
+        }
+
+        .tracking-table th,
+        .tracking-table td {
+            text-align: left;
+            padding: 0.65rem 0.5rem;
+            border-bottom: 1px solid var(--login-border);
+        }
+
+        .tracking-table th {
+            color: var(--login-muted);
+            font-weight: 700;
+        }
+
+        .tracking-table tbody tr:hover {
+            background: rgba(47, 99, 246, 0.04);
+        }
+
+        .tracking-orders {
+            width: 100%;
+            max-width: 1280px;
+            margin: 0.75rem auto 0;
+            padding: 0 0.5rem 1.5rem;
+        }
+
         .login-field {
             display: grid;
             gap: 0.35rem;
@@ -299,107 +373,214 @@
         $isLoginPreview = $isLoginPreview ?? false;
         $loginContent = \App\Support\LoginContent::current();
         $perks = array_values(array_filter($loginContent['perks'] ?? []));
-        $primaryCtaHref = $loginContent['cta_primary_link'] ?: ($registrationEnabled ? route('register') : '#login-form');
+        $isLoginRoute = request()->routeIs('login');
+        $isHome = $isHomeLogin ?? false;
+        $trackingState = $trackingState ?? [];
+        $trackingOrders = $trackingOrders ?? collect();
     @endphp
 
     <section class="login-page">
         <div class="login-ambient" aria-hidden="true"></div>
 
-        <div class="login-shell">
-            <div class="login-hero">
-                <div class="login-brand">
-                    <span>{{ strtoupper(config('app.name', 'Toolsmandu')) }}</span>
-                    <span class="login-brand__accent">{{ $loginContent['brand_accent'] ?? '' }}</span>
+        <div class="login-shell {{ $isLoginRoute ? 'login-shell--center' : '' }}">
+            @unless ($isLoginRoute)
+                <div class="login-hero">
+                    @if (!empty($loginContent['logo_path']))
+                        <div class="login-brand">
+                            <img src="{{ asset('storage/'.$loginContent['logo_path']) }}" alt="{{ config('app.name', 'Toolsmandu') }} logo" style="max-height: 56px; width: auto;">
+                        </div>
+                    @else
+                        <div class="login-brand">
+                            <span>{{ strtoupper(config('app.name', 'Toolsmandu')) }}</span>
+                            <span class="login-brand__accent">{{ $loginContent['brand_accent'] ?? '' }}</span>
+                        </div>
+                    @endif
+                    <div class="login-badge">{{ $loginContent['badge'] ?? '' }}</div>
+                    <h1 class="login-heading">
+                        {{ $loginContent['headline_prefix'] ?? '' }} <span class="text-accent">{{ $loginContent['headline_accent'] ?? '' }}</span> {{ $loginContent['headline_suffix'] ?? '' }}
+                    </h1>
+                    <p class="login-lead">
+                        {{ $loginContent['lead'] ?? '' }}
+                    </p>
+                    @if (count($perks) > 0)
+                        <ul class="login-perks">
+                            @foreach ($perks as $perk)
+                                <li>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    {{ $perk }}
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
-                <div class="login-badge">{{ $loginContent['badge'] ?? '' }}</div>
-                <h1 class="login-heading">
-                    {{ $loginContent['headline_prefix'] ?? '' }} <span class="text-accent">{{ $loginContent['headline_accent'] ?? '' }}</span> {{ $loginContent['headline_suffix'] ?? '' }}
-                </h1>
-                <p class="login-lead">
-                    {{ $loginContent['lead'] ?? '' }}
-                </p>
-                @if (count($perks) > 0)
-                    <ul class="login-perks">
-                        @foreach ($perks as $perk)
-                            <li>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M5 13l4 4L19 7"/>
-                                </svg>
-                                {{ $perk }}
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
+            @endunless
 
             <div class="login-card" id="login-form">
-                <h2 class="login-card__title">{{ $loginContent['card_title'] ?? '' }}</h2>
-                <p class="login-card__subtitle">
-                    @if ($isLoginPreview)
-                        Preview how your customers experience the login screen.
-                    @else
-                        {{ $loginContent['card_subtitle'] ?? '' }}
-                    @endif
-                </p>
+                <h2 class="login-card__title">{{ $isHome ? 'Track your order' : ($loginContent['card_title'] ?? '') }}</h2>
+                @if ($isHome)
+                    <p class="login-card__subtitle">You can view your all purchases made on Whatsapp.</p>
+                @elseif (! $isLoginRoute)
+                    <p class="login-card__subtitle">
+                        @if ($isLoginPreview)
+                            Preview how your customers experience the login screen.
+                        @else
+                            {{ $loginContent['card_subtitle'] ?? '' }}
+                        @endif
+                    </p>
+                @endif
 
-                @if ($errors->any())
+                @if (! $isHome && $errors->any())
                     <article role="alert" class="login-error" style="background:#fff4f4;border:1px solid rgba(176,42,55,0.2);border-radius:12px;padding:0.75rem 1rem;margin-top:1rem;">
                         {{ __('auth.failed') }}
                     </article>
                 @endif
 
-                <form method="POST" action="{{ route('login') }}" class="login-form" novalidate>
-                    @csrf
+                @if ($isHome)
+                    <form method="POST" action="{{ route('home') }}" class="login-form" novalidate>
+                        @csrf
 
-                    <div class="login-field">
-                        <label for="email">Email address</label>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value="{{ old('email') }}"
-                            autocomplete="email"
-                            required
-                            autofocus
-                        >
-                        @error('email')
-                            <span class="login-error" role="alert">{{ $message }}</span>
-                        @enderror
-                    </div>
+                        <div class="login-field">
+                            <label for="track-phone">Whatsapp number</label>
+                            <input
+                                type="text"
+                                id="track-phone"
+                                name="phone"
+                                placeholder="Enter with country code:+97798XXXXXXXX"
+                                value=""
+                                required
+                            >
+                            @error('phone')
+                                <span class="login-error" role="alert">{{ $message }}</span>
+                            @enderror
+                        </div>
 
-                    <div class="login-field">
-                        <label for="password">Password</label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            autocomplete="current-password"
-                            required
-                        >
-                        @error('password')
-                            <span class="login-error" role="alert">{{ $message }}</span>
-                        @enderror
-                    </div>
+                        @if (($trackingState['status'] ?? '') !== 'otp_sent')
+                            <button type="submit" class="login-btn login-btn--primary login-submit">Track Order</button>
+                        @elseif (($trackingState['status'] ?? '') !== 'verified')
+                            <article class="login-status login-status--info" style="margin-top:0;">A 6 digit OTP sent to your email: {{ $trackingState['masked_email'] ?? '' }}</article>
+                        @endif
+                    </form>
 
-                    <div class="login-remember">
-                        <label for="remember">
-                            <input type="checkbox" id="remember" name="remember">
-                            Remember me
-                        </label>
-                        <span style="color: var(--login-muted);">Secure login · Encrypted</span>
-                    </div>
-
-                    <button type="submit" class="login-btn login-btn--primary login-submit">Log in</button>
-                </form>
-
-                <p class="login-footer">
-                    @if ($registrationEnabled)
-                        Need an account? <a href="{{ route('register') }}" style="color: var(--login-primary); font-weight: 700;">Register now</a>.
-                    @else
-                        New registrations are disabled. Contact an administrator to create an account.
+                    @if (in_array($trackingState['status'] ?? '', ['otp_sent', 'verified'], true) && ($trackingState['status'] ?? '') !== 'verified')
+                        <form method="POST" action="{{ route('home') }}" class="track-otp-row" novalidate>
+                            @csrf
+                            <input type="hidden" name="phone" value="{{ $trackingState['phone_display'] ?? '' }}">
+                            <div class="login-field" style="margin:0;">
+                                <label for="otp">Enter 6 digit OTP</label>
+                                <input
+                                    type="text"
+                                    id="otp"
+                                    name="otp"
+                                    value=""
+                                    inputmode="numeric"
+                                    pattern="\\d{6}"
+                                    maxlength="6"
+                                    required
+                                >
+                                @error('otp')
+                                    <span class="login-error" role="alert">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <button type="submit" class="login-btn login-btn--primary login-submit">Verify</button>
+                        </form>
+                        <div class="otp-actions">
+                            <form method="POST" action="{{ route('home') }}">
+                                @csrf
+                                <input type="hidden" name="phone" value="{{ $trackingState['phone_display'] ?? '' }}">
+                                <button type="submit" class="login-btn login-btn--ghost login-submit" style="width:auto;padding:0.45rem 0.8rem;">Resend OTP</button>
+                            </form>
+                            <form method="POST" action="{{ route('home') }}">
+                                @csrf
+                                <input type="hidden" name="reset" value="1">
+                                <button type="submit" class="login-btn login-btn--ghost login-submit" style="width:auto;padding:0.45rem 0.8rem;color:#b91c1c;border-color:rgba(185,28,28,0.4);">Change Number</button>
+                            </form>
+                        </div>
+                    @elseif (($trackingState['status'] ?? '') === 'verified')
+                        <article class="login-status login-status--success" style="margin-top:1rem;">Your purchases are listed below.</article>
                     @endif
-                </p>
+
+                    @if ($trackingOrders->count() === 0 && ($trackingState['status'] ?? '') === 'verified')
+                        <article class="login-status login-status--info">No purchases found for that phone number.</article>
+                    @endif
+
+                @else
+                    <form method="POST" action="{{ route('login') }}" class="login-form" novalidate>
+                        @csrf
+
+                        <div class="login-field">
+                            <label for="email">Email address</label>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                value="{{ old('email') }}"
+                                autocomplete="email"
+                                required
+                                autofocus
+                            >
+                            @error('email')
+                                <span class="login-error" role="alert">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="login-field">
+                            <label for="password">Password</label>
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                autocomplete="current-password"
+                                required
+                            >
+                            @error('password')
+                                <span class="login-error" role="alert">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="login-remember">
+                            <label for="remember">
+                                <input type="checkbox" id="remember" name="remember">
+                                Remember me
+                            </label>
+                            @unless ($isLoginRoute)
+                                <span style="color: var(--login-muted);">Secure login · Encrypted</span>
+                            @endunless
+                        </div>
+
+                        <button type="submit" class="login-btn login-btn--primary login-submit">Log in</button>
+                    </form>
+                @endif
+
             </div>
         </div>
+        @if ($isHome && $trackingOrders->count() > 0)
+            <div class="tracking-orders">
+                <h3>Your Orders:</h3>
+                <table class="tracking-table" aria-live="polite">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Purchase Date</th>
+                            <th>Product</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($trackingOrders as $order)
+                            <tr>
+                                <td>{{ $order->serial_number ?? ('#'.$order->id) }}</td>
+                                <td>{{ optional($order->purchase_date)->format('Y-m-d') }}</td>
+                                <td>{{ $order->product_name }}</td>
+                                <td>{{ $order->sales_amount ? number_format((float) $order->sales_amount, 2) : '—' }}</td>
+                                <td style="text-transform: capitalize;">{{ $order->status ?? 'pending' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 @endsection

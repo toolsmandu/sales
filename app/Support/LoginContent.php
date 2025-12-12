@@ -15,9 +15,7 @@ class LoginContent
             'headline_accent' => 'Group Buy Tools',
             'headline_suffix' => "membership you'll ever require!",
             'lead' => 'Access 400+ premium SEO tools, AI assistants, and design assets inside a single membership. Fast onboarding, secure access, and zero individual subscriptions.',
-            'cta_primary_label' => 'Explore premium tools ↓',
-            'cta_primary_link' => null,
-            'cta_secondary_label' => 'Log in to dashboard',
+            'logo_path' => null,
             'perks' => [
                 'Instant Access',
                 '99.9% Uptime',

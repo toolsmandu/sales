@@ -20,15 +20,16 @@ use App\Http\Controllers\Dashboard\TaskController;
 use App\Http\Controllers\Dashboard\UserProfileController;
 use App\Http\Controllers\Dashboard\UserManagementController;
 use App\Http\Controllers\Dashboard\UserLogController;
+use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\RecordController;
 use App\Http\Controllers\ReportsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('dashboard'));
+Route::match(['GET', 'POST'], '/', [TrackingController::class, 'home'])->name('home');
 
 Route::middleware('guest')->group(function (): void {
-    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('/bhitra', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/bhitra', [AuthenticatedSessionController::class, 'store']);
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });

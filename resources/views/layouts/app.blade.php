@@ -16,7 +16,7 @@
         @php
             $authUser = \Illuminate\Support\Facades\Auth::user();
             $registrationEnabled = \App\Models\SiteSetting::bool('registration_enabled', true);
-            $hideHeader = request()->routeIs('login') || ($isLoginPreview ?? false);
+            $hideHeader = request()->routeIs('login') || request()->routeIs('home') || ($isLoginPreview ?? false);
             $activeAttendance = null;
             if ($authUser) {
                 $activeAttendance = \App\Models\AttendanceLog::where('user_id', $authUser->id)
