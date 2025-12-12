@@ -450,6 +450,9 @@
         if (!empty($loginContent['logo_path'])) {
             $logoUrl = Storage::disk('public')->url($loginContent['logo_path']);
         }
+        if (!$logoUrl && file_exists(public_path('logo.png'))) {
+            $logoUrl = asset('logo.png');
+        }
         $perks = array_values(array_filter($loginContent['perks'] ?? []));
         $isLoginRoute = request()->routeIs('login');
         $isHome = $isHomeLogin ?? false;
