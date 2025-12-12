@@ -446,8 +446,11 @@
         $registrationEnabled = \App\Models\SiteSetting::bool('registration_enabled', true) && Route::has('register');
         $isLoginPreview = $isLoginPreview ?? false;
         $loginContent = \App\Support\LoginContent::current();
+        $isHome = $isHomeLogin ?? false;
         $logoUrl = null;
-        if (!empty($loginContent['logo_path'])) {
+        if ($isHome && file_exists(public_path('logo.png'))) {
+            $logoUrl = asset('logo.png');
+        } elseif (!empty($loginContent['logo_path'])) {
             $logoUrl = Storage::disk('public')->url($loginContent['logo_path']);
         }
         if (!$logoUrl && file_exists(public_path('logo.png'))) {
@@ -455,7 +458,6 @@
         }
         $perks = array_values(array_filter($loginContent['perks'] ?? []));
         $isLoginRoute = request()->routeIs('login');
-        $isHome = $isHomeLogin ?? false;
         $trackingState = $trackingState ?? [];
         $trackingOrders = $trackingOrders ?? collect();
     @endphp
