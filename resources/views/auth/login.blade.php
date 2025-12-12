@@ -483,7 +483,7 @@
                         {{ $loginContent['headline_prefix'] ?? '' }} <span class="text-accent">{{ $loginContent['headline_accent'] ?? '' }}</span> {{ $loginContent['headline_suffix'] ?? '' }}
                     </h1>
                     <p class="login-lead">
-                        {{ $loginContent['lead'] ?? '' }}
+                        {!! $loginContent['lead'] ?? '' !!}
                     </p>
                     @if (count($perks) > 0)
                         <ul class="login-perks">
