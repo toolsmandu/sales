@@ -29,7 +29,7 @@
                         <input type="file" name="logo" accept="image/*">
                         @if (!empty($loginContent['logo_path']))
                             <small>Current logo:</small>
-                            <img src="{{ asset('storage/'.$loginContent['logo_path']) }}" alt="Login logo" style="max-height:60px; max-width:180px; display:block; margin-top:0.25rem;">
+                            <img src="{{ Storage::disk('public')->url($loginContent['logo_path']) }}" alt="Login logo" style="max-height:60px; max-width:180px; display:block; margin-top:0.25rem;">
                         @endif
                     </label>
                     <label>

@@ -446,6 +446,10 @@
         $registrationEnabled = \App\Models\SiteSetting::bool('registration_enabled', true) && Route::has('register');
         $isLoginPreview = $isLoginPreview ?? false;
         $loginContent = \App\Support\LoginContent::current();
+        $logoUrl = null;
+        if (!empty($loginContent['logo_path'])) {
+            $logoUrl = Storage::disk('public')->url($loginContent['logo_path']);
+        }
         $perks = array_values(array_filter($loginContent['perks'] ?? []));
         $isLoginRoute = request()->routeIs('login');
         $isHome = $isHomeLogin ?? false;
@@ -459,9 +463,9 @@
         <div class="login-shell {{ $isLoginRoute ? 'login-shell--center' : '' }}">
             @unless ($isLoginRoute)
                 <div class="login-hero">
-                    @if (!empty($loginContent['logo_path']))
+                    @if (!empty($logoUrl))
                         <div class="login-brand">
-                            <img src="{{ asset('storage/'.$loginContent['logo_path']) }}" alt="{{ config('app.name', 'Toolsmandu') }} logo" style="max-height: 56px; width: auto;">
+                            <img src="{{ $logoUrl }}" alt="{{ config('app.name', 'Toolsmandu') }} logo" style="max-height: 56px; width: auto;">
                         </div>
                     @else
                         <div class="login-brand">
