@@ -23,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->syncPublicAsset('logo.png');
+        $this->syncPublicAsset('fav.ico');
+
         View::composer('layouts.app', function ($view): void {
             $authUser = Auth::user();
             $session = session();
@@ -40,5 +43,24 @@ class AppServiceProvider extends ServiceProvider
             $view->with('isImpersonating', $session->has('impersonator_id'));
             $view->with('impersonatorName', $session->get('impersonator_name'));
         });
+    }
+
+    /**
+     * Ensure a root-level asset is available under public/ for serving.
+     */
+    protected function syncPublicAsset(string $filename): void
+    {
+        $source = base_path($filename);
+        $target = public_path($filename);
+
+        if (! file_exists($source)) {
+            return;
+        }
+
+        $needsCopy = ! file_exists($target) || filemtime($source) > filemtime($target);
+
+        if ($needsCopy) {
+            @copy($source, $target);
+        }
     }
 }

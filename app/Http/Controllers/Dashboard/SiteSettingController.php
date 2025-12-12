@@ -78,22 +78,18 @@ class SiteSettingController extends Controller
 
         $validated = $request->validate([
             'badge' => ['required', 'string', 'max:150'],
-            'brand_accent' => ['required', 'string', 'max:80'],
+            'brand_accent' => ['nullable', 'string', 'max:80'],
             'headline_prefix' => ['required', 'string', 'max:150'],
             'headline_accent' => ['required', 'string', 'max:150'],
             'headline_suffix' => ['required', 'string', 'max:150'],
             'lead' => ['required', 'string', 'max:400'],
             'perks' => ['nullable', 'string', 'max:600'],
             'card_title' => ['required', 'string', 'max:180'],
-            'logo' => ['nullable', 'image', 'max:1024'],
         ]);
 
         $currentContent = \App\Support\LoginContent::current();
 
         $logoPath = $currentContent['logo_path'] ?? null;
-        if ($request->hasFile('logo')) {
-            $logoPath = $request->file('logo')->store('login', 'public');
-        }
 
         $perks = array_values(array_filter(array_map(
             static fn ($line) => trim((string) $line),
@@ -102,7 +98,7 @@ class SiteSettingController extends Controller
 
         $content = [
             'badge' => $validated['badge'],
-            'brand_accent' => $validated['brand_accent'],
+            'brand_accent' => $validated['brand_accent'] ?? ($currentContent['brand_accent'] ?? null),
             'headline_prefix' => $validated['headline_prefix'],
             'headline_accent' => $validated['headline_accent'],
             'headline_suffix' => $validated['headline_suffix'],

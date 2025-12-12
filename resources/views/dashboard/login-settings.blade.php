@@ -18,27 +18,15 @@
             </div>
         </header>
 
-        <form method="POST" action="{{ route('dashboard.login.customize.update') }}" class="login-settings__form" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('dashboard.login.customize.update') }}" class="login-settings__form">
             @csrf
 
-            <div class="login-settings__grid">
+            <div class="login-settings__grid login-settings__grid--single">
                 <div class="login-settings__card">
-                    <h2>Hero</h2>
-                    <label>
-                        Logo (optional)
-                        <input type="file" name="logo" accept="image/*">
-                        @if (!empty($loginContent['logo_path']))
-                            <small>Current logo:</small>
-                            <img src="{{ Storage::disk('public')->url($loginContent['logo_path']) }}" alt="Login logo" style="max-height:60px; max-width:180px; display:block; margin-top:0.25rem;">
-                        @endif
-                    </label>
+                    <h2>Hero & Calls to action</h2>
                     <label>
                         Badge text
                         <input type="text" name="badge" value="{{ old('badge', $loginContent['badge'] ?? '') }}" required>
-                    </label>
-                    <label>
-                        Brand accent word
-                        <input type="text" name="brand_accent" value="{{ old('brand_accent', $loginContent['brand_accent'] ?? '') }}" required>
                     </label>
                     <label>
                         Headline prefix
@@ -56,18 +44,10 @@
                         Lead paragraph
                         <textarea name="lead" rows="3" required>{{ old('lead', $loginContent['lead'] ?? '') }}</textarea>
                     </label>
-                </div>
-
-                <div class="login-settings__card">
-                    <h2>Calls to action</h2>
                     <label>
                         Perks (one per line)
                         <textarea name="perks" rows="4" placeholder="Instant Access&#10;99.9% Uptime&#10;Simple Pricing">{{ old('perks', $perks) }}</textarea>
                     </label>
-                </div>
-
-                <div class="login-settings__card">
-                    <h2>Login card</h2>
                     <label>
                         Card title
                         <input type="text" name="card_title" value="{{ old('card_title', $loginContent['card_title'] ?? '') }}" required>
@@ -139,8 +119,12 @@
 
             .login-settings__grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                grid-template-columns: 1fr;
                 gap: 1rem;
+            }
+
+            .login-settings__grid--single {
+                grid-template-columns: 1fr;
             }
 
             .login-settings__card {
