@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="icon" type="image/x-icon" href="{{ asset('fav.ico') }}">
 
-        <title>{{ config('app.name', 'Toolsmandu') }}</title>
+        <title>{{ config('app.name', 'Toolsmandu Order Tracking') }}</title>
 
         @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
             @vite(['resources/css/app.css', 'resources/js/app.js'])
