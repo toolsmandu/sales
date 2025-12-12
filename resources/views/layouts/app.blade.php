@@ -16,6 +16,7 @@
         @php
             $authUser = \Illuminate\Support\Facades\Auth::user();
             $registrationEnabled = \App\Models\SiteSetting::bool('registration_enabled', true);
+            $hideHeader = request()->routeIs('login') || ($isLoginPreview ?? false);
             $activeAttendance = null;
             if ($authUser) {
                 $activeAttendance = \App\Models\AttendanceLog::where('user_id', $authUser->id)
@@ -467,6 +468,7 @@
         @stack('styles')
     </head>
     <body>
+        @unless ($hideHeader)
         <header class="app-header">
             <nav>
                 <ul>
@@ -614,6 +616,18 @@
                                             </svg>
                                         </span>
                                         <span class="profile-menu__label">Edit Team</span>
+                                </a>
+                                @endif
+
+                                @if (($authUser->role ?? null) === 'admin')
+                                    <a class="profile-menu__item" href="{{ route('dashboard.login.customize') }}" role="menuitem">
+                                        <span class="profile-menu__icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 20h9"/>
+                                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                                            </svg>
+                                        </span>
+                                        <span class="profile-menu__label">Customize Login</span>
                                     </a>
                                 @endif
 
@@ -669,6 +683,7 @@
                 </ul>
             </nav>
         </header>
+        @endunless
 
         <main class="app-main">
             @if (session('status'))

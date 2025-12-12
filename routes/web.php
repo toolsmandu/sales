@@ -90,6 +90,9 @@ Route::middleware('auth')->group(function (): void {
 
 Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(function (): void {
     Route::get('/bootstrap', DashboardBootstrapController::class)->name('bootstrap');
+    Route::get('/login/customize', [SiteSettingController::class, 'editLogin'])->name('login.customize');
+    Route::post('/login/customize', [SiteSettingController::class, 'updateLogin'])->name('login.customize.update');
+    Route::get('/login/preview', [AuthenticatedSessionController::class, 'preview'])->name('login.preview');
 
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');

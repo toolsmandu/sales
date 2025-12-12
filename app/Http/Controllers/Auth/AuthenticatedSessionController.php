@@ -19,6 +19,18 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
+     * Allow admins to preview the login page without signing out.
+     */
+    public function preview(Request $request): View
+    {
+        abort_unless(($request->user()->role ?? null) === 'admin', 403);
+
+        return view('auth.login', [
+            'isLoginPreview' => true,
+        ]);
+    }
+
+    /**
      * Handle an incoming authentication request.
      */
     public function store(Request $request): RedirectResponse
