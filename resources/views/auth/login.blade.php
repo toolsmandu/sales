@@ -289,12 +289,12 @@
         }
 
         .login-status--info {
-            background: #eef4ff;
+            background: #63c58bff;
             border-color: rgba(47, 99, 246, 0.25);
         }
 
         .login-status--success {
-            background: #f0fdf4;
+            background: #63c58bff;
             border-color: rgba(21, 128, 61, 0.25);
             color: #166534;
         }
@@ -312,7 +312,7 @@
 
         .tracking-table th,
         .tracking-table td {
-            text-align: left;
+            text-align: center;
             padding: 0.65rem 0.5rem;
             border-bottom: 1px solid var(--login-border);
         }
@@ -328,7 +328,7 @@
         }
 
         .login-page--home .tracking-table th {
-            color: #e5ecff;
+            color: #000000;
         }
 
         .tracking-table tbody tr:hover {
@@ -531,7 +531,7 @@
                                 id="track-phone"
                                 name="phone"
                                 placeholder="Enter with country code:+97798XXXXXXXX"
-                                value=""
+                                value="{{ $trackingState['phone_display'] ?? old('phone', '') }}"
                                 required
                             >
                             @error('phone')
@@ -640,7 +640,7 @@
         </div>
         @if ($isHome && $trackingOrders->count() > 0)
             <div class="tracking-orders">
-                <h3>Your Orders:</h3>
+                <h3 style="color:#fff;">Your Orders:</h3>
                 <table class="tracking-table" aria-live="polite">
                     <thead>
                         <tr>

@@ -210,6 +210,29 @@
             padding: 0.3rem 0.4rem;
             font: inherit;
             background: #fff;
+            text-align: center;
+        }
+
+        #orders-table td input,
+        #orders-table td a,
+        #orders-table td span {
+            text-align: center;
+        }
+
+        .cell-with-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            width: 100%;
+        }
+
+        .table-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            width: 100%;
         }
     </style>
 @endpush

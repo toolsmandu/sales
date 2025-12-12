@@ -76,10 +76,10 @@ class TrackingController extends Controller
         ], now()->addMinutes(10));
 
         Mail::raw(
-            "Your order verification code is {$otp}. It expires in 10 minutes.",
+            "Your verification code is {$otp} to track your order.",
             function ($message) use ($sale) {
                 $message->to($sale->email)
-                    ->subject('Your Order Verification Code');
+                    ->subject('Your Verification Code');
             }
         );
 
@@ -113,7 +113,7 @@ class TrackingController extends Controller
         $cached = Cache::get($cacheKey);
 
         if (! $cached || ($cached['code'] ?? null) !== $otp) {
-            $errors->add('otp', 'Invalid or expired OTP. Please request a new one.');
+            $errors->add('otp', 'Invalid or expired OTP. Please resend.');
 
             return $this->renderHome([
                 'status' => 'otp_sent',
