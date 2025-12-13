@@ -218,6 +218,16 @@
             background: transparent;
         }
 
+        .modal.modal--center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.modal--center .modal__content {
+            margin: auto;
+        }
+
         .phone-link--clean,
         .whatsapp-link {
             text-decoration: none;
@@ -602,12 +612,6 @@
         @include('partials.dashboard-sidebar')
 
         <section class="dashboard-content stack">
-
-            @if (session('status'))
-                <article role="alert">
-                    {{ session('status') }}
-                </article>
-            @endif
 
             @if ($errors->any())
                 <article role="alert">
@@ -1059,22 +1063,45 @@
         </div>
     </section>
 
+    <section
+        class="modal is-hidden"
+        id="duplicate-order-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="duplicate-order-title">
+        <div class="modal__content">
+            <div class="modal__header">
+                <div>
+                    <h3 id="duplicate-order-title">Duplicate order?</h3>
+                    <p class="text-subtle" data-duplicate-message>This will be a duplicate order. Do you want to proceed?</p>
+                </div>
+                <button type="button" class="ghost-button" data-duplicate-close aria-label="Close duplicate warning">
+                    Close
+                </button>
+            </div>
+            <div class="form-actions form-actions--row" style="justify-content: flex-end; gap: 12px;">
+                <button type="button" class="ghost-button" data-duplicate-no> No </button>
+                <button type="button" class="button-with-icon" data-duplicate-yes>
+            
+                    <span>Create Duplicate Order</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
     @php
         $saleConfirmation = session('saleConfirmation');
         $orderId = $saleConfirmation['serial_number'] ?? null;
         $productName = $saleConfirmation['product_name'] ?? null;
         $productDisplay = $productName ?: 'N/A';
-        $orderCopy = $orderId
-            ? "𝐘𝐨𝐮𝐫 𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: {$orderId}\n\n"
-                ."𝐏𝐫𝐨𝐝𝐮𝐜𝐭 𝐍𝐚𝐦𝐞: {$productDisplay}\n\n"
-                ."We are processing your order now. Please wait patiently until we deliver your order.\n\n"
-                ."𝐈𝐦𝐩𝐨𝐫𝐭𝐚𝐧𝐭 𝐍𝐨𝐭𝐞: Please keep your Order ID safe to get support in the future."
-            : null;
+        $orderPhone = $saleConfirmation['phone'] ?? 'N/A';
+        $orderAmount = $saleConfirmation['sales_amount'] ?? null;
+        $formattedAmount = $orderAmount !== null ? number_format((float) $orderAmount, 2) : 'N/A';
     @endphp
 
-    @if ($saleConfirmation && $orderId && $orderCopy)
+    @if ($saleConfirmation && $orderId)
         <section
-            class="modal"
+            class="modal modal--center"
             id="sale-confirmation-modal"
             role="dialog"
             aria-modal="true"
@@ -1082,47 +1109,34 @@
             <div class="modal__content sale-confirmation">
                 <div class="modal__header">
                     <div class="modal__header-group">
-                        <center><h3 id="sale-confirmation-title">Order received</h3></center>
+                        <h3 id="sale-confirmation-title">Order Created Successfully.</h3>
                     </div>
                     <button type="button" class="ghost-button button-with-icon sale-confirmation-close" data-sale-confirmation-close aria-label="Close confirmation">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                        <span>Close</span>
+                        <span data-sale-confirmation-close-label>Close</span>
                     </button>
                 </div>
                 <div class="sale-confirmation-message">
-                    <div class="sale-confirmation-hero">
-                     
-                        <p>We are processing your order now. Please wait patiently until we deliver your order.</p>
-                    </div>
                     <dl class="sale-confirmation-details">
                         <div>
-                            <dt>Your Order ID</dt>
+                            <dt>Order ID</dt>
                             <dd>{{ $orderId }}</dd>
                         </div>
                         <div>
-                            <dt>Product Name</dt>
+                            <dt>User</dt>
+                            <dd>{{ $orderPhone }}</dd>
+                        </div>
+                        <div>
+                            <dt>Product</dt>
                             <dd>{{ $productDisplay }}</dd>
                         </div>
+                        <div>
+                            <dt>Amount</dt>
+                            <dd>Rs. {{ $formattedAmount }}</dd>
+                        </div>
                     </dl>
-                    <div class="sale-confirmation-note">
-                        <strong>Important note:</strong> Please keep your Order ID safe to get support in the future.
-                    </div>
-                </div>
-                <div class="sale-confirmation-actions">
-                    <Center><button
-                        type="button"
-                        class="ghost-button button-with-icon sale-confirmation-copy"
-                        data-sale-confirmation-copy
-                        data-copy-text="{{ e($orderCopy) }}"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
-                            <path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2h2" />
-                        </svg>
-                        <span data-copy-label>Copy Credentials</span>
-                    </button></center>
                 </div>
             </div>
         </section>
@@ -1358,18 +1372,163 @@
                 });
             }
 
+            const duplicateModal = document.getElementById('duplicate-order-modal');
+            const duplicateMessage = duplicateModal?.querySelector('[data-duplicate-message]');
+            const duplicateYesButton = duplicateModal?.querySelector('[data-duplicate-yes]');
+            const duplicateNoButton = duplicateModal?.querySelector('[data-duplicate-no]');
+            const duplicateCloseButton = duplicateModal?.querySelector('[data-duplicate-close]');
+            const createOrderForm = document.querySelector('.orders-form');
+            const createProductInput = document.getElementById('sales-product-name');
+            const createPurchaseDateInput = document.getElementById('sales-purchase-date');
+            const duplicateCheckUrl = '{{ route('dashboard.orders.check-duplicate') }}';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            let pendingDuplicateSubmit = null;
+
+            const closeDuplicateModal = () => {
+                if (!duplicateModal) return;
+                duplicateModal.classList.add('is-hidden');
+                pendingDuplicateSubmit = null;
+            };
+
+            const openDuplicateModal = ({ phone, product }) => {
+                if (!duplicateModal) return;
+                const detailParts = [];
+                const cleanProduct = (product ?? '').trim();
+                const cleanPhone = (phone ?? '').trim();
+                if (cleanProduct !== '') detailParts.push(cleanProduct);
+                if (cleanPhone !== '') detailParts.push(cleanPhone);
+                if (duplicateMessage) {
+                    const details = detailParts.length > 0 ? ` for ${detailParts.join(' · ')}` : '';
+                    duplicateMessage.textContent = `A similar order was placed within the last 48 hours${details}. Do you want to proceed?`;
+                }
+                duplicateModal.classList.remove('is-hidden');
+                duplicateYesButton?.focus({ preventScroll: true });
+            };
+
+            duplicateYesButton?.addEventListener('click', () => {
+                if (pendingDuplicateSubmit) {
+                    pendingDuplicateSubmit();
+                }
+                closeDuplicateModal();
+            });
+            duplicateNoButton?.addEventListener('click', closeDuplicateModal);
+            duplicateCloseButton?.addEventListener('click', closeDuplicateModal);
+            duplicateModal?.addEventListener('click', (event) => {
+                if (event.target === duplicateModal) {
+                    closeDuplicateModal();
+                }
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && duplicateModal && !duplicateModal.classList.contains('is-hidden')) {
+                    closeDuplicateModal();
+                }
+            });
+
+            createOrderForm?.addEventListener('submit', async (event) => {
+                if (!duplicateModal || !addPhoneInput || !createProductInput || !duplicateCheckUrl) {
+                    return;
+                }
+
+                const phoneValue = addPhoneInput.value.trim();
+                const productValue = createProductInput.value.trim();
+
+                if (phoneValue === '' || productValue === '') {
+                    return;
+                }
+
+                event.preventDefault();
+
+                try {
+                    const response = await fetch(duplicateCheckUrl, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            phone: phoneValue,
+                            product_name: productValue,
+                            purchase_date: createPurchaseDateInput?.value ?? null,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        createOrderForm.submit();
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    const isDuplicate = Boolean(payload?.duplicate);
+
+                    if (!isDuplicate) {
+                        createOrderForm.submit();
+                        return;
+                    }
+
+                    pendingDuplicateSubmit = () => createOrderForm.submit();
+                    openDuplicateModal({ phone: phoneValue, product: productValue });
+                } catch (_error) {
+                    createOrderForm.submit();
+                }
+            });
+
             const confirmationModal = document.getElementById('sale-confirmation-modal');
             if (confirmationModal) {
                 const closeButtons = confirmationModal.querySelectorAll('[data-sale-confirmation-close]');
-                const copyButton = confirmationModal.querySelector('[data-sale-confirmation-copy]');
-                const copyText = copyButton?.dataset.copyText ?? '';
-                const copyLabel = copyButton?.querySelector('[data-copy-label]');
-                const defaultCopyLabel = copyLabel?.textContent?.trim()
-                    ?? copyButton?.textContent?.trim()
-                    ?? 'Copy Credentials';
+                const closeLabel = confirmationModal.querySelector('[data-sale-confirmation-close-label]');
+                let confirmationCountdownId = null;
+                let confirmationTimeoutId = null;
+
+                const resetCloseLabel = () => {
+                    if (closeLabel) {
+                        closeLabel.textContent = 'Close';
+                    }
+                };
+
+                const startAutoClose = () => {
+                    if (confirmationCountdownId) {
+                        window.clearInterval(confirmationCountdownId);
+                        confirmationCountdownId = null;
+                    }
+                    if (confirmationTimeoutId) {
+                        window.clearTimeout(confirmationTimeoutId);
+                        confirmationTimeoutId = null;
+                    }
+
+                    let remaining = 5;
+                    if (closeLabel) {
+                        closeLabel.textContent = `Close (${remaining}s)`;
+                    }
+
+                    confirmationCountdownId = window.setInterval(() => {
+                        remaining -= 1;
+                        if (remaining <= 0) {
+                            hideConfirmation();
+                        } else if (closeLabel) {
+                            closeLabel.textContent = `Close (${remaining}s)`;
+                        }
+                    }, 1000);
+
+                    confirmationTimeoutId = window.setTimeout(() => {
+                        hideConfirmation();
+                    }, remaining * 1000);
+                };
 
                 const hideConfirmation = () => {
+                    if (confirmationCountdownId) {
+                        window.clearInterval(confirmationCountdownId);
+                        confirmationCountdownId = null;
+                    }
+                    if (confirmationTimeoutId) {
+                        window.clearTimeout(confirmationTimeoutId);
+                        confirmationTimeoutId = null;
+                    }
                     confirmationModal.classList.add('is-hidden');
+                    confirmationModal.style.display = 'none';
+                    confirmationModal.setAttribute('aria-hidden', 'true');
+                    resetCloseLabel();
                 };
 
                 closeButtons.forEach((button) => button.addEventListener('click', hideConfirmation));
@@ -1380,32 +1539,10 @@
                     }
                 });
 
-                if (copyButton && copyText) {
-                    copyButton.addEventListener('click', async () => {
-                        try {
-                            await navigator.clipboard.writeText(copyText);
-                            if (copyLabel) {
-                                copyLabel.textContent = 'Copied!';
-                            } else {
-                                copyButton.textContent = 'Copied!';
-                            }
-                        } catch (error) {
-                            if (copyLabel) {
-                                copyLabel.textContent = 'Copy failed';
-                            } else {
-                                copyButton.textContent = 'Copy failed';
-                            }
-                        }
-
-                        window.setTimeout(() => {
-                            if (copyLabel) {
-                                copyLabel.textContent = defaultCopyLabel;
-                            } else {
-                                copyButton.textContent = defaultCopyLabel;
-                            }
-                        }, 2000);
-                    });
-                }
+                confirmationModal.classList.remove('is-hidden');
+                confirmationModal.style.display = '';
+                confirmationModal.setAttribute('aria-hidden', 'false');
+                startAutoClose();
             }
         });
     </script>

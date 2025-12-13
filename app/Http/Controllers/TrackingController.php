@@ -39,6 +39,7 @@ class TrackingController extends Controller
     {
         $phoneInput = (string) $request->input('phone', '');
         $normalizedPhone = preg_replace('/\D+/', '', $phoneInput);
+        $emailChoice = trim((string) $request->input('email_choice', ''));
         $errors = new MessageBag();
 
         if ($normalizedPhone === '') {
@@ -49,9 +50,45 @@ class TrackingController extends Controller
             ], $orders, $errors);
         }
 
-        $sale = Sale::query()
+        $emailOptions = Sale::query()
             ->whereRaw("REGEXP_REPLACE(phone, '[^0-9]+', '') = ?", [$normalizedPhone])
             ->whereNotNull('email')
+            ->pluck('email')
+            ->map(fn ($email) => trim((string) $email))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($emailOptions->isEmpty()) {
+            $errors->add('phone', 'No orders found for that phone number.');
+
+            return $this->renderHome([
+                'phone_display' => $phoneInput,
+            ], $orders, $errors);
+        }
+
+        $maskedOptions = $emailOptions->map(fn ($email) => [
+            'value' => $email,
+            'label' => $this->maskEmail($email),
+        ])->values();
+
+        if ($emailOptions->count() > 1 && ($emailChoice === '' || ! $emailOptions->contains($emailChoice))) {
+            if ($emailChoice !== '' && ! $emailOptions->contains($emailChoice)) {
+                $errors->add('email_choice', 'Please select a valid email.');
+            }
+
+            return $this->renderHome([
+                'phone_display' => $phoneInput,
+                'status' => 'choose_email',
+                'email_options' => $maskedOptions->toArray(),
+            ], $orders, $errors);
+        }
+
+        $selectedEmail = $emailChoice !== '' ? $emailChoice : $emailOptions->first();
+
+        $sale = Sale::query()
+            ->whereRaw("REGEXP_REPLACE(phone, '[^0-9]+', '') = ?", [$normalizedPhone])
+            ->where('email', $selectedEmail)
             ->latest('purchase_date')
             ->latest('id')
             ->first();
@@ -70,23 +107,25 @@ class TrackingController extends Controller
 
         Cache::put($cacheKey, [
             'code' => $otp,
-            'email' => $sale->email,
-            'masked_email' => $maskedEmail,
+            'email' => $selectedEmail,
+            'masked_email' => $this->maskEmail($selectedEmail),
             'phone' => $normalizedPhone,
         ], now()->addMinutes(10));
 
         Mail::raw(
             "Your verification code is {$otp} to track your order.",
-            function ($message) use ($sale) {
-                $message->to($sale->email)
+            function ($message) use ($selectedEmail) {
+                $message->to($selectedEmail)
                     ->subject('Your Verification Code');
             }
         );
 
         $trackingState = [
             'status' => 'otp_sent',
-            'masked_email' => $maskedEmail,
+            'masked_email' => $this->maskEmail($selectedEmail),
             'phone_display' => $phoneInput,
+            'selected_email' => $selectedEmail,
+            'email_options' => $maskedOptions->toArray(),
         ];
 
         return $this->renderHome($trackingState, $orders);
@@ -143,6 +182,7 @@ class TrackingController extends Controller
             'status' => 'verified',
             'masked_email' => $cached['masked_email'] ?? $this->maskEmail($cached['email'] ?? ''),
             'phone_display' => $phoneInput,
+            'selected_email' => $cached['email'] ?? null,
         ];
 
         return $this->renderHome($trackingState, $orders);

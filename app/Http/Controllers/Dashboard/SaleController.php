@@ -13,6 +13,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -273,6 +274,47 @@ class SaleController extends Controller
         ]);
     }
 
+    public function checkDuplicate(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:50'],
+            'product_name' => ['required', 'string', 'max:255'],
+            'purchase_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $cutoff = Carbon::now('Asia/Kathmandu')->subHours(48);
+        $normalizedPhone = preg_replace('/\D+/', '', $data['phone']);
+        $normalizedProduct = mb_strtolower(trim($data['product_name']));
+
+        $isDuplicate = false;
+
+        $purchaseDateInput = $data['purchase_date'] ?? null;
+        if ($purchaseDateInput) {
+            try {
+                $purchaseDate = Carbon::createFromFormat('Y-m-d', $purchaseDateInput, 'Asia/Kathmandu')->endOfDay();
+                if ($purchaseDate->lt($cutoff)) {
+                    return response()->json([
+                        'duplicate' => false,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                // Ignore parse errors and fall back to checking.
+            }
+        }
+
+        if ($normalizedPhone !== '' && $normalizedProduct !== '') {
+            $isDuplicate = Sale::query()
+                ->whereRaw("REGEXP_REPLACE(phone, '[^0-9]+', '') = ?", [$normalizedPhone])
+                ->whereRaw('LOWER(TRIM(product_name)) = ?', [$normalizedProduct])
+                ->where('created_at', '>=', $cutoff)
+                ->exists();
+        }
+
+        return response()->json([
+            'duplicate' => $isDuplicate,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $nowKathmandu = Carbon::now('Asia/Kathmandu');
@@ -326,12 +368,12 @@ class SaleController extends Controller
 
         return redirect()
             ->route('orders.index')
-            ->with('status', $message)
             ->with('saleConfirmation', $createdSale ? [
                 'serial_number' => $createdSale->serial_number,
                 'product_name' => $createdSale->product_name,
                 'phone' => $createdSale->phone,
                 'email' => $createdSale->email,
+                'sales_amount' => $createdSale->sales_amount,
             ] : null);
     }
 

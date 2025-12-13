@@ -204,6 +204,40 @@
             background: rgba(255, 255, 255, 0.8);
         }
 
+        .login-radio-grid {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .login-radio {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 0.85rem;
+            border-radius: 12px;
+            border: 1px solid var(--login-border);
+            background: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .login-radio input[type="radio"] {
+            width: 1.05rem;
+            height: 1.05rem;
+            accent-color: var(--login-primary);
+        }
+
+        .login-radio:hover,
+        .login-radio:focus-within {
+            border-color: rgba(47, 99, 246, 0.45);
+            box-shadow: 0 10px 24px rgba(47, 99, 246, 0.08);
+        }
+
+        .login-page--home .login-radio {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
         .login-perks svg {
             width: 1rem;
             height: 1rem;
@@ -541,15 +575,44 @@
 
                         @if (($trackingState['status'] ?? '') !== 'otp_sent')
                             <button type="submit" class="login-btn login-btn--primary login-submit">Track Order</button>
-                        @elseif (($trackingState['status'] ?? '') !== 'verified')
+                        @elseif (($trackingState['status'] ?? '') !== 'verified' && ($trackingState['status'] ?? '') !== 'choose_email')
                             <article class="login-status login-status--info" style="margin-top:0;">A 6 digit OTP sent to your email: {{ $trackingState['masked_email'] ?? '' }}</article>
                         @endif
                     </form>
+
+                    @if (($trackingState['status'] ?? '') === 'choose_email')
+                        <form method="POST" action="{{ route('home') }}" class="login-form" novalidate>
+                            @csrf
+                            <input type="hidden" name="phone" value="{{ $trackingState['phone_display'] ?? '' }}">
+                            <div class="login-field">
+                                <label>Select an email to receive the code</label>
+                                <div class="login-radio-grid">
+                                    @foreach (($trackingState['email_options'] ?? []) as $index => $option)
+                                        <label class="login-radio">
+                                            <input
+                                                type="radio"
+                                                name="email_choice"
+                                                value="{{ $option['value'] ?? '' }}"
+                                                @checked($index === 0)
+                                                required
+                                            >
+                                            <span>{{ $option['label'] ?? $option['value'] ?? '' }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @error('email_choice')
+                                    <span class="login-error" role="alert">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            <button type="submit" class="login-btn login-btn--primary login-submit">Send Code</button>
+                        </form>
+                    @endif
 
                     @if (in_array($trackingState['status'] ?? '', ['otp_sent', 'verified'], true) && ($trackingState['status'] ?? '') !== 'verified')
                         <form method="POST" action="{{ route('home') }}" class="track-otp-row" novalidate>
                             @csrf
                             <input type="hidden" name="phone" value="{{ $trackingState['phone_display'] ?? '' }}">
+                            <input type="hidden" name="email_choice" value="{{ $trackingState['selected_email'] ?? '' }}">
                             <div class="login-field" style="margin:0;">
                                 <label for="otp">Enter 6 digit OTP</label>
                                 <input
@@ -572,6 +635,7 @@
                             <form method="POST" action="{{ route('home') }}">
                                 @csrf
                                 <input type="hidden" name="phone" value="{{ $trackingState['phone_display'] ?? '' }}">
+                                <input type="hidden" name="email_choice" value="{{ $trackingState['selected_email'] ?? '' }}">
                                 <button type="submit" class="login-btn login-btn--ghost login-submit" style="width:auto;padding:0.45rem 0.8rem;">Resend OTP</button>
                             </form>
                             <form method="POST" action="{{ route('home') }}">

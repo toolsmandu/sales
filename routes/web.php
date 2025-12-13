@@ -106,6 +106,7 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::post('/orders', [SaleController::class, 'store'])->name('orders.store');
     Route::put('/orders/{sale}', [SaleController::class, 'update'])->name('orders.update');
     Route::delete('/orders/{sale}', [SaleController::class, 'destroy'])->name('orders.destroy');
+    Route::post('/orders/check-duplicate', [SaleController::class, 'checkDuplicate'])->name('orders.check-duplicate');
 
 
     Route::get('/profile', [UserProfileController::class, 'edit'])->name('profile.edit');

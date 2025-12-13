@@ -81,6 +81,12 @@
                 gap: 0.6rem;
             }
 
+            .app-logo {
+                display: inline-block;
+                height: 38px;
+                width: auto;
+            }
+
             .profile-menu {
                 position: relative;
                 display: flex;
@@ -474,7 +480,7 @@
             <nav>
                 <ul>
                     <li>
-                        <strong>{{ config('app.name', 'Toolsmandu') }}</strong>
+                        <img src="{{ asset('logo.png') }}" alt="{{ config('app.name', 'Toolsmandu') }}" class="app-logo">
                     </li>
                 </ul>
                 <ul>
