@@ -219,12 +219,40 @@
             background: rgba(255, 255, 255, 0.6);
             cursor: pointer;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            position: relative;
         }
 
         .login-radio input[type="radio"] {
-            width: 1.05rem;
-            height: 1.05rem;
-            accent-color: var(--login-primary);
+            appearance: none;
+            width: 1.1rem;
+            height: 1.1rem;
+            border: 2px solid var(--login-border);
+            border-radius: 6px;
+            display: inline-grid;
+            place-content: center;
+            background: #fff;
+            transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .login-radio input[type="radio"]::after {
+            content: '✓';
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            transform: scale(0.5);
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            opacity: 0;
+        }
+
+        .login-radio input[type="radio"]:checked {
+            border-color: var(--login-primary);
+            background: linear-gradient(135deg, #2f63f6, #4154ff);
+            box-shadow: 0 6px 16px rgba(47, 99, 246, 0.15);
+        }
+
+        .login-radio input[type="radio"]:checked::after {
+            opacity: 1;
+            transform: scale(1);
         }
 
         .login-radio:hover,
