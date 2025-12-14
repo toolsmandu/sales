@@ -368,6 +368,33 @@
                                     <td colspan="4">
                                         <div class="product-group-title">
                                             <span>{{ $product->name }}</span>
+                                            @if ($variations->isEmpty())
+                                                <div class="table-actions" style="margin-left: auto; gap: 0.4rem;">
+                                                    <a
+                                                        class="ghost-button ghost-button--icon"
+                                                        href="{{ route('products.index', ['edit' => $product->id]) }}"
+                                                        aria-label="Edit {{ $product->name }}">
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M14.06 6.19l1.77-1.77a1.75 1.75 0 112.48 2.47l-1.77 1.77" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                        </svg>
+                                                    </a>
+                                                    <form method="POST" action="{{ route('dashboard.products.destroy', $product) }}" onsubmit="return confirm('Delete {{ $product->name }}? This cannot be undone.');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button
+                                                            type="submit"
+                                                            class="ghost-button ghost-button--icon button-danger"
+                                                            aria-label="Delete {{ $product->name }}">
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                                <path d="M6 7h12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                                                <path d="M9 7V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7m-7 0h10v11a2 2 0 01-2 2H8a2 2 0 01-2-2V7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                                <path d="M10 11v6m4-6v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -469,13 +496,16 @@
                             aria-disabled="{{ $products->previousPageUrl() ? 'false' : 'true' }}">
                             Previous
                         </a>
-                        <span class="helper-text">
-                            @if ($totalProducts === 0)
-                                No products to display
-                            @else
-                                Showing {{ $start }}-{{ $end }} of {{ $totalProducts }} (Page {{ $currentPage }} of {{ $lastPage }})
-                            @endif
-                        </span>
+                        <div class="pagination-numbers" style="display: inline-flex; gap: 0.25rem; align-items: center;">
+                            @for ($i = 1; $i <= $lastPage; $i++)
+                                <a
+                                    class="ghost-button {{ $i === $currentPage ? 'is-active' : '' }}"
+                                    href="{{ route('products.index', array_merge(request()->except('page'), ['page' => $i])) }}"
+                                    aria-current="{{ $i === $currentPage ? 'page' : 'false' }}">
+                                    {{ $i }}
+                                </a>
+                            @endfor
+                        </div>
                         <a
                             class="ghost-button"
                             href="{{ $products->nextPageUrl() ? route('products.index', array_merge(request()->except('page'), ['page' => $currentPage + 1])) : '#' }}"

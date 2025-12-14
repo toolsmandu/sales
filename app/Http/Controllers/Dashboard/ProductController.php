@@ -9,6 +9,7 @@ use App\Models\ProductVariation;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
@@ -121,8 +122,7 @@ class ProductController extends Controller
             'is_in_stock' => $data['is_in_stock'],
         ]);
 
-        $variationRenames = $this->syncVariations($product, $data['variations']);
-        $this->syncSaleProductNames($product, $previousName, $variationRenames);
+        $this->syncVariations($product, $data['variations']);
 
         $message = 'Product updated successfully.';
 
@@ -139,6 +139,20 @@ class ProductController extends Controller
 
     public function destroy(Request $request, Product $product)
     {
+        if ($product->variations()->exists()) {
+            $message = 'Remove product variations before deleting this product.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            return redirect()
+                ->route('products.index')
+                ->with('status', $message);
+        }
+
         $product->delete();
 
         $message = 'Product deleted successfully.';

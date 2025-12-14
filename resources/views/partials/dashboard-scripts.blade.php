@@ -1267,9 +1267,8 @@
                     });
 
                     if (paymentPaginationInfo) {
-                        const startDisplay = startIndex + 1;
-                        const endDisplay = startIndex + paginatedTransactions.length;
-                        paymentPaginationInfo.textContent = `Showing ${startDisplay}-${endDisplay} of ${totalTransactions} (Page ${paymentCurrentPage} of ${totalPages})`;
+                        const pages = Array.from({ length: totalPages }, (_, i) => i + 1).join(', ');
+                        paymentPaginationInfo.textContent = totalTransactions === 0 ? 'No transactions to display' : pages;
                     }
 
                     if (paymentPrevPageButton) {
@@ -1846,9 +1845,8 @@
                         if (totalRecords === 0) {
                             salesPaginationInfo.textContent = 'No records to display';
                         } else {
-                            const startDisplay = startIndex + 1;
-                            const endDisplay = startIndex + paginatedRecords.length;
-                            salesPaginationInfo.textContent = `Showing ${startDisplay}-${endDisplay} of ${totalRecords} (Page ${salesCurrentPage} of ${totalPages})`;
+                            const pages = Array.from({ length: totalPages }, (_, i) => i + 1).join(', ');
+                            salesPaginationInfo.textContent = pages;
                         }
                     }
 

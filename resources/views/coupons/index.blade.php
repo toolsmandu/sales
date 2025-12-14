@@ -492,13 +492,16 @@
                         >
                             Previous
                         </a>
-                        <span class="helper-text">
-                            @if ($totalCoupons === 0)
-                                No coupons to display
-                            @else
-                                Showing {{ $start }}-{{ $end }} of {{ $totalCoupons }} (Page {{ $currentPage }} of {{ $lastPage }})
-                            @endif
-                        </span>
+                        <div class="pagination-numbers" style="display: inline-flex; gap: 0.25rem; align-items: center;">
+                            @for ($i = 1; $i <= $lastPage; $i++)
+                                <a
+                                    class="ghost-button {{ $i === $currentPage ? 'is-active' : '' }}"
+                                    href="{{ route('coupons.index', array_merge(request()->except('page'), ['page' => $i])) }}"
+                                    aria-current="{{ $i === $currentPage ? 'page' : 'false' }}">
+                                    {{ $i }}
+                                </a>
+                            @endfor
+                        </div>
                         <a
                             class="ghost-button"
                             href="{{ $coupons->nextPageUrl() ? $coupons->nextPageUrl() : '#' }}"

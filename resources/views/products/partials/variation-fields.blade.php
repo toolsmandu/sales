@@ -176,6 +176,20 @@
                     const labelId = block.dataset.variationLabel || '';
                     const templateElement = template.content.firstElementChild;
 
+                    const attachRemoveHandler = (field) => {
+                        const removeButton = field.querySelector('[data-remove-variation]');
+                        if (!removeButton) {
+                            return;
+                        }
+                        removeButton.addEventListener('click', () => {
+                            field.remove();
+                            updateRemoveButtons();
+                            if (!collection.querySelector('.variation-field')) {
+                                addField({}, { focus: false });
+                            }
+                        });
+                    };
+
                     const createField = (value = { name: '', expiry_days: null }) => {
                         if (!templateElement) {
                             return null;
@@ -215,14 +229,7 @@
                             stockInput.checked = stockInput.value === desiredStockValue;
                         });
 
-                        const removeButton = field.querySelector('[data-remove-variation]');
-                        removeButton?.addEventListener('click', () => {
-                            field.remove();
-                            updateRemoveButtons();
-                            if (!collection.querySelector('.variation-field')) {
-                                addField({}, { focus: false });
-                            }
-                        });
+                        attachRemoveHandler(field);
 
                         collection.appendChild(field);
                         updateRemoveButtons();
@@ -257,6 +264,7 @@
                     if (!collection.querySelector('.variation-field')) {
                         addField('', { focus: false });
                     } else {
+                        collection.querySelectorAll('.variation-field').forEach((row) => attachRemoveHandler(row));
                         updateRemoveButtons();
                     }
                 });

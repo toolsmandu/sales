@@ -49,12 +49,16 @@ class SaleController extends Controller
         $salesQuery = Sale::with(['createdBy']);
 
         if ($filters['search'] !== '') {
-            $searchTerm = '%' . $filters['search'] . '%';
-            $numericSearch = preg_replace('/\D+/', '', $filters['search']);
+            $rawSearch = $filters['search'];
+            $searchTerm = '%' . $rawSearch . '%';
+            $numericSearch = preg_replace('/\D+/', '', $rawSearch);
             $normalizedPhoneTerm = $numericSearch !== '' ? '%' . $numericSearch . '%' : null;
+            $normalizedSerial = mb_strtolower($rawSearch);
 
-            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm) {
-                $query->where('serial_number', 'like', $searchTerm)
+            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm, $normalizedSerial) {
+                // Exact match on serial/order ID to avoid partial hits (e.g., TM31 should not match TM312)
+                $query->whereRaw('LOWER(serial_number) = ?', [$normalizedSerial])
+                    // Fallback partial matches for other searchable fields
                     ->orWhere('phone', 'like', $searchTerm)
                     ->orWhere('email', 'like', $searchTerm)
                     ->orWhere('remarks', 'like', $searchTerm);

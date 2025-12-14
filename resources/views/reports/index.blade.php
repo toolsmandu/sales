@@ -33,6 +33,22 @@
             min-width: 140px;
         }
 
+        .reports-filters button[type="submit"] {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.9rem;
+            border-radius: 0.4rem;
+            margin: 0;
+            align-self: flex-end;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 2.4rem;
+            min-width: auto;
+            width: auto;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+
         .reports-table {
             width: 100%;
             border-collapse: collapse;

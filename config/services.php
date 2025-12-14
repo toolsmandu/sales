@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'google_sheets' => [
+        'sheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
+        // Store JSON string of service account credentials; keep quotes intact in .env
+        'credentials_json' => env('GOOGLE_SHEETS_CREDENTIALS_JSON'),
+    ],
+
 ];
