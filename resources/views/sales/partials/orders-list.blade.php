@@ -281,6 +281,8 @@
                 @endphp
                 @php
                     $formId = 'sale-inline-' . $sale->id;
+                    $purchaseAt = $sale->purchase_date?->timezone('Asia/Kathmandu')
+                        ?? $sale->created_at?->timezone('Asia/Kathmandu');
                 @endphp
                 <tr data-phone="{{ $phoneDigits }}" data-email="{{ trim((string) $sale->email) }}">
                     <td>
@@ -288,17 +290,14 @@
                         <form id="{{ $formId }}" method="POST" action="{{ route('dashboard.orders.update', $sale) }}">
                             @csrf
                             @method('PUT')
-                            <input type="hidden" name="purchase_date" value="{{ optional($sale->purchase_date)->format('Y-m-d') ?? now('Asia/Kathmandu')->toDateString() }}">
+                            <input type="hidden" name="purchase_date" value="{{ optional($sale->purchase_date ?? $sale->created_at)->format('Y-m-d') }}">
                             <input type="hidden" name="phone" value="{{ $sale->phone }}">
                             <input type="hidden" name="product_expiry_days" value="{{ $sale->product_expiry_days }}">
                         </form>
                     </td>
-                    @php
-                        $saleRecordedAt = $sale->created_at?->timezone('Asia/Kathmandu');
-                    @endphp
                     <td>
-                        @if ($saleRecordedAt)
-                            {{ $saleRecordedAt->format('M d h:i A') }}
+                        @if ($purchaseAt)
+                            {{ $purchaseAt->format('M d, Y') }}
                         @else
                             <span class="muted">—</span>
                         @endif
