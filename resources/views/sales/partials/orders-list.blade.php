@@ -22,7 +22,7 @@
     $isEmployee = auth()->user()?->role === 'employee';
 @endphp
 
-<form method="GET" action="{{ route('orders.index') }}" class="sales-filter-row" autocomplete="off">
+<form method="GET" action="{{ route('orders.index') }}" class="sales-filter-row" autocomplete="off" id="orders-search-form">
     @if (request()->filled('per_page'))
         <input type="hidden" name="per_page" value="{{ request()->query('per_page') }}">
     @endif
@@ -503,6 +503,17 @@
             const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'status', 'sold_by', 'actions'];
             const table = document.getElementById('orders-table');
         const colgroup = document.getElementById('orders-colgroup');
+            const searchForm = document.getElementById('orders-search-form');
+            const searchInput = document.getElementById('filter-search');
+            if (searchForm && searchInput) {
+                let debounceId;
+                searchInput.addEventListener('input', () => {
+                    window.clearTimeout(debounceId);
+                    debounceId = window.setTimeout(() => {
+                        searchForm.requestSubmit ? searchForm.requestSubmit() : searchForm.submit();
+                    }, 300);
+                });
+            }
 
             if (!table || !colgroup) return;
 
