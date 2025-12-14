@@ -177,6 +177,9 @@ class SaleController extends Controller
         $perPage = in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 25;
         $mode = $request->query('remaining_filter', 'today');
         $mode = in_array($mode, ['today', 'all'], true) ? $mode : 'today';
+        $search = trim((string) $request->query('search', ''));
+        $normalizedSearch = $search !== '' ? mb_strtolower($search) : null;
+        $digitsSearch = $search !== '' ? preg_replace('/\D+/', '', $search) : '';
 
         $page = LengthAwarePaginator::resolveCurrentPage();
         $expiredSalesCollection = Sale::query()
@@ -230,7 +233,19 @@ class SaleController extends Controller
             return $sale;
         });
 
-        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode) {
+        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch) {
+            // Apply search across serial, email, and phone (normalized digits) before paging.
+            if ($normalizedSearch !== null) {
+                $serialMatch = mb_stripos((string) $sale->serial_number, $normalizedSearch) !== false;
+                $emailMatch = mb_stripos((string) $sale->email, $normalizedSearch) !== false;
+                $phoneDigits = preg_replace('/\D+/', '', (string) $sale->phone);
+                $phoneMatch = $digitsSearch !== '' && $phoneDigits !== '' && str_contains($phoneDigits, $digitsSearch);
+
+                if (!($serialMatch || $emailMatch || $phoneMatch)) {
+                    return false;
+                }
+            }
+
             $remaining = $sale->calculated_remaining_days;
 
             if ($mode === 'today') {

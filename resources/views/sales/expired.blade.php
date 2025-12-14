@@ -173,14 +173,19 @@
             <div class="expired-header">
                 <h2>Expired Orders</h2>
                 <div class="expired-filter-actions">
-                    <label class="expired-search">
+                    <form method="GET" class="expired-search" id="expired-search-form">
+                        @foreach (request()->except(['search', 'page']) as $param => $value)
+                            <input type="hidden" name="{{ $param }}" value="{{ $value }}">
+                        @endforeach
                         <input
                             type="search"
                             id="expired-search"
+                            name="search"
+                            value="{{ request('search', '') }}"
                             placeholder="Order ID/Email/Phone/Remarks"
                             aria-label="Search expired orders"
                         >
-                    </label>
+                    </form>
                     <form method="GET" class="expired-filter-form">
                         @foreach (request()->except(['remaining_filter', 'page']) as $param => $value)
                             <input type="hidden" name="{{ $param }}" value="{{ $value }}">
@@ -399,30 +404,17 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const searchForm = document.getElementById('expired-search-form');
             const searchInput = document.getElementById('expired-search');
-            const rows = Array.from(document.querySelectorAll('tr[data-expired-order]'));
-            const normalize = (value) => (value || '').toString().trim().toLowerCase();
-
-            const performSearch = () => {
-                const term = normalize(searchInput?.value || '');
-                if (!searchInput) return;
-                rows.forEach((row) => row.classList.remove('is-hidden'));
-                if (!term) {
-                    return;
-                }
-                rows.forEach((row) => {
-                    const haystacks = [
-                        row.dataset.expiredOrder,
-                        row.dataset.expiredEmail,
-                        row.dataset.expiredPhone,
-                        row.dataset.expiredRemarks,
-                    ].map(normalize);
-                    const matches = haystacks.some((value) => value.includes(term));
-                    row.classList.toggle('is-hidden', !matches);
+            if (searchForm && searchInput) {
+                let debounceId;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(debounceId);
+                    debounceId = window.setTimeout(() => {
+                        searchForm.submit();
+                    }, 300);
                 });
-            };
-
-            searchInput?.addEventListener('input', performSearch);
+            }
         });
     </script>
 @endpush
