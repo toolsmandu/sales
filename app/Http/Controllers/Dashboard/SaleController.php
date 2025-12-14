@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -50,15 +51,21 @@ class SaleController extends Controller
 
         if ($filters['search'] !== '') {
             $rawSearch = $filters['search'];
+            $startsWithTm = Str::startsWith(mb_strtolower(trim($rawSearch)), 'tm');
             $searchTerm = '%' . $rawSearch . '%';
             $numericSearch = preg_replace('/\D+/', '', $rawSearch);
             $normalizedPhoneTerm = $numericSearch !== '' ? '%' . $numericSearch . '%' : null;
-            $normalizedSerial = mb_strtolower($rawSearch);
+            $normalizedSerial = mb_strtolower(trim($rawSearch));
 
-            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm, $normalizedSerial) {
-                // Exact match on serial/order ID to avoid partial hits (e.g., TM31 should not match TM312)
+            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm, $normalizedSerial, $startsWithTm) {
+                // If the query looks like an order id (starts with TM), search only by serial_number (exact).
+                if ($startsWithTm) {
+                    $query->whereRaw('LOWER(serial_number) = ?', [$normalizedSerial]);
+                    return;
+                }
+
+                // Otherwise, search across serial (exact) and other fields.
                 $query->whereRaw('LOWER(serial_number) = ?', [$normalizedSerial])
-                    // Fallback partial matches for other searchable fields
                     ->orWhere('phone', 'like', $searchTerm)
                     ->orWhere('email', 'like', $searchTerm)
                     ->orWhere('remarks', 'like', $searchTerm);
