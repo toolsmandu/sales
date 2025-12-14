@@ -180,6 +180,7 @@ class SaleController extends Controller
         $search = trim((string) $request->query('search', ''));
         $normalizedSearch = $search !== '' ? mb_strtolower($search) : null;
         $digitsSearch = $search !== '' ? preg_replace('/\D+/', '', $search) : '';
+        $startsWithTm = $normalizedSearch !== null && Str::startsWith($normalizedSearch, 'tm');
 
         $page = LengthAwarePaginator::resolveCurrentPage();
         $expiredSalesCollection = Sale::query()
@@ -233,16 +234,23 @@ class SaleController extends Controller
             return $sale;
         });
 
-        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch) {
+        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch, $startsWithTm) {
             // Apply search across serial, email, and phone (normalized digits) before paging.
             if ($normalizedSearch !== null) {
-                $serialMatch = mb_stripos((string) $sale->serial_number, $normalizedSearch) !== false;
-                $emailMatch = mb_stripos((string) $sale->email, $normalizedSearch) !== false;
-                $phoneDigits = preg_replace('/\D+/', '', (string) $sale->phone);
-                $phoneMatch = $digitsSearch !== '' && $phoneDigits !== '' && str_contains($phoneDigits, $digitsSearch);
+                $serialMatch = mb_strtolower(trim((string) $sale->serial_number)) === $normalizedSearch;
 
-                if (!($serialMatch || $emailMatch || $phoneMatch)) {
-                    return false;
+                if ($startsWithTm) {
+                    if (!$serialMatch) {
+                        return false;
+                    }
+                } else {
+                    $emailMatch = mb_stripos((string) $sale->email, $normalizedSearch) !== false;
+                    $phoneDigits = preg_replace('/\D+/', '', (string) $sale->phone);
+                    $phoneMatch = $digitsSearch !== '' && $phoneDigits !== '' && str_contains($phoneDigits, $digitsSearch);
+
+                    if (!($serialMatch || $emailMatch || $phoneMatch)) {
+                        return false;
+                    }
                 }
             }
 
