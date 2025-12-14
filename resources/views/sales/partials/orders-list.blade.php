@@ -85,6 +85,7 @@
             id="filter-date-from"
             name="date_from"
             value="{{ $filters['date_from'] }}"
+            class="date-compact"
         >
     </label>
 
@@ -95,6 +96,7 @@
             id="filter-date-to"
             name="date_to"
             value="{{ $filters['date_to'] }}"
+            class="date-compact"
         >
     </label>
 
@@ -135,12 +137,22 @@
 
 @push('styles')
     <style>
+        .sales-filter-row {
+            gap: 0.85rem;
+        }
+
         .table-wrapper {
             overflow: auto;
             border: 1px solid rgba(15, 23, 42, 0.1);
             border-radius: 0.75rem;
             width: 100%;
             max-width: 100%;
+        }
+
+        .sales-filter-row .date-compact {
+            width: 2.8rem;
+            min-width: 2.8rem;
+            padding: 0.25rem;
         }
 
         #orders-table {

@@ -12,7 +12,7 @@
         .sales-filter-row {
             display: flex;
             flex-wrap: nowrap;
-            gap: 0.85rem;
+            gap: 1.5 rem;
             overflow-x: auto;
             padding-bottom: 0.25rem;
         }
@@ -20,7 +20,7 @@
         .sales-filter-row > label,
         .sales-filter-row > .sales-filter-actions {
             flex: 0 0 auto;
-            min-width: 200px;
+            min-width: 140px;
         }
 
         .sales-filter-row > label {
