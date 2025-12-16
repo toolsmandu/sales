@@ -370,6 +370,14 @@ class SaleController extends Controller
             ?? ($hasAmount ? 'completed' : 'pending');
 
         $createdBy = $request->user()?->id;
+        $familyContext = $this->findFamilyAccountForProduct($data['product_name'] ?? null);
+        if ($familyContext && $familyContext['full']) {
+            $message = 'Family is full for selected product. Please fix that.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+            return redirect()->back()->withErrors(['product_name' => $message])->withInput();
+        }
 
         $createdSale = null;
 
@@ -391,6 +399,10 @@ class SaleController extends Controller
 
             $createdSale = $sale;
         });
+
+        if ($familyContext && !$familyContext['full'] && $familyContext['account']) {
+            $this->createFamilyMemberFromSale($familyContext['account'], $familyContext['family_product'], $createdSale, $data);
+        }
 
         $message = 'Sale saved successfully.';
 
@@ -723,5 +735,111 @@ class SaleController extends Controller
             ->all();
 
         return $this->variationExpiryLookup;
+    }
+
+    private function findFamilyAccountForProduct(?string $productName): ?array
+    {
+        if (!$productName) {
+            return null;
+        }
+
+        $normalized = mb_strtolower(trim($productName));
+        $baseName = $normalized;
+
+        if (str_contains($normalized, ' - ')) {
+            [$baseName] = array_map(static fn ($v) => trim($v), explode(' - ', $normalized, 2));
+        }
+
+        $variationRow = DB::table('product_variations')
+            ->join('products', 'product_variations.product_id', '=', 'products.id')
+            ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
+            ->select([
+                'product_variations.id as variation_id',
+                'products.id as product_id',
+                'products.name as product_name',
+            ])
+            ->first();
+
+        $product = $variationRow
+            ? (object) ['id' => $variationRow->product_id, 'name' => $variationRow->product_name]
+            : DB::table('products')->whereRaw('LOWER(name) = ?', [$baseName])->first();
+
+        $candidates = collect();
+
+        if ($product) {
+            $candidates = $candidates->merge(
+                DB::table('family_products')
+                    ->where('linked_product_id', $product->id)
+                    ->get()
+            );
+        }
+
+        $candidates = $candidates->merge(
+            DB::table('family_products')
+                ->whereRaw('LOWER(name) = ?', [$baseName])
+                ->get()
+        );
+
+        $familyProduct = $candidates->first();
+
+        if (!$familyProduct) {
+            return null;
+        }
+
+        $account = DB::table('family_accounts')
+            ->where('family_product_id', $familyProduct->id)
+            ->orderByDesc('account_index')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$account) {
+            return [
+                'family_product' => $familyProduct,
+                'account' => null,
+                'member_count' => 0,
+                'full' => false,
+            ];
+        }
+
+        $memberCount = DB::table('family_members')->where('family_account_id', $account->id)->count();
+        $capacity = $account->capacity;
+        $full = $capacity !== null && $memberCount >= $capacity;
+
+        return [
+            'family_product' => $familyProduct,
+            'account' => $account,
+            'member_count' => $memberCount,
+            'full' => $full,
+        ];
+    }
+
+    private function createFamilyMemberFromSale(object $account, object $familyProduct, Sale $sale, array $data): void
+    {
+        $expiryDays = null;
+        if ($sale->product_name) {
+            $normalized = mb_strtolower(trim($sale->product_name));
+            $variationRow = DB::table('product_variations')
+                ->join('products', 'product_variations.product_id', '=', 'products.id')
+                ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
+                ->select(['product_variations.expiry_days'])
+                ->first();
+            $expiryDays = $variationRow?->expiry_days ?? null;
+        }
+
+        $payload = [
+            'family_product_id' => $familyProduct->id,
+            'family_account_id' => $account->id,
+            'email' => $sale->email,
+            'phone' => $sale->phone,
+            'product' => $sale->product_name,
+            'sales_amount' => $sale->sales_amount,
+            'purchase_date' => $sale->purchase_date ? Carbon::parse($sale->purchase_date)->toDateString() : null,
+            'expiry' => $expiryDays,
+            'remarks' => $sale->remarks,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        DB::table('family_members')->insert($payload);
     }
 }

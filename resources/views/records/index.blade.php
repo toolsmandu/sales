@@ -301,6 +301,28 @@
             gap: 0.35rem;
         }
 
+        .records-inline-filters {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .records-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .records-actions__main {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
         .sort-button {
             border: 1px solid rgba(15, 23, 42, 0.35);
             background: #fff;
@@ -394,6 +416,14 @@
                             @endif
                         </div>
                     </div>
+                    <div class="records-inline-filters">
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                            <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                            <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
+                        </label>
+                    </div>
                     <div class="add-product-inline">
                         <label for="record-new-product" style="margin:0;">
                             <span class="muted" style="display:block;">Product name</span>
@@ -411,18 +441,14 @@
             <section class="card stack">
                 <header class="records-toolbar" style="justify-content: space-between;">
                     <h2>Data Records</h2>
-                    <div style="display: inline-flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                            <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
-                        </label>
-                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                            <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
-                        </label>
-                        <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
+                    <div class="records-actions">
+                        <div class="records-actions__main">
+                            <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
+                            <div class="pill" id="records-count">0 Data</div>
+                            <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
+                            <input type="file" id="records-import-file" accept=".csv" style="display: none;">
+                        </div>
                         <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
-                        <div class="pill" id="records-count">0 Data</div>
-                        <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
-                        <input type="file" id="records-import-file" accept=".csv" style="display: none;">
                     </div>
                 </header>
                 <div class="modal is-hidden" id="records-import-modal" role="dialog" aria-modal="true" aria-labelledby="records-import-title">
