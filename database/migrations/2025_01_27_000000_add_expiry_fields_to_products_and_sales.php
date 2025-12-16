@@ -11,13 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('product_variations', function (Blueprint $table) {
-            $table->unsignedInteger('expiry_days')->nullable()->after('name');
-        });
+        if (Schema::hasTable('product_variations') && !Schema::hasColumn('product_variations', 'expiry_days')) {
+            Schema::table('product_variations', function (Blueprint $table) {
+                $table->unsignedInteger('expiry_days')->nullable()->after('name');
+            });
+        }
 
-        Schema::table('sales', function (Blueprint $table) {
-            $table->unsignedInteger('product_expiry_days')->nullable()->after('product_name');
-        });
+        if (Schema::hasTable('sales') && !Schema::hasColumn('sales', 'product_expiry_days')) {
+            Schema::table('sales', function (Blueprint $table) {
+                $table->unsignedInteger('product_expiry_days')->nullable()->after('product_name');
+            });
+        }
     }
 
     /**
@@ -25,12 +29,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('product_variations', function (Blueprint $table) {
-            $table->dropColumn('expiry_days');
-        });
+        if (Schema::hasTable('product_variations') && Schema::hasColumn('product_variations', 'expiry_days')) {
+            Schema::table('product_variations', function (Blueprint $table) {
+                $table->dropColumn('expiry_days');
+            });
+        }
 
-        Schema::table('sales', function (Blueprint $table) {
-            $table->dropColumn('product_expiry_days');
-        });
+        if (Schema::hasTable('sales') && Schema::hasColumn('sales', 'product_expiry_days')) {
+            Schema::table('sales', function (Blueprint $table) {
+                $table->dropColumn('product_expiry_days');
+            });
+        }
     }
 };

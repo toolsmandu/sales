@@ -13,5 +13,7 @@ class RecordProduct extends Model
         'name',
         'slug',
         'table_name',
+        'linked_product_id',
+        'linked_variation_ids',
     ];
 }

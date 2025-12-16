@@ -3,6 +3,18 @@
 @php
     $isEmployee = auth()->user()?->role === 'employee';
     $canDeleteRecords = ! $isEmployee;
+    $productLinks = $products->mapWithKeys(function ($product) {
+        $decoded = [];
+        if (!empty($product->linked_variation_ids)) {
+            $decoded = json_decode($product->linked_variation_ids, true) ?: [];
+        }
+        return [
+            $product->id => [
+                'linked_product_id' => $product->linked_product_id ?? null,
+                'linked_variation_ids' => $decoded,
+            ],
+        ];
+    });
 @endphp
 
 @push('styles')
@@ -439,6 +451,46 @@
             </section>
 
             <section class="card stack">
+                <header class="records-toolbar" style="justify-content: space-between; flex-wrap: wrap;">
+                    <h2 style="margin: 0;">Link record product to website product</h2>
+                    <div class="pill" id="records-link-status" style="min-width: 160px; text-align: center;">Not linked</div>
+                </header>
+                <div class="records-inline-filters" style="gap: 1rem; align-items: flex-end;">
+                    <label style="min-width: 220px;">
+                        <span class="muted" style="display:block;">Record product</span>
+                        <select id="records-link-product">
+                            @foreach ($products as $product)
+                                <option value="{{ $product->id }}">{{ $product->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label style="min-width: 220px;">
+                        <span class="muted" style="display:block;">Website product</span>
+                        <select id="records-link-site-product">
+                            <option value="">-- Optional: Link to website product --</option>
+                            @foreach ($siteProducts as $siteProduct)
+                                <option value="{{ $siteProduct->id }}">{{ $siteProduct->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label style="min-width: 260px;">
+                        <span class="muted" style="display:block;">Website variations (optional)</span>
+                        <select id="records-link-variations" multiple size="4" style="min-width: 260px;">
+                            @foreach ($siteProducts as $siteProduct)
+                                @foreach (($variations[$siteProduct->id] ?? collect()) as $variation)
+                                    <option value="{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}">{{ $siteProduct->name }} - {{ $variation->name }}</option>
+                                @endforeach
+                            @endforeach
+                        </select>
+                    </label>
+                    <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
+                        <button type="button" id="records-link-save" class="primary">Save link</button>
+                        <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card stack">
                 <header class="records-toolbar" style="justify-content: space-between;">
                     <h2>Data Records</h2>
                     <div class="records-actions">
@@ -518,12 +570,16 @@
             const routes = {
                 products: @json(route('sheet.products')),
                 createProduct: @json(route('sheet.products.store')),
+                linkProduct: @json(route('sheet.products.link')),
                 entries: (productId) => @json(route('sheet.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 storeEntry: (productId) => @json(route('sheet.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 updateEntry: (productId, entryId) => @json(route('sheet.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
                 deleteEntry: (productId, entryId) => @json(route('sheet.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
                 importEntries: (productId) => @json(route('sheet.entries.import', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
             };
+            const siteProducts = @json($siteProducts);
+            const siteVariations = @json($variations);
+            const initialProductLinks = @json($productLinks);
 
             const urlParams = new URLSearchParams(window.location.search);
             const parseHighlightParam = (raw) => {
@@ -590,6 +646,7 @@
 
             const state = {
                 products: @json($products),
+                productLinks: initialProductLinks,
                 selectedProductId: null,
                 records: [],
                 loading: false,
@@ -634,12 +691,77 @@
             const importClose = document.getElementById('records-import-close');
             const importChoose = document.getElementById('records-import-choose');
             const importDownload = document.getElementById('records-download-sample');
+            const linkRecordProductSelect = document.getElementById('records-link-product');
+            const linkSiteProductSelect = document.getElementById('records-link-site-product');
+            const linkVariationsSelect = document.getElementById('records-link-variations');
+            const linkSaveButton = document.getElementById('records-link-save');
+            const linkClearButton = document.getElementById('records-link-clear');
+            const linkStatus = document.getElementById('records-link-status');
 
             const handleFilterInput = (input, key) => {
                 if (!input) return;
                 input.addEventListener('input', (event) => {
                     state[key] = (event.target.value || '').toLowerCase();
                     renderRecords();
+                });
+            };
+
+            const setLinkStatus = (text, success = false) => {
+                if (!linkStatus) return;
+                linkStatus.textContent = text;
+                linkStatus.style.color = success ? '#15803d' : '#0f172a';
+            };
+
+            const filterLinkVariations = () => {
+                if (!linkSiteProductSelect || !linkVariationsSelect) return;
+                const selectedProduct = linkSiteProductSelect.value;
+                Array.from(linkVariationsSelect.options).forEach((opt) => {
+                    const matches = !selectedProduct || opt.dataset.productId === selectedProduct;
+                    opt.hidden = !matches;
+                    if (!matches && opt.selected) {
+                        opt.selected = false;
+                    }
+                });
+            };
+
+            const getLinkForProduct = (productId) => {
+                return state.productLinks?.[productId] ?? { linked_product_id: null, linked_variation_ids: [] };
+            };
+
+            const applyLinkFormValues = (productId) => {
+                if (!productId) {
+                    if (linkRecordProductSelect) linkRecordProductSelect.value = '';
+                    setLinkStatus('Not linked');
+                    return;
+                }
+                const link = getLinkForProduct(productId);
+                if (linkRecordProductSelect) {
+                    linkRecordProductSelect.value = String(productId);
+                }
+                if (linkSiteProductSelect) {
+                    linkSiteProductSelect.value = link.linked_product_id ? String(link.linked_product_id) : '';
+                }
+                filterLinkVariations();
+                if (linkVariationsSelect) {
+                    Array.from(linkVariationsSelect.options).forEach((opt) => {
+                        opt.selected = Array.isArray(link.linked_variation_ids)
+                            && link.linked_variation_ids.map(String).includes(opt.value);
+                    });
+                }
+                const statusText = link.linked_product_id ? 'Linked' : 'Not linked';
+                setLinkStatus(statusText, Boolean(link.linked_product_id));
+            };
+
+            const syncLinkProductOptions = () => {
+                if (!linkRecordProductSelect) return;
+                const existing = new Set(Array.from(linkRecordProductSelect.options).map((o) => o.value));
+                state.products.forEach((product) => {
+                    if (!existing.has(String(product.id))) {
+                        const opt = document.createElement('option');
+                        opt.value = product.id;
+                        opt.textContent = product.name;
+                        linkRecordProductSelect.appendChild(opt);
+                    }
                 });
             };
 
@@ -901,6 +1023,10 @@
                 renderTableStructure();
                 renderRecords();
                 fetchRecords();
+                if (linkRecordProductSelect && state.selectedProductId) {
+                    linkRecordProductSelect.value = String(state.selectedProductId);
+                    applyLinkFormValues(state.selectedProductId);
+                }
             };
 
             const fetchRecords = async () => {
@@ -955,8 +1081,14 @@
                     const product = result?.product;
                     if (product?.id) {
                         state.products = [product, ...state.products.filter((p) => p.id !== product.id)];
+                        state.productLinks[product.id] = {
+                            linked_product_id: product.linked_product_id ?? null,
+                            linked_variation_ids: [],
+                        };
                         if (newProductInput) newProductInput.value = '';
                         selectProduct(product);
+                        syncLinkProductOptions();
+                        applyLinkFormValues(product.id);
                         setStatus('Product added', true);
                     } else {
                         setStatus('Product added, but missing details', true);
@@ -982,6 +1114,56 @@
                     email2: record.email2 ?? '',
                     password2: record.password2 ?? '',
                 };
+            };
+
+            const saveLink = async () => {
+                if (!linkRecordProductSelect) return;
+                const recordProductId = linkRecordProductSelect.value;
+                if (!recordProductId) {
+                    alert('Select a record product to link.');
+                    return;
+                }
+                const linkedProductId = linkSiteProductSelect?.value || null;
+                const linkedVariationIds = linkVariationsSelect
+                    ? Array.from(linkVariationsSelect.selectedOptions).map((opt) => opt.value)
+                    : [];
+
+                try {
+                    setLinkStatus('Saving...');
+                    const response = await fetch(routes.linkProduct, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            record_product_id: recordProductId,
+                            linked_product_id: linkedProductId || null,
+                            linked_variation_ids: linkedVariationIds,
+                        }),
+                    });
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => null);
+                        throw new Error(payload?.message ?? 'Unable to save link.');
+                    }
+                    const payload = await response.json();
+                    const product = payload?.product;
+                    if (product?.id) {
+                        state.productLinks[product.id] = {
+                            linked_product_id: product.linked_product_id,
+                            linked_variation_ids: product.linked_variation_ids
+                                ? (Array.isArray(product.linked_variation_ids) ? product.linked_variation_ids : JSON.parse(product.linked_variation_ids || '[]'))
+                                : [],
+                        };
+                        setLinkStatus('Link saved', true);
+                        applyLinkFormValues(product.id);
+                    } else {
+                        setLinkStatus('Link saved', true);
+                    }
+                } catch (error) {
+                    setLinkStatus(error.message ?? 'Unable to save link');
+                }
             };
 
             const renderRecords = () => {
@@ -1700,6 +1882,19 @@
                 toggleColumnsButton.textContent = state.showColumnControls ? 'Close fields' : 'Edit fields';
                 renderColumnControls();
             });
+            linkSiteProductSelect?.addEventListener('change', filterLinkVariations);
+            linkRecordProductSelect?.addEventListener('change', (event) => {
+                const productId = event.target.value ? Number(event.target.value) : null;
+                applyLinkFormValues(productId);
+            });
+            linkSaveButton?.addEventListener('click', saveLink);
+            linkClearButton?.addEventListener('click', () => {
+                if (linkSiteProductSelect) linkSiteProductSelect.value = '';
+                if (linkVariationsSelect) {
+                    Array.from(linkVariationsSelect.options).forEach((opt) => { opt.selected = false; });
+                }
+                setLinkStatus('Not linked');
+            });
             createProductButton?.addEventListener('click', () => createProduct());
             newProductInput?.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
@@ -1831,6 +2026,12 @@
                     }
                 }
                 syncDropdown();
+            }
+            syncLinkProductOptions();
+            if (state.selectedProductId) {
+                applyLinkFormValues(state.selectedProductId);
+            } else {
+                applyLinkFormValues(state.products[0]?.id ?? null);
             }
         });
     </script>

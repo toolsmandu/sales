@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/sheet', [RecordController::class, 'index'])->name('sheet.index');
     Route::get('/sheet/products', [RecordController::class, 'products'])->name('sheet.products');
     Route::post('/sheet/products', [RecordController::class, 'storeProduct'])->name('sheet.products.store');
+    Route::post('/sheet/products/link', [RecordController::class, 'linkProduct'])->name('sheet.products.link');
     Route::get('/sheet/products/{recordProduct}/entries', [RecordController::class, 'listEntries'])->name('sheet.entries.index');
     Route::post('/sheet/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('sheet.entries.store');
     Route::put('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('sheet.entries.update');

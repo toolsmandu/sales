@@ -14,20 +14,27 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Collection;
 
 class RecordController extends Controller
 {
     public function index(): View
     {
+        $this->ensureLinkColumns();
         $products = RecordProduct::query()->orderBy('name')->get();
+        $siteProducts = DB::table('products')->orderBy('name')->get();
+        $variations = DB::table('product_variations')->orderBy('product_id')->orderBy('name')->get()->groupBy('product_id');
 
         return view('records.index', [
             'products' => $products,
+            'siteProducts' => $siteProducts,
+            'variations' => $variations,
         ]);
     }
 
     public function products(): JsonResponse
     {
+        $this->ensureLinkColumns();
         $products = RecordProduct::query()->orderBy('name')->get();
 
         return response()->json([
@@ -37,8 +44,12 @@ class RecordController extends Controller
 
     public function storeProduct(Request $request): JsonResponse
     {
+        $this->ensureLinkColumns();
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:190'],
+            'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'linked_variation_ids' => ['array'],
+            'linked_variation_ids.*' => ['integer'],
         ]);
 
         $requestedName = trim($validated['name']);
@@ -61,6 +72,8 @@ class RecordController extends Controller
             'name' => $requestedName,
             'slug' => $slug,
             'table_name' => $tableName,
+            'linked_product_id' => $validated['linked_product_id'] ?? null,
+            'linked_variation_ids' => !empty($validated['linked_variation_ids']) ? json_encode($validated['linked_variation_ids']) : null,
         ]);
 
         return response()->json([
@@ -81,6 +94,27 @@ class RecordController extends Controller
 
         return response()->json([
             'records' => $records,
+        ]);
+    }
+
+    public function linkProduct(Request $request): JsonResponse
+    {
+        $this->ensureLinkColumns();
+        $data = $request->validate([
+            'record_product_id' => ['required', 'integer', 'exists:record_products,id'],
+            'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'linked_variation_ids' => ['array'],
+            'linked_variation_ids.*' => ['integer'],
+        ]);
+
+        $product = RecordProduct::findOrFail($data['record_product_id']);
+        $product->update([
+            'linked_product_id' => $data['linked_product_id'] ?? null,
+            'linked_variation_ids' => !empty($data['linked_variation_ids']) ? json_encode($data['linked_variation_ids']) : null,
+        ]);
+
+        return response()->json([
+            'product' => $product->fresh(),
         ]);
     }
 
@@ -379,6 +413,25 @@ class RecordController extends Controller
         if (!Schema::hasColumn($tableName, 'sales_amount')) {
             Schema::table($tableName, function (Blueprint $table): void {
                 $table->integer('sales_amount')->nullable()->after('product');
+            });
+        }
+    }
+
+    private function ensureLinkColumns(): void
+    {
+        if (!Schema::hasTable('record_products')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('record_products', 'linked_product_id')) {
+            Schema::table('record_products', function (Blueprint $table): void {
+                $table->foreignId('linked_product_id')->nullable()->after('table_name')->constrained('products')->nullOnDelete();
+            });
+        }
+
+        if (!Schema::hasColumn('record_products', 'linked_variation_ids')) {
+            Schema::table('record_products', function (Blueprint $table): void {
+                $table->json('linked_variation_ids')->nullable()->after('linked_product_id');
             });
         }
     }

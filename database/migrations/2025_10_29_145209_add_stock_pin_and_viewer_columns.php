@@ -11,17 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('stock_pin_hash')->nullable()->after('remember_token');
-        });
+        if (Schema::hasTable('users') && !Schema::hasColumn('users', 'stock_pin_hash')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('stock_pin_hash')->nullable()->after('remember_token');
+            });
+        }
 
-        Schema::table('stock_keys', function (Blueprint $table) {
-            $table->foreignId('viewed_by_user_id')
-                ->nullable()
-                ->after('viewed_at')
-                ->constrained('users')
-                ->nullOnDelete();
-        });
+        if (Schema::hasTable('stock_keys') && !Schema::hasColumn('stock_keys', 'viewed_by_user_id')) {
+            Schema::table('stock_keys', function (Blueprint $table) {
+                $table->foreignId('viewed_by_user_id')
+                    ->nullable()
+                    ->after('viewed_at')
+                    ->constrained('users')
+                    ->nullOnDelete();
+            });
+        }
     }
 
     /**
@@ -29,12 +33,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('stock_pin_hash');
-        });
+        if (Schema::hasTable('users') && Schema::hasColumn('users', 'stock_pin_hash')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('stock_pin_hash');
+            });
+        }
 
-        Schema::table('stock_keys', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('viewed_by_user_id');
-        });
+        if (Schema::hasTable('stock_keys') && Schema::hasColumn('stock_keys', 'viewed_by_user_id')) {
+            Schema::table('stock_keys', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('viewed_by_user_id');
+            });
+        }
     }
 };

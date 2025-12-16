@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\RecordProduct;
 use App\Models\Sale;
 use App\Models\SaleEditNotification;
 use App\Models\User;
@@ -13,11 +14,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Database\Schema\Blueprint;
 
 class SaleController extends Controller
 {
@@ -404,6 +407,18 @@ class SaleController extends Controller
             $this->createFamilyMemberFromSale($familyContext['account'], $familyContext['family_product'], $createdSale, $data);
         }
 
+        if ($createdSale) {
+            try {
+                $this->ensureRecordLinkColumns();
+                $this->createRecordEntryFromSale($createdSale);
+            } catch (\Throwable $e) {
+                Log::warning('Unable to sync record entry from sale', [
+                    'sale_id' => $createdSale->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $message = 'Sale saved successfully.';
 
         if ($request->expectsJson()) {
@@ -735,6 +750,200 @@ class SaleController extends Controller
             ->all();
 
         return $this->variationExpiryLookup;
+    }
+
+    private function createRecordEntryFromSale(Sale $sale): void
+    {
+        $productName = trim((string) $sale->product_name);
+        if ($productName === '') {
+            return;
+        }
+
+        $match = $this->findRecordProductForSale($productName);
+        if (!$match) {
+            return;
+        }
+
+        /** @var RecordProduct $recordProduct */
+        $recordProduct = $match['product'];
+        $tableName = $recordProduct->table_name;
+        if (!$tableName) {
+            return;
+        }
+
+        $this->ensureRecordTableExists($tableName);
+
+        $purchaseDate = $sale->purchase_date ? Carbon::parse($sale->purchase_date)->toDateString() : null;
+
+        $existing = DB::table($tableName)
+            ->when($purchaseDate, fn ($query) => $query->whereDate('purchase_date', $purchaseDate))
+            ->where('product', $productName)
+            ->when($sale->email !== null, fn ($query) => $query->where('email', $sale->email), fn ($query) => $query->whereNull('email'))
+            ->when($sale->phone !== null, fn ($query) => $query->where('phone', $sale->phone), fn ($query) => $query->whereNull('phone'))
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        $now = Carbon::now();
+        DB::table($tableName)->insert([
+            'product' => $productName,
+            'email' => $sale->email,
+            'phone' => $sale->phone,
+            'sales_amount' => $sale->sales_amount,
+            'purchase_date' => $purchaseDate,
+            'expiry' => $sale->product_expiry_days,
+            'remaining_days' => $this->computeRecordRemainingDays($purchaseDate, $sale->product_expiry_days),
+            'remarks' => $sale->remarks,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function ensureRecordTableExists(string $tableName): void
+    {
+        $tableExists = Schema::hasTable($tableName);
+
+        if (!$tableExists) {
+            Schema::create($tableName, function (Blueprint $table): void {
+                $table->id();
+                $table->string('email')->nullable();
+                $table->string('password')->nullable();
+                $table->string('phone')->nullable();
+                $table->string('product')->nullable();
+                $table->integer('sales_amount')->nullable();
+                $table->date('purchase_date')->nullable();
+                $table->integer('expiry')->nullable();
+                $table->integer('remaining_days')->nullable();
+                $table->text('remarks')->nullable();
+                $table->string('two_factor')->nullable();
+                $table->string('email2')->nullable();
+                $table->string('password2')->nullable();
+                $table->timestamps();
+            });
+            return;
+        }
+
+        if (!Schema::hasColumn($tableName, 'sales_amount')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->integer('sales_amount')->nullable()->after('product');
+            });
+        }
+    }
+
+    private function computeRecordRemainingDays(?string $purchaseDate, ?int $expiryDays): ?int
+    {
+        if (empty($purchaseDate) || $expiryDays === null) {
+            return null;
+        }
+
+        try {
+            $endDate = Carbon::parse($purchaseDate)->startOfDay()->addDays((int) $expiryDays);
+            return Carbon::today()->startOfDay()->diffInDays($endDate, false);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function findRecordProductForSale(?string $productName): ?array
+    {
+        $normalized = mb_strtolower(trim((string) $productName));
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (!Schema::hasTable('record_products') || !Schema::hasColumn('record_products', 'linked_product_id')) {
+            return null;
+        }
+
+        $variationRow = DB::table('product_variations')
+            ->join('products', 'product_variations.product_id', '=', 'products.id')
+            ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
+            ->select([
+                'product_variations.id as variation_id',
+                'products.id as product_id',
+                'products.name as product_name',
+            ])
+            ->first();
+
+        $product = $variationRow
+            ? (object) ['id' => $variationRow->product_id, 'name' => $variationRow->product_name]
+            : DB::table('products')->whereRaw('LOWER(name) = ?', [$normalized])->first();
+
+        // Also try base product name (text before " - ") to handle variation suffixes in order name.
+        $baseName = $normalized;
+        if (str_contains($normalized, ' - ')) {
+            [$baseName] = array_map(static fn ($v) => trim($v), explode(' - ', $normalized, 2));
+            if (!$product) {
+                $product = DB::table('products')->whereRaw('LOWER(name) = ?', [$baseName])->first();
+            }
+        }
+
+        if (!$product) {
+            return null;
+        }
+
+        $candidates = RecordProduct::query()
+            ->where('linked_product_id', $product->id)
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            // Fallback: if no explicit link, try matching record product name directly.
+            $fallback = RecordProduct::query()
+                ->whereRaw('LOWER(name) = ?', [$normalized])
+                ->first();
+
+            return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
+        }
+
+        $variationId = $variationRow->variation_id ?? null;
+
+        $match = $candidates->first(function (RecordProduct $recordProduct) use ($variationId) {
+            $ids = [];
+            if (!empty($recordProduct->linked_variation_ids)) {
+                $ids = json_decode($recordProduct->linked_variation_ids, true) ?: [];
+            }
+            if (!$variationId) {
+                // If we cannot resolve a specific variation, accept any candidate for the product.
+                return true;
+            }
+            return empty($ids) || in_array((int) $variationId, $ids, true);
+        });
+
+        if (!$match) {
+            // Fallback: if no explicit link, try matching record product name directly (full or base).
+            $fallback = RecordProduct::query()
+                ->whereRaw('LOWER(name) = ?', [$normalized])
+                ->orWhereRaw('LOWER(name) = ?', [$baseName])
+                ->first();
+
+            return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
+        }
+
+        return [
+            'product' => $match,
+            'variation_id' => $variationId,
+        ];
+    }
+
+    private function ensureRecordLinkColumns(): void
+    {
+        if (!Schema::hasTable('record_products')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('record_products', 'linked_product_id')) {
+            Schema::table('record_products', function (Blueprint $table) {
+                $table->foreignId('linked_product_id')->nullable()->after('table_name')->constrained('products')->nullOnDelete();
+            });
+        }
+
+        if (!Schema::hasColumn('record_products', 'linked_variation_ids')) {
+            Schema::table('record_products', function (Blueprint $table) {
+                $table->json('linked_variation_ids')->nullable()->after('linked_product_id');
+            });
+        }
     }
 
     private function findFamilyAccountForProduct(?string $productName): ?array
