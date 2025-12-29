@@ -257,7 +257,6 @@
 
             <div class="auth-footer">
                 @if (Route::has('register'))
-                    New here? <a href="{{ route('register') }}">Create an account</a>.
                 @else
                     Keep your credentials safe. You can change them in your profile after signing in.
                 @endif

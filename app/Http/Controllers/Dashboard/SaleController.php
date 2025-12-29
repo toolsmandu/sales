@@ -56,15 +56,24 @@ class SaleController extends Controller
         if ($filters['search'] !== '') {
             $rawSearch = $filters['search'];
             $startsWithTm = Str::startsWith(mb_strtolower(trim($rawSearch)), 'tm');
+            $isEmailSearch = filter_var($rawSearch, FILTER_VALIDATE_EMAIL) !== false;
             $searchTerm = '%' . $rawSearch . '%';
             $numericSearch = preg_replace('/\D+/', '', $rawSearch);
             $normalizedPhoneTerm = $numericSearch !== '' ? '%' . $numericSearch . '%' : null;
             $normalizedSerial = mb_strtolower(trim($rawSearch));
+            $normalizedEmail = mb_strtolower(trim($rawSearch));
 
-            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm, $normalizedSerial, $startsWithTm) {
+            $salesQuery->where(function ($query) use ($searchTerm, $normalizedPhoneTerm, $normalizedSerial, $startsWithTm, $isEmailSearch, $normalizedEmail) {
                 // If the query looks like an order id (starts with TM), search only by serial_number (exact).
                 if ($startsWithTm) {
                     $query->whereRaw('LOWER(serial_number) = ?', [$normalizedSerial]);
+                    return;
+                }
+
+                // If the search looks like an email, match exactly against email or remarks.
+                if ($isEmailSearch) {
+                    $query->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                        ->orWhereRaw('LOWER(remarks) = ?', [$normalizedEmail]);
                     return;
                 }
 
@@ -185,6 +194,7 @@ class SaleController extends Controller
         $normalizedSearch = $search !== '' ? mb_strtolower($search) : null;
         $digitsSearch = $search !== '' ? preg_replace('/\D+/', '', $search) : '';
         $startsWithTm = $normalizedSearch !== null && Str::startsWith($normalizedSearch, 'tm');
+        $isEmailSearch = $normalizedSearch !== null && filter_var($search, FILTER_VALIDATE_EMAIL);
 
         $page = LengthAwarePaginator::resolveCurrentPage();
         $expiredSalesCollection = Sale::query()
@@ -238,13 +248,20 @@ class SaleController extends Controller
             return $sale;
         });
 
-        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch, $startsWithTm) {
+        $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch, $startsWithTm, $isEmailSearch) {
             // Apply search across serial, email, and phone (normalized digits) before paging.
             if ($normalizedSearch !== null) {
                 $serialMatch = mb_strtolower(trim((string) $sale->serial_number)) === $normalizedSearch;
 
                 if ($startsWithTm) {
                     if (!$serialMatch) {
+                        return false;
+                    }
+                } elseif ($isEmailSearch) {
+                    $emailMatch = mb_strtolower(trim((string) $sale->email)) === $normalizedSearch;
+                    $remarksMatch = mb_strtolower(trim((string) $sale->remarks)) === $normalizedSearch;
+
+                    if (!($emailMatch || $remarksMatch)) {
                         return false;
                     }
                 } else {
