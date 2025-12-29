@@ -28,18 +28,14 @@
                     </article>
                 @endif
 
-                
-
-                
+                @php
+                    $productOptions = $productOptions ?? [];
+                @endphp
 
                 <section class="card stock-card">
                     <header>
                         <h2>Get Activation Key from Stock</h2>
                     </header>
-
-                    @php
-                        $searchableProducts = $products ?? collect();
-                    @endphp
 
                     <div class="product-combobox stock-search" data-product-combobox data-stock-search data-allow-free-entry="true">
                         <label for="stock-search">
@@ -55,21 +51,21 @@
                         </label>
 
                         <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                            @if ($searchableProducts->isEmpty())
+                            @if (empty($productOptions))
                                 <p class="product-combobox__empty">No products available yet.</p>
                             @else
                                 <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
-                                @foreach ($searchableProducts as $product)
+                                @foreach ($productOptions as $option)
                                     <button
                                         type="button"
                                         class="product-combobox__option"
                                         data-product-option
-                                        data-product-name="{{ $product->name }}"
-                                        data-product-id="{{ $product->id }}"
+                                        data-product-name="{{ $option['label'] }}"
+                                        data-product-id="{{ $option['id'] }}"
                                         role="option"
                                         aria-selected="false"
                                     >
-                                        {{ $product->name }}
+                                        {{ $option['label'] }}
                                     </button>
                                 @endforeach
                             @endif

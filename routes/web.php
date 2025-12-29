@@ -94,6 +94,9 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/family-sheet/members', [\App\Http\Controllers\FamilySheetController::class, 'storeMember'])->name('family-sheet.members.store');
     Route::put('/family-sheet/members/{member}', [\App\Http\Controllers\FamilySheetController::class, 'updateMember'])->name('family-sheet.members.update');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
+    Route::get('/reports/sales-statement', [ReportsController::class, 'salesStatement'])->name('reports.sales-statement');
+    Route::get('/reports/top-selling-reports', [ReportsController::class, 'topSellingReports'])->name('reports.top-selling');
+    Route::get('/reports/customer-list', [ReportsController::class, 'customerList'])->name('reports.customer-list');
     Route::get('/dashboard', fn () => redirect()->route('products.index'))->name('dashboard');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

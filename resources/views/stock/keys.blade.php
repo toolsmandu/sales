@@ -28,13 +28,21 @@
                     </article>
                 @endif
 
+                @php
+                    $productOptions = $productOptions ?? [];
+                @endphp
+
                 <section class="card stock-card stock-form">
                     <header>
                         <h2>Add Activation Keys</h2>
                     </header>
 
                     @php
-                        $selectedProduct = $products->firstWhere('id', (int) old('product_id'));
+                        $selectedProductName = old('product_search', '');
+                        if ($selectedProductName === '' && $productOptions ?? false) {
+                            $match = collect($productOptions)->firstWhere('id', (int) old('product_id'));
+                            $selectedProductName = $match['label'] ?? '';
+                        }
                     @endphp
 
                     <form method="POST" action="{{ route('stock.keys.store') }}" class="form-grid">
@@ -48,32 +56,35 @@
                                     id="stock-product-input"
                                     class="product-combobox__input"
                                     name="product_search"
-                                    value="{{ old('product_search', $selectedProduct->name ?? '') }}"
+                                    value="{{ $selectedProductName }}"
                                     placeholder="Choose product..."
                                     autocomplete="off"
-                                    data-selected-name="{{ $selectedProduct->name ?? '' }}"
-                                    {{ $products->isEmpty() ? 'disabled' : '' }}
+                                    data-selected-name="{{ $selectedProductName }}"
+                                    {{ empty($productOptions) ? 'disabled' : '' }}
                                     required
                                 >
                             </label>
                             <input type="hidden" name="product_id" value="{{ old('product_id') }}" data-product-selected>
 
                             <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                                @if ($products->isEmpty())
+                                @if (empty($productOptions))
                                     <p class="product-combobox__empty">No products available yet.</p>
                                 @else
                                     <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
-                                    @foreach ($products as $product)
+                                    @foreach ($productOptions as $option)
+                                        @php
+                                            $isActive = $selectedProductName !== '' && $selectedProductName === $option['label'];
+                                        @endphp
                                         <button
                                             type="button"
-                                            class="product-combobox__option {{ $selectedProduct && $selectedProduct->id === $product->id ? 'is-active' : '' }}"
+                                            class="product-combobox__option {{ $isActive ? 'is-active' : '' }}"
                                             data-product-option
-                                            data-product-id="{{ $product->id }}"
-                                            data-product-name="{{ $product->name }}"
+                                            data-product-id="{{ $option['id'] }}"
+                                            data-product-name="{{ $option['label'] }}"
                                             role="option"
-                                            aria-selected="{{ $selectedProduct && $selectedProduct->id === $product->id ? 'true' : 'false' }}"
+                                            aria-selected="{{ $isActive ? 'true' : 'false' }}"
                                         >
-                                            {{ $product->name }}
+                                            {{ $option['label'] }}
                                         </button>
                                     @endforeach
                                 @endif

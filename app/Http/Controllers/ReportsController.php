@@ -17,6 +17,8 @@ class ReportsController extends Controller
             abort(403);
         }
 
+        $viewMode = $request->attributes->get('reports.view', 'main');
+
         $today = Carbon::today('Asia/Kathmandu');
         $defaultMonth = $today->month;
         $defaultYear = $today->year;
@@ -108,7 +110,29 @@ class ReportsController extends Controller
             'contactPerPage' => $contactPerPage,
             'products' => Product::query()->select(['id', 'name'])->orderBy('name')->get(),
             'monthlyStatement' => $this->monthlyStatement($selectedMonth, $selectedYear),
+            'viewMode' => $viewMode,
         ]);
+    }
+
+    public function salesStatement(Request $request): View
+    {
+        $request->attributes->set('reports.view', 'sales-statement');
+
+        return $this->index($request);
+    }
+
+    public function topSellingReports(Request $request): View
+    {
+        $request->attributes->set('reports.view', 'top-selling');
+
+        return $this->index($request);
+    }
+
+    public function customerList(Request $request): View
+    {
+        $request->attributes->set('reports.view', 'customer-list');
+
+        return $this->index($request);
     }
 
     private function customerRows(Request $request, ?Carbon $startDate, ?Carbon $endDate, int $perPage)

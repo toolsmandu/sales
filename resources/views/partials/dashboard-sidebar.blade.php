@@ -38,6 +38,32 @@
         ];
     }
 
+    $reportChildren = [];
+    if ($isAdmin) {
+        $reportBaseUrl = route('reports');
+        $reportSections = [
+            'Sales Statement',
+            'Top Selling Reports',
+            'Customer List',
+        ];
+
+        foreach ($reportSections as $sectionTitle) {
+            $slug = \Illuminate\Support\Str::slug($sectionTitle);
+            $routeName = match ($slug) {
+                'sales-statement' => 'reports.sales-statement',
+                'top-selling-reports' => 'reports.top-selling',
+                'customer-list' => 'reports.customer-list',
+                default => null,
+            };
+            $reportChildren[] = [
+                'label' => $sectionTitle,
+                'route' => $routeName,
+                'url' => rtrim($reportBaseUrl, '/') . '/' . $slug,
+                'active' => array_filter(['reports', $routeName]),
+            ];
+        }
+    }
+
     $links = [];
 
     $links[] = [
@@ -74,9 +100,10 @@
     if ($isAdmin) {
         $links[] = [
             'route' => 'reports',
-            'active' => ['reports'],
+            'active' => ['reports', 'reports.sales-statement', 'reports.top-selling', 'reports.customer-list'],
             'label' => 'Reports',
             'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M64 64C28.7 64 0 92.7 0 128V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V128c0-35.3-28.7-64-64-64H64zM48 128c0-8.8 7.2-16 16-16H448c8.8 0 16 7.2 16 16V384c0 8.8-7.2 16-16 16H64c-8.8 0-16-7.2-16-16V128zM120 192a24 24 0 1 0 0 48h16a24 24 0 1 0 0-48H120zm0 112a24 24 0 1 0 0 48h16a24 24 0 1 0 0-48H120zm96-88a24 24 0 0 1 24-24H408a24 24 0 1 1 0 48H240a24 24 0 0 1-24-24zm24 80a24 24 0 1 0 0 48H408a24 24 0 1 0 0-48H240z"/></svg>',
+            'children' => $reportChildren,
         ];
     }
     $links[] = [
@@ -206,10 +233,18 @@
                         @foreach ($link['children'] as $child)
                             @php
                                 $childIsActive = !empty($child['active']) && request()->routeIs(...$child['active']);
+                                $childUrl = '#';
+                                if (!empty($child['route']) && \Illuminate\Support\Facades\Route::has($child['route'])) {
+                                    $childUrl = route($child['route']);
+                                } elseif (!empty($child['url'])) {
+                                    $childUrl = $child['url'];
+                                } elseif (!empty($child['route'])) {
+                                    $childUrl = url($child['route']);
+                                }
                             @endphp
                             <li>
                                 <a
-                                    href="{{ route($child['route']) }}"
+                                    href="{{ $childUrl }}"
                                     class="dashboard-nav__sublink {{ $childIsActive ? 'is-active' : '' }}"
                                 >
                                     {{ $child['label'] }}

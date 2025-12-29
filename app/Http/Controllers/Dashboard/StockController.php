@@ -41,24 +41,30 @@ class StockController extends Controller
             ->get(['id', 'product_id', 'activation_key', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
 
         $products = Product::query()
+            ->with(['variations' => fn ($query) => $query->orderBy('name')])
             ->orderBy('name')
             ->get(['id', 'name']);
+        $productOptions = $this->buildProductOptions($products);
 
         return view('stock.index', [
             'freshKeys' => $freshKeys,
             'viewedKeys' => $viewedKeys,
             'products' => $products,
+            'productOptions' => $productOptions,
         ]);
     }
 
     public function createKeys(Request $request): View
     {
         $products = Product::query()
+            ->with(['variations' => fn ($query) => $query->orderBy('name')])
             ->orderBy('name')
             ->get(['id', 'name']);
+        $productOptions = $this->buildProductOptions($products);
 
         return view('stock.keys', [
             'products' => $products,
+            'productOptions' => $productOptions,
         ]);
     }
 
@@ -261,4 +267,39 @@ class StockController extends Controller
         ]);
     }
 
+    /**
+     * Build a flattened list of products with variation labels for selectors.
+     */
+    private function buildProductOptions($products): array
+    {
+        return $products
+            ->flatMap(function (Product $product) {
+                $options = [];
+                $baseName = trim((string) $product->name);
+
+                if ($baseName !== '') {
+                    $options[] = [
+                        'id' => $product->id,
+                        'label' => $baseName,
+                    ];
+                }
+
+                foreach ($product->variations as $variation) {
+                    $variationName = trim((string) $variation->name);
+                    if ($variationName === '') {
+                        continue;
+                    }
+
+                    $options[] = [
+                        'id' => $product->id,
+                        'label' => $baseName !== '' ? "{$baseName} - {$variationName}" : $variationName,
+                    ];
+                }
+
+                return $options;
+            })
+            ->filter(fn ($option) => !empty($option['label']))
+            ->values()
+            ->all();
+    }
 }
