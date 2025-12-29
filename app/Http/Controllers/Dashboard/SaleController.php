@@ -12,6 +12,7 @@ use App\Services\SerialNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
@@ -528,6 +529,17 @@ class SaleController extends Controller
             ]);
         }
 
+        // Sync to sheet records when a linked product is present (mirrors creation flow).
+        try {
+            $this->ensureRecordLinkColumns();
+            $this->createRecordEntryFromSale($sale);
+        } catch (\Throwable $e) {
+            Log::warning('Unable to sync record entry from sale update', [
+                'sale_id' => $sale->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $message = 'Sale updated successfully.';
 
         if ($request->expectsJson()) {
@@ -775,22 +787,12 @@ class SaleController extends Controller
 
         $purchaseDate = $sale->purchase_date ? Carbon::parse($sale->purchase_date)->toDateString() : null;
 
-        $existing = DB::table($tableName)
-            ->when($purchaseDate, fn ($query) => $query->whereDate('purchase_date', $purchaseDate))
-            ->where('product', $productName)
-            ->when($sale->email !== null, fn ($query) => $query->where('email', $sale->email), fn ($query) => $query->whereNull('email'))
-            ->when($sale->phone !== null, fn ($query) => $query->where('phone', $sale->phone), fn ($query) => $query->whereNull('phone'))
-            ->first();
-
-        if ($existing) {
-            return;
-        }
-
         $now = Carbon::now();
-        DB::table($tableName)->insert([
+        $payload = [
             'product' => $productName,
             'email' => $sale->email,
             'phone' => $sale->phone,
+            'serial_number' => $sale->serial_number ?? null,
             'sales_amount' => $sale->sales_amount,
             'purchase_date' => $purchaseDate,
             'expiry' => $sale->product_expiry_days,
@@ -798,7 +800,21 @@ class SaleController extends Controller
             'remarks' => $sale->remarks,
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+        ];
+
+        // Upsert by serial number so every linked order is recorded and updates stay in sync.
+        if (!empty($sale->serial_number)) {
+            $existing = DB::table($tableName)->where('serial_number', $sale->serial_number)->first();
+            if ($existing) {
+                unset($payload['created_at']);
+                DB::table($tableName)
+                    ->where('id', $existing->id)
+                    ->update($payload);
+                return;
+            }
+        }
+
+        DB::table($tableName)->insert($payload);
     }
 
     private function ensureRecordTableExists(string $tableName): void
@@ -808,6 +824,7 @@ class SaleController extends Controller
         if (!$tableExists) {
             Schema::create($tableName, function (Blueprint $table): void {
                 $table->id();
+                $table->string('serial_number')->nullable();
                 $table->string('email')->nullable();
                 $table->string('password')->nullable();
                 $table->string('phone')->nullable();
@@ -830,6 +847,12 @@ class SaleController extends Controller
                 $table->integer('sales_amount')->nullable()->after('product');
             });
         }
+
+        if (!Schema::hasColumn($tableName, 'serial_number')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->string('serial_number')->nullable()->after('id');
+            });
+        }
     }
 
     private function computeRecordRemainingDays(?string $purchaseDate, ?int $expiryDays): ?int
@@ -848,7 +871,7 @@ class SaleController extends Controller
 
     private function findRecordProductForSale(?string $productName): ?array
     {
-        $normalized = mb_strtolower(trim((string) $productName));
+        $normalized = $this->normalizeName($productName);
         if ($normalized === '') {
             return null;
         }
@@ -857,6 +880,35 @@ class SaleController extends Controller
             return null;
         }
 
+        // Base name (text before " - ") for permissive matching.
+        $baseName = $normalized;
+        if (str_contains($normalized, ' - ')) {
+            [$baseName] = array_map(static fn ($v) => trim($v), explode(' - ', $normalized, 2));
+        }
+
+        // Cache site products and variations.
+        $siteProducts = DB::table('products')->select('id', 'name')->get()->keyBy('id');
+        $siteVariations = DB::table('product_variations')
+            ->select('id', 'product_id', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Pull record products with linked site product names.
+        $recordLinks = RecordProduct::query()
+            ->whereNotNull('linked_product_id')
+            ->get()
+            ->map(function (RecordProduct $recordProduct) use ($siteProducts) {
+                $recordProduct->site_product_name = $recordProduct->linked_product_id
+                    ? ($siteProducts[$recordProduct->linked_product_id]->name ?? null)
+                    : null;
+                $raw = $recordProduct->linked_variation_ids;
+                $recordProduct->linked_variation_ids = $raw
+                ? (is_string($raw) ? json_decode($raw, true) : $raw)
+                : [];
+            return $recordProduct;
+        });
+
+        // Try to resolve the site product / variation id from the order name.
         $variationRow = DB::table('product_variations')
             ->join('products', 'product_variations.product_id', '=', 'products.id')
             ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
@@ -866,65 +918,74 @@ class SaleController extends Controller
                 'products.name as product_name',
             ])
             ->first();
-
-        $product = $variationRow
-            ? (object) ['id' => $variationRow->product_id, 'name' => $variationRow->product_name]
-            : DB::table('products')->whereRaw('LOWER(name) = ?', [$normalized])->first();
-
-        // Also try base product name (text before " - ") to handle variation suffixes in order name.
-        $baseName = $normalized;
-        if (str_contains($normalized, ' - ')) {
-            [$baseName] = array_map(static fn ($v) => trim($v), explode(' - ', $normalized, 2));
-            if (!$product) {
-                $product = DB::table('products')->whereRaw('LOWER(name) = ?', [$baseName])->first();
-            }
-        }
-
-        if (!$product) {
-            return null;
-        }
-
-        $candidates = RecordProduct::query()
-            ->where('linked_product_id', $product->id)
-            ->get();
-
-        if ($candidates->isEmpty()) {
-            // Fallback: if no explicit link, try matching record product name directly.
-            $fallback = RecordProduct::query()
-                ->whereRaw('LOWER(name) = ?', [$normalized])
-                ->first();
-
-            return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
-        }
-
         $variationId = $variationRow->variation_id ?? null;
+        $productIdFromName = $variationRow->product_id
+            ?? $siteProducts->first(function ($p) use ($normalized, $baseName) {
+                $name = $this->normalizeName($p->name);
+                return $name === $normalized || $name === $baseName;
+            })?->id;
 
-        $match = $candidates->first(function (RecordProduct $recordProduct) use ($variationId) {
-            $ids = [];
-            if (!empty($recordProduct->linked_variation_ids)) {
-                $ids = json_decode($recordProduct->linked_variation_ids, true) ?: [];
+        // Helper to evaluate a record product against the order name.
+        $matchesOrder = function (RecordProduct $recordProduct) use ($normalized, $baseName, $variationId, $siteProducts, $siteVariations) {
+            $linkedIds = array_map(static fn ($v) => (int) $v, $recordProduct->linked_variation_ids ?: []);
+
+            // Require explicit site-product link.
+            if (!$recordProduct->linked_product_id) return false;
+            // If variations are selected, enforce them strictly.
+            if (!empty($linkedIds)) {
+                if (!$variationId) return false;
+                if (!in_array((int) $variationId, $linkedIds, true)) return false;
+            } else {
+                // No variations selected: skip syncing entirely.
+                return false;
             }
-            if (!$variationId) {
-                // If we cannot resolve a specific variation, accept any candidate for the product.
-                return true;
+
+            $siteNameNorm = $recordProduct->site_product_name ? $this->normalizeName($recordProduct->site_product_name) : null;
+            $recordNameNorm = $this->normalizeName($recordProduct->name);
+
+            // With variation permitted, accept if names align.
+            if ($recordNameNorm === $normalized || $recordNameNorm === $baseName) return true;
+            if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) return true;
+            return false;
+        };
+
+        // Priority 1: linked by site product id (and variation if present).
+        if ($productIdFromName) {
+            $linkedForProduct = $recordLinks->filter(fn ($rp) => (int) $rp->linked_product_id === (int) $productIdFromName);
+
+            if ($linkedForProduct->isNotEmpty()) {
+                // Variation-aware filter.
+                $matched = $linkedForProduct->first(function (RecordProduct $rp) use ($matchesOrder) {
+                    return $matchesOrder($rp);
+                });
+
+                if ($matched) {
+                    return ['product' => $matched, 'variation_id' => $variationId];
+                }
             }
-            return empty($ids) || in_array((int) $variationId, $ids, true);
+        }
+
+        // Priority 2: any record product whose linked site product name matches the order name.
+        $matchedBySiteName = $recordLinks->first(function (RecordProduct $rp) use ($matchesOrder) {
+            return $matchesOrder($rp);
+        });
+        if ($matchedBySiteName) {
+            return ['product' => $matchedBySiteName, 'variation_id' => $variationId];
+        }
+
+        // Final fallback: apply full match logic (including variation rules) to any linked record product.
+        $fallback = $recordLinks->first(function (RecordProduct $rp) use ($matchesOrder) {
+            return $matchesOrder($rp);
         });
 
-        if (!$match) {
-            // Fallback: if no explicit link, try matching record product name directly (full or base).
-            $fallback = RecordProduct::query()
-                ->whereRaw('LOWER(name) = ?', [$normalized])
-                ->orWhereRaw('LOWER(name) = ?', [$baseName])
-                ->first();
+        return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
+    }
 
-            return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
-        }
-
-        return [
-            'product' => $match,
-            'variation_id' => $variationId,
-        ];
+    private function normalizeName(?string $value): string
+    {
+        $trimmed = trim((string) $value);
+        $squeezed = preg_replace('/\s+/', ' ', $trimmed);
+        return mb_strtolower($squeezed ?? '');
     }
 
     private function ensureRecordLinkColumns(): void
@@ -1025,30 +1086,82 @@ class SaleController extends Controller
     private function createFamilyMemberFromSale(object $account, object $familyProduct, Sale $sale, array $data): void
     {
         $expiryDays = null;
+        $variationId = null;
+        $variationProductId = null;
         if ($sale->product_name) {
             $normalized = mb_strtolower(trim($sale->product_name));
             $variationRow = DB::table('product_variations')
                 ->join('products', 'product_variations.product_id', '=', 'products.id')
                 ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
-                ->select(['product_variations.expiry_days'])
+                ->select([
+                    'product_variations.id as variation_id',
+                    'product_variations.product_id as variation_product_id',
+                    'product_variations.expiry_days',
+                ])
                 ->first();
             $expiryDays = $variationRow?->expiry_days ?? null;
+            $variationId = $variationRow?->variation_id;
+            $variationProductId = $variationRow?->variation_product_id;
+        }
+
+        // Respect linked variations: if specific variations are linked, skip if this sale's variation is not among them.
+        $linkedIds = [];
+        if (!empty($familyProduct->linked_variation_ids)) {
+            $decoded = is_string($familyProduct->linked_variation_ids)
+                ? json_decode($familyProduct->linked_variation_ids, true)
+                : $familyProduct->linked_variation_ids;
+            $linkedIds = is_array($decoded) ? array_map('intval', array_filter($decoded, fn ($v) => $v !== null)) : [];
+        }
+        if (!empty($linkedIds)) {
+            // Require a matching variation id.
+            if (!$variationId || !in_array((int) $variationId, $linkedIds, true)) {
+                return; // not a linked variation; do not consume capacity
+            }
+        } elseif (!empty($familyProduct->linked_product_id) && $variationProductId !== null) {
+            // If a linked product is set but no specific variations, ensure the variation belongs to that product.
+            if ((int) $variationProductId !== (int) $familyProduct->linked_product_id) {
+                return;
+            }
         }
 
         $payload = [
-            'family_product_id' => $familyProduct->id,
-            'family_account_id' => $account->id,
+            'family_name' => $account->name ?? null,
             'email' => $sale->email,
+            'order_id' => $sale->serial_number ?? null,
             'phone' => $sale->phone,
             'product' => $sale->product_name,
             'sales_amount' => $sale->sales_amount,
             'purchase_date' => $sale->purchase_date ? Carbon::parse($sale->purchase_date)->toDateString() : null,
             'expiry' => $expiryDays,
-            'remarks' => $sale->remarks,
+            'remarks' => $this->encryptFamilyRemark($sale->remarks),
             'created_at' => now(),
             'updated_at' => now(),
         ];
 
+        if (Schema::hasColumn('family_members', 'family_product_name')) {
+            $payload['family_product_name'] = $familyProduct->name ?? null;
+        }
+        if (Schema::hasColumn('family_members', 'family_product_id')) {
+            $payload['family_product_id'] = $familyProduct->id;
+        }
+        if (Schema::hasColumn('family_members', 'family_account_id')) {
+            $payload['family_account_id'] = $account->id;
+        }
+
         DB::table('family_members')->insert($payload);
+    }
+
+    private function encryptFamilyRemark(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        try {
+            return Crypt::encryptString($value);
+        } catch (\Throwable $e) {
+            Log::warning('Unable to encrypt family remark from sale', ['error' => $e->getMessage()]);
+            return $value;
+        }
     }
 }

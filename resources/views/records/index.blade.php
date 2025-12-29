@@ -6,7 +6,9 @@
     $productLinks = $products->mapWithKeys(function ($product) {
         $decoded = [];
         if (!empty($product->linked_variation_ids)) {
-            $decoded = json_decode($product->linked_variation_ids, true) ?: [];
+            $decoded = is_string($product->linked_variation_ids)
+                ? json_decode($product->linked_variation_ids, true) ?: []
+                : (is_array($product->linked_variation_ids) ? $product->linked_variation_ids : []);
         }
         return [
             $product->id => [
@@ -395,104 +397,100 @@
         @endphp
         <section class="dashboard-content stack records-layout">
             <section class="card stack">
-                <header class="records-toolbar">
-                    <div class="product-combobox" data-product-combobox style="min-width: 280px;">
-                        <label for="record-product-input" style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">Product</label>
-                        <input
-                            type="text"
-                            id="record-product-input"
-                            class="product-combobox__input"
-                            placeholder="Enter product"
-                            autocomplete="off"
-                            data-selected-name="{{ $firstProduct->name ?? '' }}"
-                            value="{{ $firstProduct->name ?? '' }}"
-                        >
-                        <input type="hidden" id="record-product-select" data-product-selected value="{{ $firstProduct->id ?? '' }}">
-                        <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                            @if ($products->isEmpty())
-                                <p class="product-combobox__empty">No products available yet.</p>
-                            @else
-                                <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                <header class="records-toolbar" style="justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div id="link-card-body" style="display: none; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                        <div class="add-product-inline">
+                            <label for="record-new-product" style="margin:0;">
+                                <span class="muted" style="display:block;">Product name</span>
+                                <input type="text" id="record-new-product" placeholder="New product name">
+                            </label>
+                            <button type="button" id="records-create-product" class="primary">Create</button>
+                        </div>
+                        <label style="min-width: 220px;">
+                            <span class="muted" style="display:block;">Record product</span>
+                            <select id="records-link-product">
                                 @foreach ($products as $product)
-                                    <button
-                                        type="button"
-                                        class="product-combobox__option {{ $firstProduct && $firstProduct->id === $product->id ? 'is-active' : '' }}"
-                                        data-product-option
-                                        data-product-id="{{ $product->id }}"
-                                        data-product-name="{{ $product->name }}"
-                                        aria-selected="{{ $firstProduct && $firstProduct->id === $product->id ? 'true' : 'false' }}"
-                                    >
-                                        {{ $product->name }}
-                                    </button>
+                                    <option value="{{ $product->id }}">{{ $product->name }}</option>
                                 @endforeach
-                            @endif
+                            </select>
+                        </label>
+                        <label style="min-width: 320px;">
+                            <span class="muted" style="display:block;">Website product (choose product + variation)</span>
+                            <select id="records-link-site-product">
+                                <option value="">-- Select website product/variation --</option>
+                                @foreach ($siteProducts as $siteProduct)
+                                    @php
+                                        $productVariations = $variations[$siteProduct->id] ?? collect();
+                                    @endphp
+                                    @if ($productVariations->count())
+                                        @foreach ($productVariations as $variation)
+                                            <option value="variation:{{ $siteProduct->id }}:{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="{{ $variation->id }}">↳ {{ $siteProduct->name }} - {{ $variation->name }}</option>
+                                        @endforeach
+                                    @else
+                                        <option value="product:{{ $siteProduct->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="">📦 {{ $siteProduct->name }}</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </label>
+                        <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
+                            <button type="button" id="records-link-save" class="primary">Save link</button>
+                            <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
                         </div>
                     </div>
-                    <div class="records-inline-filters">
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                            <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
+                            <input type="checkbox" id="toggle-link-card">
+                            <span class="muted">Show Product Setting</span>
                         </label>
-                        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                            <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
-                        </label>
-                    </div>
-                    <div class="add-product-inline">
-                        <label for="record-new-product" style="margin:0;">
-                            <span class="muted" style="display:block;">Product name</span>
-                            <input type="text" id="record-new-product" placeholder="New product name">
-                        </label>
-                        <button type="button" id="records-create-product" class="primary">Create</button>
-                    </div>
-                    <div>
-                        <p class="muted">Data Status:</p>
-                        <div class="pill" id="records-status">Waiting for a product...</div>
+                        <div class="pill" id="records-link-status" style="min-width: 160px; text-align: center;">Not linked</div>
                     </div>
                 </header>
             </section>
 
             <section class="card stack">
-                <header class="records-toolbar" style="justify-content: space-between; flex-wrap: wrap;">
-                    <h2 style="margin: 0;">Link record product to website product</h2>
-                    <div class="pill" id="records-link-status" style="min-width: 160px; text-align: center;">Not linked</div>
-                </header>
-                <div class="records-inline-filters" style="gap: 1rem; align-items: flex-end;">
-                    <label style="min-width: 220px;">
-                        <span class="muted" style="display:block;">Record product</span>
-                        <select id="records-link-product">
-                            @foreach ($products as $product)
-                                <option value="{{ $product->id }}">{{ $product->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label style="min-width: 220px;">
-                        <span class="muted" style="display:block;">Website product</span>
-                        <select id="records-link-site-product">
-                            <option value="">-- Optional: Link to website product --</option>
-                            @foreach ($siteProducts as $siteProduct)
-                                <option value="{{ $siteProduct->id }}">{{ $siteProduct->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label style="min-width: 260px;">
-                        <span class="muted" style="display:block;">Website variations (optional)</span>
-                        <select id="records-link-variations" multiple size="4" style="min-width: 260px;">
-                            @foreach ($siteProducts as $siteProduct)
-                                @foreach (($variations[$siteProduct->id] ?? collect()) as $variation)
-                                    <option value="{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}">{{ $siteProduct->name }} - {{ $variation->name }}</option>
-                                @endforeach
-                            @endforeach
-                        </select>
-                    </label>
-                    <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
-                        <button type="button" id="records-link-save" class="primary">Save link</button>
-                        <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
+                <header class="records-toolbar" style="justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                        <h2 style="margin: 12px;">Data Records</h2>
+                        <div class="product-combobox" data-product-combobox style="min-width: 320px;">
+                            <input
+                                type="text"
+                                id="record-product-input"
+                                class="product-combobox__input"
+                                placeholder="Enter product"
+                                autocomplete="off"
+                                data-selected-name="{{ $firstProduct->name ?? '' }}"
+                                value="{{ $firstProduct->name ?? '' }}"
+                            >
+                            <input type="hidden" id="record-product-select" data-product-selected value="{{ $firstProduct->id ?? '' }}">
+                            <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                @if ($products->isEmpty())
+                                    <p class="product-combobox__empty">No products available yet.</p>
+                                @else
+                                    <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                    @foreach ($products as $product)
+                                        <button
+                                            type="button"
+                                            class="product-combobox__option {{ $firstProduct && $firstProduct->id === $product->id ? 'is-active' : '' }}"
+                                            data-product-option
+                                            data-product-id="{{ $product->id }}"
+                                            data-product-name="{{ $product->name }}"
+                                            aria-selected="{{ $firstProduct && $firstProduct->id === $product->id ? 'true' : 'false' }}"
+                                        >
+                                            {{ $product->name }}
+                                        </button>
+                                    @endforeach
+                                @endif
+                            </div>
+                        </div>
+                        <div class="records-inline-filters" style="margin: 0;">
+                            <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                                <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                                <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
+                            </label>
+                        </div>
                     </div>
-                </div>
-            </section>
-
-            <section class="card stack">
-                <header class="records-toolbar" style="justify-content: space-between;">
-                    <h2>Data Records</h2>
                     <div class="records-actions">
                         <div class="records-actions__main">
                             <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
@@ -556,6 +554,9 @@
                         </tbody>
                     </table>
                 </div>
+                <div style="display: flex; justify-content: center; margin-top: 0.75rem;">
+                    <button type="button" id="records-show-more" class="ghost-button" style="display:none;">Show more</button>
+                </div>
             </section>
         </section>
     </div>
@@ -594,7 +595,7 @@
             const requestedProductId = urlParams.get('product') ? Number(urlParams.get('product')) : null;
 
             const columns = [
-                { id: 'serial', label: 'Serial', type: 'serial' },
+                { id: 'serial_number', label: 'Order ID', type: 'text-editable' },
                 { id: 'purchase_date', label: 'Purchase', type: 'date' },
                 { id: 'product', label: 'Product', type: 'text-editable' },
                 { id: 'email', label: 'Email', type: 'text-editable' },
@@ -611,6 +612,8 @@
             ];
 
             const storageKey = 'records_table_prefs';
+            const storageVersion = 'v2';
+            const lastProductKey = `${storageKey}_${storageVersion}_last_product`;
             const baseOrder = columns.map((c) => c.id);
 
             const loadPreferences = (key) => {
@@ -642,13 +645,14 @@
                 return result;
             };
 
-            const saveKeyForProduct = (productId) => `${storageKey}_${productId ?? 'global'}`;
+            const saveKeyForProduct = (productId) => `${storageKey}_${storageVersion}_${productId ?? 'global'}`;
 
             const state = {
                 products: @json($products),
                 productLinks: initialProductLinks,
                 selectedProductId: null,
                 records: [],
+                visibleLimit: 50,
                 loading: false,
                 columnOrder: baseOrder,
                 hiddenColumns: [],
@@ -677,6 +681,7 @@
             const tableBody = document.getElementById('records-table-body');
             const emptyRow = document.getElementById('records-empty');
             const addRowButton = document.getElementById('records-add-row');
+            const showMoreButton = document.getElementById('records-show-more');
             const filterPhoneInput = document.getElementById('records-filter-phone');
             const filterEmailInput = document.getElementById('records-filter-email');
             const colgroup = document.getElementById('records-colgroup');
@@ -693,10 +698,11 @@
             const importDownload = document.getElementById('records-download-sample');
             const linkRecordProductSelect = document.getElementById('records-link-product');
             const linkSiteProductSelect = document.getElementById('records-link-site-product');
-            const linkVariationsSelect = document.getElementById('records-link-variations');
             const linkSaveButton = document.getElementById('records-link-save');
             const linkClearButton = document.getElementById('records-link-clear');
             const linkStatus = document.getElementById('records-link-status');
+            const linkCardToggle = document.getElementById('toggle-link-card');
+            const linkCardBody = document.getElementById('link-card-body');
 
             const handleFilterInput = (input, key) => {
                 if (!input) return;
@@ -712,16 +718,10 @@
                 linkStatus.style.color = success ? '#15803d' : '#0f172a';
             };
 
-            const filterLinkVariations = () => {
-                if (!linkSiteProductSelect || !linkVariationsSelect) return;
-                const selectedProduct = linkSiteProductSelect.value;
-                Array.from(linkVariationsSelect.options).forEach((opt) => {
-                    const matches = !selectedProduct || opt.dataset.productId === selectedProduct;
-                    opt.hidden = !matches;
-                    if (!matches && opt.selected) {
-                        opt.selected = false;
-                    }
-                });
+            const syncLinkCardVisibility = () => {
+                if (!linkCardBody) return;
+                const visible = !!linkCardToggle?.checked;
+                linkCardBody.style.display = visible ? 'flex' : 'none';
             };
 
             const getLinkForProduct = (productId) => {
@@ -739,14 +739,16 @@
                     linkRecordProductSelect.value = String(productId);
                 }
                 if (linkSiteProductSelect) {
-                    linkSiteProductSelect.value = link.linked_product_id ? String(link.linked_product_id) : '';
-                }
-                filterLinkVariations();
-                if (linkVariationsSelect) {
-                    Array.from(linkVariationsSelect.options).forEach((opt) => {
-                        opt.selected = Array.isArray(link.linked_variation_ids)
-                            && link.linked_variation_ids.map(String).includes(opt.value);
-                    });
+                    let optionValue = '';
+                    const variationId = Array.isArray(link.linked_variation_ids) && link.linked_variation_ids.length
+                        ? String(link.linked_variation_ids[0])
+                        : '';
+                    if (link.linked_product_id) {
+                        optionValue = variationId
+                            ? `variation:${link.linked_product_id}:${variationId}`
+                            : `product:${link.linked_product_id}`;
+                    }
+                    linkSiteProductSelect.value = optionValue;
                 }
                 const statusText = link.linked_product_id ? 'Linked' : 'Not linked';
                 setLinkStatus(statusText, Boolean(link.linked_product_id));
@@ -801,6 +803,13 @@
             handleFilterInput(filterPhoneInput, 'phoneFilter');
             handleFilterInput(filterEmailInput, 'emailFilter');
 
+            if (showMoreButton) {
+                showMoreButton.addEventListener('click', () => {
+                    state.visibleLimit += 50;
+                    renderRecords();
+                });
+            }
+
             const resolveHighlightProduct = () => {
                 if (!state.products.length || !state.highlight) {
                     return null;
@@ -838,6 +847,7 @@
             const getSelectedProductName = () => productInput?.value ?? '';
 
             const setStatus = (message, highlight = false) => {
+                if (!statusLabel) return;
                 statusLabel.textContent = message;
                 statusLabel.style.color = highlight ? '#15803d' : '#075985';
             };
@@ -878,7 +888,7 @@
                 .filter((col) => !state.hiddenColumns.includes(col.id));
 
             const persistPreferences = () => {
-                const key = saveKeyForProduct(state.selectedProductId);
+                const key = saveKeyForProduct(state.selectedProductId ?? 'global');
                 try {
                     localStorage.setItem(key, JSON.stringify({
                         columnOrder: state.columnOrder,
@@ -998,6 +1008,7 @@
                 if (!selectedValue) {
                     state.selectedProductId = null;
                     state.records = [];
+                    state.visibleLimit = 50;
                     state.columnOrder = baseOrder;
                     state.hiddenColumns = [];
                     state.columnWidths = {};
@@ -1012,7 +1023,16 @@
                 }
 
                 state.selectedProductId = Number(selectedValue);
-                const productPrefs = loadPreferences(saveKeyForProduct(state.selectedProductId)) || {};
+                state.visibleLimit = 50;
+                try {
+                    localStorage.setItem(lastProductKey, String(state.selectedProductId));
+                } catch (error) {
+                    console.warn('Unable to persist last product', error);
+                }
+
+                const productPrefs = loadPreferences(saveKeyForProduct(state.selectedProductId))
+                    || loadPreferences(saveKeyForProduct('global'))
+                    || {};
                 state.columnOrder = sanitizeOrder(productPrefs.columnOrder ?? baseOrder);
                 state.hiddenColumns = (productPrefs.hiddenColumns ?? []).filter((id) => baseOrder.includes(id));
                 state.columnWidths = productPrefs.columnWidths ?? {};
@@ -1046,6 +1066,7 @@
                     }
                     const payload = await response.json();
                     state.records = (payload.records ?? []).map(formatRecord);
+                    state.visibleLimit = 50;
                     renderRecords();
                     setStatus('Records ready', true);
                 } catch (error) {
@@ -1101,6 +1122,7 @@
             const formatRecord = (record) => {
                 return {
                     ...record,
+                    serial_number: record.serial_number ?? '',
                     purchase_date: record.purchase_date ?? '',
                     product: record.product ?? '',
                     email: record.email ?? '',
@@ -1123,10 +1145,10 @@
                     alert('Select a record product to link.');
                     return;
                 }
-                const linkedProductId = linkSiteProductSelect?.value || null;
-                const linkedVariationIds = linkVariationsSelect
-                    ? Array.from(linkVariationsSelect.selectedOptions).map((opt) => opt.value)
-                    : [];
+                const selectedOption = linkSiteProductSelect?.selectedOptions?.[0];
+                const linkedProductId = selectedOption?.dataset?.productId || null;
+                const linkedVariationId = selectedOption?.dataset?.variationId || null;
+                const linkedVariationIds = linkedVariationId ? [linkedVariationId] : [];
 
                 try {
                     setLinkStatus('Saving...');
@@ -1230,11 +1252,15 @@
                 });
 
                 const recordsForDisplay = state.sort.column ? getSortedRecords(filteredRecords) : filteredRecords;
-                recordsForDisplay.forEach((record, index) => {
+                const limitedRecords = recordsForDisplay.slice(0, state.visibleLimit);
+                limitedRecords.forEach((record, index) => {
                     renderRowCells(record, record.id, index + 1, false);
                 });
 
-                recordsCount.textContent = `${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
+                recordsCount.textContent = `${limitedRecords.length} of ${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
+                if (showMoreButton) {
+                    showMoreButton.style.display = recordsForDisplay.length > state.visibleLimit ? '' : 'none';
+                }
                 applyColumnWidths();
                 focusHighlightedRow();
             };
@@ -1275,14 +1301,12 @@
                     direction: nextDirection,
                 };
                 renderTableStructure();
+                state.visibleLimit = 50;
                 renderRecords();
             };
 
             const renderCellContent = (col, record, serial, isNew) => {
                 const value = record[col.id] ?? '';
-                if (col.id === 'serial') {
-                    return document.createTextNode(serial);
-                }
                 if (col.id === 'remaining') {
                     return document.createTextNode(computeRemainingDays(record));
                 }
@@ -1651,6 +1675,7 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 state.newRow = {
+                    serial_number: '',
                     purchase_date: formatDate(today),
                     product: getSelectedProductName(),
                     email: '',
@@ -1882,7 +1907,7 @@
                 toggleColumnsButton.textContent = state.showColumnControls ? 'Close fields' : 'Edit fields';
                 renderColumnControls();
             });
-            linkSiteProductSelect?.addEventListener('change', filterLinkVariations);
+            linkCardToggle?.addEventListener('change', syncLinkCardVisibility);
             linkRecordProductSelect?.addEventListener('change', (event) => {
                 const productId = event.target.value ? Number(event.target.value) : null;
                 applyLinkFormValues(productId);
@@ -1890,9 +1915,6 @@
             linkSaveButton?.addEventListener('click', saveLink);
             linkClearButton?.addEventListener('click', () => {
                 if (linkSiteProductSelect) linkSiteProductSelect.value = '';
-                if (linkVariationsSelect) {
-                    Array.from(linkVariationsSelect.options).forEach((opt) => { opt.selected = false; });
-                }
                 setLinkStatus('Not linked');
             });
             createProductButton?.addEventListener('click', () => createProduct());
@@ -2015,7 +2037,19 @@
             renderRecords();
 
             if (state.products.length) {
-                const preferredProduct = resolveHighlightProduct();
+                const preferredProduct = resolveHighlightProduct()
+                    ?? (() => {
+                        try {
+                            const stored = localStorage.getItem(lastProductKey);
+                            if (!stored) return null;
+                            const id = Number(stored);
+                            if (Number.isNaN(id)) return null;
+                            return state.products.find((p) => Number(p.id) === id) ?? null;
+                        } catch (error) {
+                            console.warn('Unable to read last product', error);
+                            return null;
+                        }
+                    })();
                 if (preferredProduct) {
                     selectProduct(preferredProduct);
                 } else if (!productSelect.value) {
@@ -2033,6 +2067,7 @@
             } else {
                 applyLinkFormValues(state.products[0]?.id ?? null);
             }
+            syncLinkCardVisibility();
         });
     </script>
 @endpush

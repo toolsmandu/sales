@@ -256,7 +256,7 @@
     }
 
     .card h2 {
-        margin: 0;
+        margin: 0px;
         font-size: 1.35rem;
     }
 

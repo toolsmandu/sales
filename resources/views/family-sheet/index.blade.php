@@ -204,6 +204,8 @@
 @php
     $familyColumns = [
         ['id' => 'account', 'label' => 'Main Account'],
+        ['id' => 'family_name', 'label' => 'Family Name'],
+        ['id' => 'order', 'label' => 'Order ID'],
         ['id' => 'email', 'label' => 'Email'],
         ['id' => 'phone', 'label' => 'Phone'],
         ['id' => 'product', 'label' => 'Product'],
@@ -232,7 +234,6 @@
                     <strong>Show Product Creating sections:</strong>
                     <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                         <input type="checkbox" id="toggle-create-sections">
-                        <span>Create sections</span>
                     </label>
                 </div>
                 <div class="create-sections-grid" id="create-sections-wrapper" style="margin: 0; display: none;">
@@ -456,6 +457,10 @@
                         Purchase Date
                         <input type="date" name="purchase_date">
                     </label>
+                    <label data-member-field="order_id">
+                        Order ID
+                        <input type="text" name="order_id" placeholder="Order/serial">
+                    </label>
                     <label data-member-field="email">
                         Email
                         <input type="email" name="email" placeholder="email">
@@ -497,6 +502,7 @@
                             <thead>
                                 <tr>
                                     <th>Main Account</th>
+                                    <th>Product</th>
                                     <th>Index</th>
                                     <th>Max members</th>
                                     <th>Usage</th>
@@ -519,6 +525,9 @@
                                         </form>
                                         <td>
                                             <input type="text" name="name" form="family-account-update-{{ $account->id }}" value="{{ old('name', $account->name) }}" required style="width: 100%;">
+                                        </td>
+                                        <td>
+                                            {{ $account->product_name ?? $account->family_product_name ?? '—' }}
                                         </td>
                                         <td>
                                             <input type="number" name="account_index" form="family-account-update-{{ $account->id }}" min="1" value="{{ old('account_index', $account->account_index) }}" style="width: 100%;">
@@ -611,6 +620,12 @@
                                                 @endif
                                             @endif
                                         </td>
+                                        <td data-col-id="family_name">
+                                            <input type="text" name="family_name" form="family-member-{{ $member->id }}" value="{{ $member->family_name ?? $account->name }}" style="width: 100%;">
+                                        </td>
+                                        <td data-col-id="order">
+                                            <input type="text" name="order_id" form="family-member-{{ $member->id }}" value="{{ $member->order_id }}" style="width: 100%;">
+                                        </td>
                                         <td data-col-id="email">
                                             <form method="POST" action="{{ route('family-sheet.members.update', $member->id) }}" id="family-member-{{ $member->id }}">
                                                 @csrf
@@ -658,6 +673,9 @@
                         </tbody>
                     </table>
                 </div>
+                <div style="display:flex; justify-content:center; margin-top:0.75rem;">
+                    <button type="button" id="family-show-more" class="ghost-button" style="display:none;">Show more</button>
+                </div>
             @else
                 <p class="helper-text">Create a family product to start.</p>
             @endif
@@ -688,6 +706,7 @@
             const linkOverview = document.getElementById('family-link-overview');
             const linkEditToggle = document.getElementById('family-link-edit-toggle');
             const hasTable = table && colgroup && headerRow && tbody;
+            const memberShowMore = document.getElementById('family-show-more');
 
             if (createSectionsToggle) {
                 const applyCreateVisibility = () => {
@@ -719,7 +738,7 @@
                 const filterVariations = () => {
                     const selectedProduct = linkSiteProduct.value;
                     Array.from(linkVariations.options).forEach((opt) => {
-                        const matches = !selectedProduct || opt.dataset.productId === selectedProduct;
+                        const matches = selectedProduct && opt.dataset.productId === selectedProduct;
                         opt.hidden = !matches;
                         if (!matches && opt.selected) {
                             opt.selected = false;
@@ -738,7 +757,7 @@
                     const filter = () => {
                         const selected = siteSelect.value;
                         Array.from(variationSelect.options).forEach((opt) => {
-                            const matches = !selected || opt.dataset.productId === selected;
+                            const matches = selected && opt.dataset.productId === selected;
                             opt.hidden = !matches;
                             if (!matches && opt.selected) {
                                 opt.selected = false;
@@ -846,8 +865,27 @@
 
             if (!hasTable) return;
 
+            const memberRows = Array.from(document.querySelectorAll('.family-member-row'));
+            let memberVisibleLimit = 50;
+            const applyMemberVisibility = () => {
+                memberRows.forEach((row, index) => {
+                    row.style.display = index < memberVisibleLimit ? '' : 'none';
+                });
+                if (memberShowMore) {
+                    memberShowMore.style.display = memberRows.length > memberVisibleLimit ? '' : 'none';
+                }
+            };
+            if (memberShowMore) {
+                memberShowMore.addEventListener('click', () => {
+                    memberVisibleLimit += 50;
+                    applyMemberVisibility();
+                });
+            }
+            applyMemberVisibility();
+
             const columns = [
                 { id: 'account', label: 'Main Account' },
+                { id: 'order', label: 'Order ID' },
                 { id: 'email', label: 'Email' },
                 { id: 'phone', label: 'Phone' },
                 { id: 'product', label: 'Product' },

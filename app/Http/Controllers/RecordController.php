@@ -48,7 +48,7 @@ class RecordController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:190'],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
-            'linked_variation_ids' => ['array'],
+            'linked_variation_ids' => ['array', 'max:1'],
             'linked_variation_ids.*' => ['integer'],
         ]);
 
@@ -73,7 +73,9 @@ class RecordController extends Controller
             'slug' => $slug,
             'table_name' => $tableName,
             'linked_product_id' => $validated['linked_product_id'] ?? null,
-            'linked_variation_ids' => !empty($validated['linked_variation_ids']) ? json_encode($validated['linked_variation_ids']) : null,
+            'linked_variation_ids' => !empty($validated['linked_variation_ids'])
+                ? array_slice($validated['linked_variation_ids'], 0, 1)
+                : null,
         ]);
 
         return response()->json([
@@ -103,14 +105,17 @@ class RecordController extends Controller
         $data = $request->validate([
             'record_product_id' => ['required', 'integer', 'exists:record_products,id'],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
-            'linked_variation_ids' => ['array'],
+            'linked_variation_ids' => ['array', 'max:1'],
             'linked_variation_ids.*' => ['integer'],
         ]);
 
         $product = RecordProduct::findOrFail($data['record_product_id']);
+        $variationIds = !empty($data['linked_variation_ids'])
+            ? array_slice($data['linked_variation_ids'], 0, 1)
+            : [];
         $product->update([
             'linked_product_id' => $data['linked_product_id'] ?? null,
-            'linked_variation_ids' => !empty($data['linked_variation_ids']) ? json_encode($data['linked_variation_ids']) : null,
+            'linked_variation_ids' => !empty($variationIds) ? $variationIds : null,
         ]);
 
         return response()->json([
@@ -313,6 +318,7 @@ class RecordController extends Controller
     private function validateEntry(Request $request, bool $partial = false): array
     {
         $rules = [
+            'serial_number' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:190'],
             'email' => [$partial ? 'sometimes' : 'required', 'nullable', 'string', 'max:255'],
             'password' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:255'],
             'phone' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:60'],
@@ -392,6 +398,7 @@ class RecordController extends Controller
         if (!$tableExists) {
             Schema::create($tableName, function (Blueprint $table): void {
                 $table->id();
+                $table->string('serial_number')->nullable();
                 $table->string('email')->nullable();
                 $table->string('password')->nullable();
                 $table->string('phone')->nullable();
@@ -413,6 +420,12 @@ class RecordController extends Controller
         if (!Schema::hasColumn($tableName, 'sales_amount')) {
             Schema::table($tableName, function (Blueprint $table): void {
                 $table->integer('sales_amount')->nullable()->after('product');
+            });
+        }
+
+        if (!Schema::hasColumn($tableName, 'serial_number')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->string('serial_number')->nullable()->after('id');
             });
         }
     }

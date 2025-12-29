@@ -16,4 +16,8 @@ class RecordProduct extends Model
         'linked_product_id',
         'linked_variation_ids',
     ];
+
+    protected $casts = [
+        'linked_variation_ids' => 'array',
+    ];
 }
