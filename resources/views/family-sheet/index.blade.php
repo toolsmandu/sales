@@ -791,6 +791,7 @@
             if (memberToggleFields && memberForm && memberFieldControls) {
                 const memberFields = Array.from(memberForm.querySelectorAll('[data-member-field]'));
                 const hiddenKey = 'family_member_hidden_fields';
+                let controlsOpen = false;
 
                 const loadHidden = () => {
                     try {
@@ -844,7 +845,8 @@
                             applyHidden();
                         });
                         const labelEl = document.createElement('span');
-                        labelEl.textContent = label.firstChild?.textContent?.trim() || id;
+                        const text = label.querySelector('input, select, textarea')?.closest('label')?.childNodes?.[0]?.textContent?.trim() || label.textContent?.trim() || id;
+                        labelEl.textContent = text || id;
                         control.appendChild(checkbox);
                         control.appendChild(labelEl);
                         memberFieldControls.appendChild(control);
@@ -852,10 +854,10 @@
                 };
 
                 memberToggleFields.addEventListener('click', () => {
-                    const isOpen = memberFieldControls.style.display === 'flex';
-                    memberFieldControls.style.display = isOpen ? 'none' : 'flex';
-                    memberToggleFields.textContent = isOpen ? 'Edit fields' : 'Done';
-                    if (!isOpen) {
+                    controlsOpen = !controlsOpen;
+                    memberFieldControls.style.display = controlsOpen ? 'flex' : 'none';
+                    memberToggleFields.textContent = controlsOpen ? 'Done' : 'Edit fields';
+                    if (controlsOpen && !memberFieldControls.childElementCount) {
                         renderMemberControls();
                     }
                 });
