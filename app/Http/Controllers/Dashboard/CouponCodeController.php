@@ -51,6 +51,7 @@ class CouponCodeController extends Controller
             ->map(fn (array $entry) => [
                 'code' => trim($entry['code'] ?? ''),
                 'remarks' => trim($entry['remarks'] ?? ''),
+                'instructions' => trim($entry['instructions'] ?? ''),
             ])
             ->filter(fn (array $entry) => $entry['code'] !== '')
             ->values();
@@ -75,6 +76,7 @@ class CouponCodeController extends Controller
                 Rule::unique('coupon_codes', 'code'),
             ],
             'coupon_entries.*.remarks' => ['nullable', 'string', 'max:255'],
+            'coupon_entries.*.instructions' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $timestamp = now();
@@ -84,6 +86,7 @@ class CouponCodeController extends Controller
                 'product_id' => $data['product_id'],
                 'code' => $entry['code'],
                 'remarks' => $entry['remarks'] ?: null,
+                'instructions' => $entry['instructions'] ?: null,
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
             ])
@@ -107,6 +110,7 @@ class CouponCodeController extends Controller
                 Rule::unique('coupon_codes', 'code')->ignore($couponCode->id),
             ],
             'remarks' => ['nullable', 'string', 'max:255'],
+            'instructions' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $couponCode->update($data);

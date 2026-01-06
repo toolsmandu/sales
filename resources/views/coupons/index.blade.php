@@ -3,10 +3,11 @@
 @php
     /** @var \Illuminate\Support\Collection|\App\Models\Product[] $products */
     /** @var \Illuminate\Pagination\LengthAwarePaginator|\App\Models\CouponCode[] $coupons */
-    $initialEntries = collect(old('coupon_entries', [['code' => '', 'remarks' => '']]))
+    $initialEntries = collect(old('coupon_entries', [['code' => '', 'remarks' => '', 'instructions' => '']]))
         ->map(fn ($entry) => [
             'code' => $entry['code'] ?? '',
             'remarks' => $entry['remarks'] ?? '',
+            'instructions' => $entry['instructions'] ?? '',
         ])
         ->values();
 
@@ -14,6 +15,7 @@
     $filterProduct = $products->firstWhere('id', (int) ($filters['product'] ?? null));
     $couponCodeError = $errors->first('coupon_entries.*.code');
     $couponRemarksError = $errors->first('coupon_entries.*.remarks');
+    $couponInstructionsError = $errors->first('coupon_entries.*.instructions');
     $isEmployee = auth()->user()?->role === 'employee';
 @endphp
 
@@ -88,6 +90,35 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
+        }
+
+        .copy-instructions-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid rgba(79, 70, 229, 0.25);
+            background: linear-gradient(180deg, rgba(79, 70, 229, 0.07), rgba(79, 70, 229, 0.02));
+            color: #4338ca;
+            font-weight: 600;
+            font-size: 0.92rem;
+            text-decoration: none;
+            transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+        }
+
+        .copy-instructions-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .copy-instructions-btn:hover,
+        .copy-instructions-btn:focus-visible {
+            background: linear-gradient(180deg, rgba(79, 70, 229, 0.12), rgba(79, 70, 229, 0.05));
+            border-color: rgba(79, 70, 229, 0.45);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.15);
+            outline: none;
         }
 
         .coupon-inline-grid {
@@ -235,6 +266,13 @@
                                         placeholder="Remarks"
                                     >
                                 </label>
+                                <label style="grid-column: 1 / -1;">
+                                    Instructions
+                                    <textarea
+                                        name="coupon_entries[{{ $index }}][instructions]"
+                                        rows="3"
+                                        placeholder="Instructions shown when copying this coupon">{{ $entry['instructions'] }}</textarea>
+                                </label>
                                 <div class="coupon-entry__actions">
                                     <button
                                         type="button"
@@ -259,6 +297,9 @@
                         @endif
                         @if ($couponRemarksError)
                             <p class="form-error">{{ $couponRemarksError }}</p>
+                        @endif
+                        @if ($couponInstructionsError)
+                            <p class="form-error">{{ $couponInstructionsError }}</p>
                         @endif
                     </div>
 
@@ -357,6 +398,23 @@
                                                     <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                 </svg>
                                             </button>
+                                            @if ($coupon->instructions)
+                                                <button
+                                                    type="button"
+                                                    class="copy-instructions-btn"
+                                                    data-copy-template="{{ $coupon->instructions }}"
+                                                    data-copy-code="{{ $coupon->code }}"
+                                                    title="Copy Instructions"
+                                                    aria-label="Copy instructions for {{ $coupon->code }}"
+                                                >
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M8 7V5a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                        <rect x="5" y="7" width="11" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                        <path d="M8.5 11H15M8.5 14H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                    <span>Copy Instructions</span>
+                                                </button>
+                                            @endif
                                             <span class="copy-inline-feedback"></span>
                                         </div>
                                     </td>
@@ -455,6 +513,10 @@
                                                     Remarks
                                                     <input type="text" name="remarks" value="{{ $coupon->remarks }}">
                                                 </label>
+                                                <label style="grid-column: 1 / -1;">
+                                                    Instructions
+                                                    <textarea name="instructions" rows="3" placeholder="Instructions shown when copying this coupon">{{ $coupon->instructions }}</textarea>
+                                                </label>
                                             </div>
                                             <div class="form-actions form-actions--row">
                                                 <button type="submit">Save changes</button>
@@ -534,6 +596,13 @@
                     data-name="coupon_entries[__INDEX__][remarks]"
                     placeholder="Remarks"
                 >
+            </label>
+            <label style="grid-column: 1 / -1;">
+                Instructions
+                <textarea
+                    data-name="coupon_entries[__INDEX__][instructions]"
+                    rows="3"
+                    placeholder="Instructions shown when copying this coupon"></textarea>
             </label>
             <div class="coupon-entry__actions">
                 <button
@@ -628,7 +697,7 @@
                 });
             });
 
-            document.querySelectorAll('button[data-copy]').forEach((button) => {
+            document.querySelectorAll('button[data-copy], button[data-copy-template]').forEach((button) => {
                 const originalLabel = button.getAttribute('aria-label') || 'Copy';
                 const feedback = button.nextElementSibling && button.nextElementSibling.classList.contains('copy-inline-feedback')
                     ? button.nextElementSibling
@@ -644,7 +713,14 @@
                 };
 
                 button.addEventListener('click', async () => {
-                    const text = button.dataset.copy || '';
+                    let text = button.dataset.copy || '';
+                    const template = button.dataset.copyTemplate || null;
+                    const code = button.dataset.copyCode || '';
+
+                    if (template) {
+                        text = template.replaceAll('{key}', code);
+                    }
+
                     if (!text) {
                         return;
                     }

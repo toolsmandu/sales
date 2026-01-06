@@ -14,6 +14,7 @@ class CouponCode extends Model
         'product_id',
         'code',
         'remarks',
+        'instructions',
     ];
 
     public function product(): BelongsTo

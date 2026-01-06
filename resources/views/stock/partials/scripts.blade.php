@@ -457,11 +457,21 @@
 
                 const revealedKey = payload.activation_key ?? '';
                 const remarksResponse = payload.remarks ?? remarksValue;
+                const viewCount = payload.view_count ?? null;
+                const viewLimit = payload.view_limit ?? null;
+                const viewedAt = payload.viewed_at ?? null;
+                const viewLogs = Array.isArray(payload.view_logs) ? payload.view_logs : [];
 
                 item.dataset.key = revealedKey;
                 item.dataset.activation = revealedKey;
                 item.dataset.viewer = payload.viewer?.name ?? '';
                 item.dataset.remarks = remarksResponse;
+                if (viewCount !== null) {
+                    item.dataset.viewCount = viewCount;
+                }
+                if (viewLimit !== null) {
+                    item.dataset.viewLimit = viewLimit;
+                }
 
                 const valueElement = item.querySelector('.stock-item__value');
                 if (valueElement) {
@@ -477,9 +487,47 @@
 
                 item.classList.add('stock-item--revealed');
 
-                button.toggleAttribute('disabled', true);
-                button.removeAttribute('data-stock-reveal');
-                button.removeAttribute('aria-busy');
+                if (viewedAt) {
+                    // Move to viewed list when limit is reached.
+                    item.dataset.panel = 'viewed';
+                    const revealAction = item.querySelector('[data-stock-reveal]');
+                    revealAction?.remove();
+
+                    if (freshList && viewedList) {
+                        item.remove();
+                        viewedList.prepend(item);
+                    }
+                    if (timestampElement && payload.viewed_at) {
+                        const viewerLabel = payload.viewer?.name ?? '—';
+                        const remarksDisplay = remarksResponse || '—';
+                        timestampElement.textContent = `Viewed on: ${formatDateTime(payload.viewed_at)} | Viewed by: ${viewerLabel} | Remarks: ${remarksDisplay}`;
+                    }
+
+                    // Render view history if available.
+                    if (viewLogs.length > 0) {
+                        let logContainer = item.querySelector('.stock-item__views');
+                        if (!logContainer) {
+                            logContainer = document.createElement('div');
+                            logContainer.className = 'stock-item__views';
+                            const detailBlock = item.querySelector('.stock-item__details');
+                            detailBlock?.appendChild(logContainer);
+                        }
+                        logContainer.innerHTML = '<strong>View history:</strong>';
+                        const list = document.createElement('ul');
+                        list.className = 'stock-view-log';
+                        viewLogs.forEach((log) => {
+                            const li = document.createElement('li');
+                            const at = log.viewed_at ? formatDateTime(log.viewed_at) : '—';
+                            li.textContent = `${at} | ${log.viewer || '—'} | Remarks: ${log.remarks || '—'}`;
+                            list.appendChild(li);
+                        });
+                        logContainer.appendChild(list);
+                    }
+                } else {
+                    // Keep in fresh list for next view.
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
 
                 updateCounts();
                 updateEmptyStates();

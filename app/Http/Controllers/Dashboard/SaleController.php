@@ -126,6 +126,8 @@ class SaleController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $this->appendFamilySyncStatus($sales);
+
         $productOptions = Product::query()
             ->where('is_in_stock', true)
             ->with([
@@ -401,6 +403,7 @@ class SaleController extends Controller
         }
 
         $createdSale = null;
+        $familySyncStatus = null;
 
         DB::transaction(function () use ($data, $nowKathmandu, $createdBy, &$createdSale) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
@@ -422,7 +425,25 @@ class SaleController extends Controller
         });
 
         if ($familyContext && !$familyContext['full'] && $familyContext['account']) {
-            $this->createFamilyMemberFromSale($familyContext['account'], $familyContext['family_product'], $createdSale, $data);
+            try {
+                $synced = $this->createFamilyMemberFromSale(
+                    $familyContext['account'],
+                    $familyContext['family_product'],
+                    $createdSale,
+                    $data
+                );
+                if ($synced === true) {
+                    $familySyncStatus = 'sync_active';
+                } elseif ($synced === false) {
+                    $familySyncStatus = 'error';
+                } // null means skipped (no linked variation/product match); leave status unset.
+            } catch (\Throwable $e) {
+                Log::warning('Family sync failed from sale', [
+                    'sale_id' => $createdSale?->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $familySyncStatus = 'error';
+            }
         }
 
         if ($createdSale) {
@@ -453,6 +474,7 @@ class SaleController extends Controller
                 'phone' => $createdSale->phone,
                 'email' => $createdSale->email,
                 'sales_amount' => $createdSale->sales_amount,
+                'family_status' => $familySyncStatus,
             ] : null);
     }
 
@@ -1127,45 +1149,18 @@ class SaleController extends Controller
         ];
     }
 
-    private function createFamilyMemberFromSale(object $account, object $familyProduct, Sale $sale, array $data): void
+    /**
+     * @return bool|null true = synced, false = failed, null = skipped (not a linked variation/product)
+     */
+    private function createFamilyMemberFromSale(object $account, object $familyProduct, Sale $sale, array $data): ?bool
     {
-        $expiryDays = null;
-        $variationId = null;
-        $variationProductId = null;
-        if ($sale->product_name) {
-            $normalized = mb_strtolower(trim($sale->product_name));
-            $variationRow = DB::table('product_variations')
-                ->join('products', 'product_variations.product_id', '=', 'products.id')
-                ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
-                ->select([
-                    'product_variations.id as variation_id',
-                    'product_variations.product_id as variation_product_id',
-                    'product_variations.expiry_days',
-                ])
-                ->first();
-            $expiryDays = $variationRow?->expiry_days ?? null;
-            $variationId = $variationRow?->variation_id;
-            $variationProductId = $variationRow?->variation_product_id;
-        }
+        $variationContext = $this->getSaleVariationContext($sale);
+        $expiryDays = $variationContext['expiry_days'];
+        $variationId = $variationContext['variation_id'];
+        $variationProductId = $variationContext['variation_product_id'];
 
-        // Respect linked variations: if specific variations are linked, skip if this sale's variation is not among them.
-        $linkedIds = [];
-        if (!empty($familyProduct->linked_variation_ids)) {
-            $decoded = is_string($familyProduct->linked_variation_ids)
-                ? json_decode($familyProduct->linked_variation_ids, true)
-                : $familyProduct->linked_variation_ids;
-            $linkedIds = is_array($decoded) ? array_map('intval', array_filter($decoded, fn ($v) => $v !== null)) : [];
-        }
-        if (!empty($linkedIds)) {
-            // Require a matching variation id.
-            if (!$variationId || !in_array((int) $variationId, $linkedIds, true)) {
-                return; // not a linked variation; do not consume capacity
-            }
-        } elseif (!empty($familyProduct->linked_product_id) && $variationProductId !== null) {
-            // If a linked product is set but no specific variations, ensure the variation belongs to that product.
-            if ((int) $variationProductId !== (int) $familyProduct->linked_product_id) {
-                return;
-            }
+        if (!$this->matchesFamilyLink($familyProduct, $variationId, $variationProductId)) {
+            return null; // not linked; skip silently
         }
 
         $payload = [
@@ -1192,7 +1187,16 @@ class SaleController extends Controller
             $payload['family_account_id'] = $account->id;
         }
 
-        DB::table('family_members')->insert($payload);
+        try {
+            DB::table('family_members')->insert($payload);
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Unable to sync family member from sale', [
+                'sale_id' => $sale->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     private function encryptFamilyRemark(?string $value): ?string
@@ -1207,5 +1211,103 @@ class SaleController extends Controller
             Log::warning('Unable to encrypt family remark from sale', ['error' => $e->getMessage()]);
             return $value;
         }
+    }
+
+    private function getSaleVariationContext(Sale $sale): array
+    {
+        $expiryDays = null;
+        $variationId = null;
+        $variationProductId = null;
+
+        if ($sale->product_name) {
+            $normalized = mb_strtolower(trim($sale->product_name));
+            $variationRow = DB::table('product_variations')
+                ->join('products', 'product_variations.product_id', '=', 'products.id')
+                ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
+                ->select([
+                    'product_variations.id as variation_id',
+                    'product_variations.product_id as variation_product_id',
+                    'product_variations.expiry_days',
+                ])
+                ->first();
+            $expiryDays = $variationRow?->expiry_days ?? null;
+            $variationId = $variationRow?->variation_id;
+            $variationProductId = $variationRow?->variation_product_id;
+        }
+
+        return [
+            'expiry_days' => $expiryDays,
+            'variation_id' => $variationId,
+            'variation_product_id' => $variationProductId,
+        ];
+    }
+
+    private function matchesFamilyLink(object $familyProduct, ?int $variationId, ?int $variationProductId): bool
+    {
+        $linkedIds = [];
+        if (!empty($familyProduct->linked_variation_ids)) {
+            $decoded = is_string($familyProduct->linked_variation_ids)
+                ? json_decode($familyProduct->linked_variation_ids, true)
+                : $familyProduct->linked_variation_ids;
+            $linkedIds = is_array($decoded) ? array_map('intval', array_filter($decoded, fn ($v) => $v !== null)) : [];
+        }
+
+        if (!empty($linkedIds)) {
+            return $variationId !== null && in_array((int) $variationId, $linkedIds, true);
+        }
+
+        if (!empty($familyProduct->linked_product_id) && $variationProductId !== null) {
+            return (int) $variationProductId === (int) $familyProduct->linked_product_id;
+        }
+
+        return true; // no link constraints -> treat as linked
+    }
+
+    private function appendFamilySyncStatus(LengthAwarePaginator $sales): void
+    {
+        if ($sales->isEmpty()) {
+            return;
+        }
+
+        $hasFamilyMembers = Schema::hasTable('family_members') && Schema::hasColumn('family_members', 'order_id');
+
+        $sales->getCollection()->transform(function (Sale $sale) use ($hasFamilyMembers) {
+            $sale->family_sync_state = $this->determineFamilySyncState($sale, $hasFamilyMembers);
+            return $sale;
+        });
+    }
+
+    private function determineFamilySyncState(Sale $sale, bool $hasFamilyMembers): string
+    {
+        $productName = trim((string) ($sale->product_name ?? ''));
+        if ($productName === '') {
+            return 'unlinked';
+        }
+
+        $familyContext = $this->findFamilyAccountForProduct($productName);
+        if (!$familyContext || empty($familyContext['family_product'])) {
+            return 'unlinked';
+        }
+
+        $variationContext = $this->getSaleVariationContext($sale);
+        $isLinked = $this->matchesFamilyLink(
+            $familyContext['family_product'],
+            $variationContext['variation_id'] ? (int) $variationContext['variation_id'] : null,
+            $variationContext['variation_product_id'] ? (int) $variationContext['variation_product_id'] : null
+        );
+
+        if (!$isLinked) {
+            return 'unlinked';
+        }
+
+        if (!$hasFamilyMembers) {
+            return 'error';
+        }
+
+        $hasRecord = DB::table('family_members')
+            ->where('order_id', $sale->serial_number)
+            ->exists();
+
+        return $hasRecord ? 'active' : 'error';
     }
 }

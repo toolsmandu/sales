@@ -1096,6 +1096,12 @@
         $orderPhone = $saleConfirmation['phone'] ?? 'N/A';
         $orderAmount = $saleConfirmation['sales_amount'] ?? null;
         $formattedAmount = $orderAmount !== null ? number_format((float) $orderAmount, 2) : 'N/A';
+        $familyStatus = $saleConfirmation['family_status'] ?? null;
+        $familyStatusDisplay = match ($familyStatus) {
+            'sync_active' => ['text' => 'Sync Active', 'icon' => '✔', 'color' => '#15803d'],
+            'error' => ['text' => 'ERROR', 'icon' => '✖', 'color' => '#b91c1c'],
+            default => null,
+        };
     @endphp
 
     @if ($saleConfirmation && $orderId)
@@ -1135,6 +1141,16 @@
                             <dt>Amount</dt>
                             <dd>Rs. {{ $formattedAmount }}</dd>
                         </div>
+                        @if ($familyStatusDisplay)
+                            <div>
+                                <dt>Family Status</dt>
+                                <dd>
+                                    <span style="color: {{ $familyStatusDisplay['color'] }};">
+                                        {{ $familyStatusDisplay['icon'] }} {{ $familyStatusDisplay['text'] }}
+                                    </span>
+                                </dd>
+                            </div>
+                        @endif
                     </dl>
                 </div>
             </div>

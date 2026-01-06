@@ -261,6 +261,7 @@
                 <th scope="col" data-col-id="phone">Phone<span class="sales-col-resizer" data-col-id="phone"></span></th>
                 <th scope="col" data-col-id="amount">Amount<span class="sales-col-resizer" data-col-id="amount"></span></th>
                 <th scope="col" data-col-id="status">Status<span class="sales-col-resizer" data-col-id="status"></span></th>
+                <th scope="col" data-col-id="sync">Sync<span class="sales-col-resizer" data-col-id="sync"></span></th>
                 <th scope="col" data-col-id="sold_by">Sold By<span class="sales-col-resizer" data-col-id="sold_by"></span></th>
                 <th scope="col" data-col-id="actions">Actions<span class="sales-col-resizer" data-col-id="actions"></span></th>
             </tr>
@@ -391,6 +392,15 @@
                         @endphp
                         <span aria-label="{{ $statusLabel }}" title="{{ $statusLabel }}" style="font-size: 1.1rem;">{{ $statusIcon }}</span>
                     </td>
+                    @php
+                        $syncState = $sale->family_sync_state ?? 'unlinked';
+                        $syncLabel = match ($syncState) {
+                            'active' => 'Active',
+                            'error' => 'Error',
+                            default => '—',
+                        };
+                    @endphp
+                    <td aria-label="Family Sync Status">{{ $syncLabel }}</td>
                     <td style="white-space: nowrap;">{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
                     <td>
                         <div class="table-actions">
@@ -511,7 +521,7 @@
     <script>
         (() => {
             const storageKey = 'orders_table_widths';
-            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'status', 'sold_by', 'actions'];
+            const columnIds = ['serial', 'purchase_date', 'product', 'email', 'phone', 'amount', 'status', 'sync', 'sold_by', 'actions'];
             const table = document.getElementById('orders-table');
         const colgroup = document.getElementById('orders-colgroup');
             const searchForm = document.getElementById('orders-search-form');

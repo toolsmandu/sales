@@ -123,6 +123,8 @@
                                             data-edit-url="{{ route('stock.keys.update', $key) }}"
                                             data-delete-url="{{ route('stock.keys.destroy', $key) }}"
                                             data-stock-id="{{ $key->id }}"
+                                            data-view-limit="{{ $key->view_limit ?? 1 }}"
+                                            data-view-count="{{ $key->view_count ?? 0 }}"
                                         >
                                             <div class="stock-item__details">
                                                 <span class="stock-item__product">{{ $key->product->name }}</span>
@@ -141,8 +143,16 @@
                                                     </button>
                                                     <span class="copy-inline-feedback"></span>
                                                 </div>
+                                                @php
+                                                    $viewLimit = (int) ($key->view_limit ?? 1);
+                                                    $viewCount = (int) ($key->view_count ?? 0);
+                                                    $remainingViews = max($viewLimit - $viewCount, 0);
+                                                @endphp
                                                 <span class="stock-item__timestamp">
                                                     Added {{ optional($key->created_at)?->setTimezone('Asia/Kathmandu')->format('M j, Y g:i A') }}
+                                                </span>
+                                                <span class="stock-item__timestamp">
+                                                    Stock Limit: {{ $remainingViews }} / {{ $viewLimit }}
                                                 </span>
                                             </div>
                                             <div class="stock-item__actions">
@@ -206,6 +216,8 @@
                                             data-edit-url="{{ route('stock.keys.update', $key) }}"
                                             data-delete-url="{{ route('stock.keys.destroy', $key) }}"
                                             data-stock-id="{{ $key->id }}"
+                                            data-view-limit="{{ $key->view_limit ?? 1 }}"
+                                            data-view-count="{{ $key->view_count ?? 0 }}"
                                         >
                                             <div class="stock-item__details">
                                                 <span class="stock-item__product">{{ $key->product->name }}</span>
@@ -232,6 +244,30 @@
                                                 <span class="stock-item__timestamp">
                                                     Viewed on: {{ $viewedAt ? $viewedAt->format('M j, Y g:i A') : '—' }} | Viewed by: {{ $viewerLabel }} | Remarks: {{ $remarks }}
                                                 </span>
+                                                @php
+                                                    $viewLimit = (int) ($key->view_limit ?? 1);
+                                                    $viewCount = (int) ($key->view_count ?? 0);
+                                                @endphp
+                                                <span class="stock-item__timestamp">
+                                                    Stock Limit: {{ max($viewLimit - $viewCount, 0) }} / {{ $viewLimit }}
+                                                </span>
+                                                @if ($viewLimit > 1 && $key->viewLogs?->isNotEmpty())
+                                                    <div class="stock-item__views">
+                                                        <strong>View history:</strong>
+                                                        <ul class="stock-view-log">
+                                                            @foreach ($key->viewLogs as $log)
+                                                                @php
+                                                                    $logAt = optional($log->viewed_at)?->setTimezone('Asia/Kathmandu');
+                                                                @endphp
+                                                                <li>
+                                                                    {{ $logAt ? $logAt->format('M j, Y g:i A') : '—' }} |
+                                                                    {{ $log->viewer->name ?? '—' }} |
+                                                                    Remarks: {{ $log->remarks ?? '—' }}
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    </div>
+                                                @endif
                                             </div>
                                             @if (auth()->user()?->role === 'admin')
                                                 <div class="stock-item__actions">

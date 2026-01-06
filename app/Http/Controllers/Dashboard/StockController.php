@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockKey;
+use App\Models\StockKeyView;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class StockController extends Controller
             ->with(['product:id,name'])
             ->fresh()
             ->latest('created_at')
-            ->get(['id', 'product_id', 'activation_key', 'created_at'])
+            ->get(['id', 'product_id', 'activation_key', 'view_limit', 'view_count', 'created_at'])
             ->map(function (StockKey $key): StockKey {
                 $activationKey = (string) $key->activation_key;
                 $visible = substr($activationKey, 0, 5);
@@ -35,10 +36,14 @@ class StockController extends Controller
             });
 
         $viewedKeys = StockKey::query()
-            ->with(['product:id,name', 'viewedBy:id,name'])
+            ->with([
+                'product:id,name',
+                'viewedBy:id,name',
+                'viewLogs' => fn ($q) => $q->with(['viewer:id,name'])->orderByDesc('viewed_at'),
+            ])
             ->viewed()
             ->latest('viewed_at')
-            ->get(['id', 'product_id', 'activation_key', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
+            ->get(['id', 'product_id', 'activation_key', 'view_limit', 'view_count', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
 
         $products = Product::query()
             ->with(['variations' => fn ($query) => $query->orderBy('name')])
@@ -73,6 +78,7 @@ class StockController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'keys' => ['required', 'string'],
+            'view_limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ]);
 
         $keys = collect(preg_split("/\r\n|\r|\n/", $data['keys']))
@@ -86,6 +92,7 @@ class StockController extends Controller
         }
 
         $uniqueKeys = $keys->unique()->values();
+        $viewLimit = (int) ($data['view_limit'] ?? 1);
 
         $existingKeys = StockKey::query()
             ->pluck('activation_key')
@@ -122,6 +129,8 @@ class StockController extends Controller
             $payload[] = [
                 'product_id' => (int) $data['product_id'],
                 'activation_key' => Crypt::encryptString($key),
+                'view_limit' => $viewLimit,
+                'view_count' => 0,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -164,6 +173,7 @@ class StockController extends Controller
         $data = $request->validate([
             'activation_key' => ['required', 'string', 'max:255'],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'view_limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ]);
 
         $activationKey = trim($data['activation_key']);
@@ -192,6 +202,10 @@ class StockController extends Controller
 
         if (array_key_exists('product_id', $data) && $data['product_id'] !== null) {
             $payload['product_id'] = (int) $data['product_id'];
+        }
+
+        if (array_key_exists('view_limit', $data) && $data['view_limit'] !== null) {
+            $payload['view_limit'] = (int) $data['view_limit'];
         }
 
         $stockKey->fill($payload);
@@ -247,8 +261,25 @@ class StockController extends Controller
         $stockKey->loadMissing('product:id,name');
 
         $remarks = preg_replace('/\s+/u', ' ', trim($data['remarks']));
+        $viewLimit = (int) ($stockKey->view_limit ?? 1);
+        $currentCount = (int) ($stockKey->view_count ?? 0);
+        $nextCount = $currentCount + 1;
+        $reachedLimit = $nextCount >= $viewLimit;
 
-        $stockKey->markAsViewed($user, $remarks);
+        $stockKey->view_count = $nextCount;
+
+        if ($reachedLimit) {
+            $stockKey->markAsViewed($user, $remarks);
+        } else {
+            $stockKey->save();
+        }
+
+        StockKeyView::create([
+            'stock_key_id' => $stockKey->id,
+            'viewed_by_user_id' => $user->id,
+            'remarks' => $remarks,
+            'viewed_at' => now(),
+        ]);
 
         return response()->json([
             'id' => $stockKey->id,
@@ -264,6 +295,18 @@ class StockController extends Controller
             'viewer_pin' => null,
             'viewed_at' => optional($stockKey->viewed_at)->toIso8601String(),
             'remarks' => $stockKey->viewed_remarks,
+            'view_limit' => $viewLimit,
+            'view_count' => $nextCount,
+            'view_logs' => $stockKey->viewLogs()
+                ->with('viewer:id,name')
+                ->orderByDesc('viewed_at')
+                ->limit(20)
+                ->get()
+                ->map(fn (StockKeyView $log) => [
+                    'viewed_at' => optional($log->viewed_at)->toIso8601String(),
+                    'viewer' => $log->viewer?->name ?? '—',
+                    'remarks' => $log->remarks ?? '—',
+                ]),
         ]);
     }
 

@@ -101,6 +101,19 @@
                                 required>{{ old('keys') }}</textarea>
                         </label>
 
+                        <label for="stock-view-limit">
+                            View limit per key
+                            <input
+                                type="number"
+                                min="1"
+                                max="1000"
+                                id="stock-view-limit"
+                                name="view_limit"
+                                value="{{ old('view_limit', 1) }}"
+                            >
+                            <small>How many times a key can be viewed before it moves to Viewed. Default: 1.</small>
+                        </label>
+
                         <div class="form-actions">
                             <button type="submit">Save</button>
                         </div>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,8 @@ class StockKey extends Model
     protected $fillable = [
         'product_id',
         'activation_key',
+        'view_limit',
+        'view_count',
         'viewed_at',
         'viewed_by_user_id',
         'viewed_by_pin_name',
@@ -27,6 +30,11 @@ class StockKey extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function viewLogs(): HasMany
+    {
+        return $this->hasMany(StockKeyView::class);
     }
 
     public function scopeFresh(Builder $query): Builder
@@ -51,6 +59,7 @@ class StockKey extends Model
             'viewed_by_user_id' => $viewer?->getKey(),
             'viewed_by_pin_name' => null,
             'viewed_remarks' => $remarks !== null ? trim($remarks) : null,
+            'view_count' => $this->view_count,
         ])->save();
     }
 
