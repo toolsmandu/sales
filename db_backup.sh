@@ -95,3 +95,6 @@ else
 fi
 
 echo "Done."
+
+# Retention: keep last ~6 months (180 days)
+find "$BACKUP_DIR" -type f -name "${DB_NAME}-*.sql" -mtime +180 -print -delete || true
