@@ -8,15 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('qr_codes', function (Blueprint $table): void {
-            $table->string('payment_method_number')->nullable()->after('description');
-        });
+        if (Schema::hasTable('qr_codes') && !Schema::hasColumn('qr_codes', 'payment_method_number')) {
+            Schema::table('qr_codes', function (Blueprint $table): void {
+                $table->string('payment_method_number')->nullable()->after('description');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('qr_codes', function (Blueprint $table): void {
-            $table->dropColumn('payment_method_number');
-        });
+        if (Schema::hasTable('qr_codes') && Schema::hasColumn('qr_codes', 'payment_method_number')) {
+            Schema::table('qr_codes', function (Blueprint $table): void {
+                $table->dropColumn('payment_method_number');
+            });
+        }
     }
 };

@@ -976,7 +976,6 @@
                                 name="remarks"
                                 value="{{ old('remarks', $saleToEdit->remarks) }}"
                                 placeholder="Remarks"
-                                maxlength="255"
                             >
                         </label>
 

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (! Schema::hasColumn('stock_keys', 'viewed_remarks')) {
+        if (!Schema::hasColumn('stock_keys', 'viewed_remarks')) {
             Schema::table('stock_keys', function (Blueprint $table) {
                 $table->string('viewed_remarks')->nullable()->after('viewed_by_pin_name');
             });

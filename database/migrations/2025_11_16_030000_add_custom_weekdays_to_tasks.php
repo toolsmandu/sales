@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (!Schema::hasTable('tasks') || Schema::hasColumn('tasks', 'custom_weekdays')) {
+            return;
+        }
+
         Schema::table('tasks', function (Blueprint $table): void {
             $table->json('custom_weekdays')->nullable()->after('recurrence_type');
         });
@@ -15,6 +19,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (!Schema::hasTable('tasks') || !Schema::hasColumn('tasks', 'custom_weekdays')) {
+            return;
+        }
+
         Schema::table('tasks', function (Blueprint $table): void {
             $table->dropColumn('custom_weekdays');
         });

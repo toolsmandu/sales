@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('stock_pin_name')->nullable()->after('stock_pin_hash');
-        });
+        if (!Schema::hasColumn('users', 'stock_pin_name')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('stock_pin_name')->nullable()->after('stock_pin_hash');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('stock_pin_name');
-        });
+        if (Schema::hasColumn('users', 'stock_pin_name')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('stock_pin_name');
+            });
+        }
     }
 };

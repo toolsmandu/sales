@@ -8,16 +8,34 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('employee_settings', function (Blueprint $table): void {
-            $table->unsignedInteger('daily_hours_quota')->default(0)->after('monthly_hours_quota');
-            $table->json('holiday_weekdays')->nullable()->after('daily_hours_quota');
-        });
+        if (Schema::hasTable('employee_settings')) {
+            Schema::table('employee_settings', function (Blueprint $table): void {
+                if (!Schema::hasColumn('employee_settings', 'daily_hours_quota')) {
+                    $table->unsignedInteger('daily_hours_quota')->default(0)->after('monthly_hours_quota');
+                }
+                if (!Schema::hasColumn('employee_settings', 'holiday_weekdays')) {
+                    $table->json('holiday_weekdays')->nullable()->after('daily_hours_quota');
+                }
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('employee_settings', function (Blueprint $table): void {
-            $table->dropColumn(['daily_hours_quota', 'holiday_weekdays']);
-        });
+        if (Schema::hasTable('employee_settings')) {
+            Schema::table('employee_settings', function (Blueprint $table): void {
+                $columns = [];
+                if (Schema::hasColumn('employee_settings', 'daily_hours_quota')) {
+                    $columns[] = 'daily_hours_quota';
+                }
+                if (Schema::hasColumn('employee_settings', 'holiday_weekdays')) {
+                    $columns[] = 'holiday_weekdays';
+                }
+
+                if (!empty($columns)) {
+                    $table->dropColumn($columns);
+                }
+            });
+        }
     }
 };

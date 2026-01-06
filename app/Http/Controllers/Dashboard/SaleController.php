@@ -699,7 +699,17 @@ class SaleController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'sales_amount' => ['nullable', 'numeric', 'min:0'],
             'purchase_date' => ['required', 'date_format:Y-m-d'],
-            'remarks' => ['nullable', 'string', 'max:255'],
+            'remarks' => [
+                'nullable',
+                'string',
+                'max:2000',
+                function (string $attribute, $value, $fail): void {
+                    $wordCount = $this->countWords((string) $value);
+                    if ($wordCount > 50) {
+                        $fail('The remarks field must not exceed 50 words.');
+                    }
+                },
+            ],
             'product_expiry_days' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', Rule::in(['completed', 'refunded', 'pending'])],
         ]);
@@ -711,6 +721,11 @@ class SaleController extends Controller
         $productName = array_key_exists('product_name', $data)
             ? trim((string) $data['product_name'])
             : ($isUpdate ? trim((string) $sale->product_name) : '');
+        $remarksValue = array_key_exists('remarks', $data) ? trim((string) $data['remarks']) : null;
+        if ($remarksValue !== null) {
+            $remarksValue = preg_replace('/\s+/u', ' ', $remarksValue);
+            $remarksValue = $remarksValue === '' ? null : $remarksValue;
+        }
 
         return [
             ...$data,
@@ -718,7 +733,19 @@ class SaleController extends Controller
             'product_expiry_days' => $expiryDays,
             'product_name' => $productName,
             'status' => $data['status'] ?? null,
+            'remarks' => $remarksValue,
         ];
+    }
+
+    private function countWords(string $value): int
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return 0;
+        }
+
+        $parts = preg_split('/\s+/u', $trimmed);
+        return is_array($parts) ? count($parts) : 0;
     }
 
     private function normalizeDateInput(?string $value): ?string

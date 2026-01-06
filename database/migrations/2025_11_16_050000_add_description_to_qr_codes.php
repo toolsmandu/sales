@@ -8,15 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('qr_codes', function (Blueprint $table): void {
-            $table->text('description')->nullable()->after('file_path');
-        });
+        if (Schema::hasTable('qr_codes') && !Schema::hasColumn('qr_codes', 'description')) {
+            Schema::table('qr_codes', function (Blueprint $table): void {
+                $table->text('description')->nullable()->after('file_path');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('qr_codes', function (Blueprint $table): void {
-            $table->dropColumn('description');
-        });
+        if (Schema::hasTable('qr_codes') && Schema::hasColumn('qr_codes', 'description')) {
+            Schema::table('qr_codes', function (Blueprint $table): void {
+                $table->dropColumn('description');
+            });
+        }
     }
 };
