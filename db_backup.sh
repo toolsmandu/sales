@@ -19,6 +19,9 @@ DB_NAME=""
 DB_USER=""
 DB_PASS=""
 APP_ENV=""
+TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+ALLOW_LOCAL_BACKUP="${ALLOW_LOCAL_BACKUP:-}"
 
 while IFS='=' read -r key value; do
   value="${value%%#*}"             # strip inline comments
@@ -32,8 +35,11 @@ while IFS='=' read -r key value; do
     DB_USERNAME) DB_USER="${value}";;
     DB_PASSWORD) DB_PASS="${value}";;
     APP_ENV) APP_ENV="${value}";;
+    TELEGRAM_BOT_TOKEN) TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$value}";;
+    TELEGRAM_CHAT_ID) TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-$value}";;
+    ALLOW_LOCAL_BACKUP) ALLOW_LOCAL_BACKUP="${ALLOW_LOCAL_BACKUP:-$value}";;
   esac
-done < <(grep -E '^[[:space:]]*(DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD|APP_ENV)[[:space:]]*=' "$ENV_FILE" \
+done < <(grep -E '^[[:space:]]*(DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD|APP_ENV|TELEGRAM_BOT_TOKEN|TELEGRAM_CHAT_ID|ALLOW_LOCAL_BACKUP)[[:space:]]*=' "$ENV_FILE" \
         | sed -E 's/^[[:space:]]*//' \
         | sed -E 's/[[:space:]]*=[[:space:]]*/=/')
 
@@ -44,8 +50,9 @@ DB_USER="${DB_USER:?DB_USERNAME missing in .env}"
 DB_PASS="${DB_PASS:-}"
 APP_ENV="${APP_ENV:-}"
 
-if [[ "${APP_ENV,,}" == "local" ]]; then
-  echo "APP_ENV=local; skipping backup."
+lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+if [[ "$(lower "${APP_ENV:-}")" == "local" && "$(lower "${ALLOW_LOCAL_BACKUP:-}")" != "true" ]]; then
+  echo "APP_ENV=local; set ALLOW_LOCAL_BACKUP=true to enable."
   exit 0
 fi
 
