@@ -56,7 +56,7 @@ if [[ "$(lower "${APP_ENV:-}")" == "local" && "$(lower "${ALLOW_LOCAL_BACKUP:-}"
   exit 0
 fi
 
-BACKUP_DIR="$PROJECT_ROOT/DBBACKUP"
+BACKUP_DIR="${BACKUP_DIR:-/home/u862833879/backups}"
 mkdir -p "$BACKUP_DIR"
 
 export TZ=Asia/Kathmandu
