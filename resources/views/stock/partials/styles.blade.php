@@ -193,6 +193,10 @@
         flex-wrap: nowrap;
     }
 
+    .stock-item:not(.stock-item--revealed) [data-stock-copy-instruction] {
+        display: none;
+    }
+
     .cell-action-button--text {
         line-height: 1.1;
         padding: 0.25rem 0.6rem;
