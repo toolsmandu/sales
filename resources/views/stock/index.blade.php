@@ -30,6 +30,13 @@
 
                 @php
                     $productOptions = $productOptions ?? [];
+                    $variationNotesMap = collect($productOptions ?? [])
+                        ->filter(fn ($option) => !empty($option['variation_id']))
+                        ->mapWithKeys(fn ($option) => [(string) $option['variation_id'] => $option['notes'] ?? ''])
+                        ->all();
+                    $stockInstructionMap = $freshKeys
+                        ->mapWithKeys(fn ($key) => [(string) $key->id => $key->variation?->notes ?? ''])
+                        ->all();
                 @endphp
 
                 <section class="card stock-card">
@@ -117,9 +124,11 @@
                                             data-stock-item
                                             data-panel="fresh"
                                             data-product="{{ $key->product->name }}"
+                                            data-variation-id="{{ $key->variation_id }}"
                                             data-key="{{ $key->masked_activation_key }}"
                                             data-activation="{{ $key->original_activation_key }}"
                                             data-remarks=""
+                                            data-instruction="{{ $key->variation?->notes }}"
                                             data-edit-url="{{ route('stock.keys.update', $key) }}"
                                             data-delete-url="{{ route('stock.keys.destroy', $key) }}"
                                             data-stock-id="{{ $key->id }}"
@@ -140,6 +149,17 @@
                                                             <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                             <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                                                         </svg>
+                                                    </button>
+                                                    <span class="copy-inline-feedback"></span>
+                                                    <button
+                                                        type="button"
+                                                        class="cell-action-button cell-action-button--text"
+                                                        data-stock-copy-instruction
+                                                        data-copy-template="{{ $key->variation?->notes }}"
+                                                        data-copy-code="{{ $key->original_activation_key }}"
+                                                        aria-label="Copy instruction and activation key"
+                                                    >
+                                                        Copy Instruction + Code
                                                     </button>
                                                     <span class="copy-inline-feedback"></span>
                                                 </div>
@@ -209,6 +229,7 @@
                                             data-stock-item
                                             data-panel="viewed"
                                             data-product="{{ $key->product->name }}"
+                                            data-variation-id="{{ $key->variation_id }}"
                                             data-key="{{ $key->activation_key }}"
                                             data-activation="{{ $key->activation_key }}"
                                             data-viewer="{{ $key->viewedBy?->name }}"

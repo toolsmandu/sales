@@ -10,8 +10,66 @@
         gap: 1rem;
     }
 
+    .stock-form-layout {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: minmax(0, 520px) minmax(0, 360px);
+        align-items: start;
+    }
+
+    @media (max-width: 960px) {
+        .stock-form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .stock-form .form-grid {
-        max-width: 520px;
+        width: 100%;
+    }
+
+    .stock-variation-notes {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        background: rgba(248, 250, 252, 0.82);
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .stock-variation-notes header {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .stock-variation-notes__empty {
+        font-size: 0.9rem;
+        color: rgba(15, 23, 42, 0.6);
+        padding: 0.5rem 0.25rem;
+    }
+
+    .stock-variation-notes__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .stock-variation-notes__status {
+        font-size: 0.85rem;
+        color: rgba(15, 23, 42, 0.6);
+    }
+
+    .ghost-button--danger {
+        border-color: rgba(220, 38, 38, 0.55);
+        background: rgba(239, 68, 68, 0.12);
+        color: #b91c1c;
+    }
+
+    .ghost-button--danger:hover,
+    .ghost-button--danger:focus-visible {
+        border-color: rgba(185, 28, 28, 0.9);
+        background: rgba(239, 68, 68, 0.22);
+        color: #7f1d1d;
     }
 
     .input.date {
@@ -135,6 +193,13 @@
         flex-wrap: nowrap;
     }
 
+    .cell-action-button--text {
+        line-height: 1.1;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
     .stock-item__value {
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
         font-size: 0.95rem;
@@ -146,6 +211,7 @@
         font-size: 0.8rem;
         color: rgba(15, 23, 42, 0.55);
     }
+
 
     .stock-item__actions {
         display: inline-flex;

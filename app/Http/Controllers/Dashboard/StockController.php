@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockKey;
 use App\Models\StockKeyView;
+use App\Models\ProductVariation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,10 +21,10 @@ class StockController extends Controller
     public function index(Request $request): View
     {
         $freshKeys = StockKey::query()
-            ->with(['product:id,name'])
+            ->with(['product:id,name', 'variation:id,notes'])
             ->fresh()
             ->latest('created_at')
-            ->get(['id', 'product_id', 'activation_key', 'view_limit', 'view_count', 'created_at'])
+            ->get(['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at'])
             ->map(function (StockKey $key): StockKey {
                 $activationKey = (string) $key->activation_key;
                 $visible = substr($activationKey, 0, 5);
@@ -38,12 +39,13 @@ class StockController extends Controller
         $viewedKeys = StockKey::query()
             ->with([
                 'product:id,name',
+                'variation:id,notes',
                 'viewedBy:id,name',
                 'viewLogs' => fn ($q) => $q->with(['viewer:id,name'])->orderByDesc('viewed_at'),
             ])
             ->viewed()
             ->latest('viewed_at')
-            ->get(['id', 'product_id', 'activation_key', 'view_limit', 'view_count', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
+            ->get(['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
 
         $products = Product::query()
             ->with(['variations' => fn ($query) => $query->orderBy('name')])
@@ -77,6 +79,7 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
+            'variation_id' => ['nullable', 'integer', 'exists:product_variations,id'],
             'keys' => ['required', 'string'],
             'view_limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
         ]);
@@ -93,6 +96,16 @@ class StockController extends Controller
 
         $uniqueKeys = $keys->unique()->values();
         $viewLimit = (int) ($data['view_limit'] ?? 1);
+        $variationId = array_key_exists('variation_id', $data) ? (int) $data['variation_id'] : null;
+
+        if ($variationId) {
+            $variation = ProductVariation::query()->select('id', 'product_id')->find($variationId);
+            if (!$variation || $variation->product_id !== (int) $data['product_id']) {
+                throw ValidationException::withMessages([
+                    'variation_id' => 'The selected variation does not match the product.',
+                ]);
+            }
+        }
 
         $existingKeys = StockKey::query()
             ->pluck('activation_key')
@@ -128,6 +141,7 @@ class StockController extends Controller
 
             $payload[] = [
                 'product_id' => (int) $data['product_id'],
+                'variation_id' => $variationId ?: null,
                 'activation_key' => Crypt::encryptString($key),
                 'view_limit' => $viewLimit,
                 'view_count' => 0,
@@ -310,6 +324,27 @@ class StockController extends Controller
         ]);
     }
 
+    public function updateVariationNotes(Request $request, ProductVariation $variation): JsonResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $notes = array_key_exists('notes', $data) ? trim((string) $data['notes']) : null;
+
+        if ($notes === '') {
+            $notes = null;
+        }
+
+        $variation->notes = $notes;
+        $variation->save();
+
+        return response()->json([
+            'message' => 'Variation notes updated.',
+            'notes' => $variation->notes,
+        ]);
+    }
+
     /**
      * Build a flattened list of products with variation labels for selectors.
      */
@@ -324,6 +359,8 @@ class StockController extends Controller
                     $options[] = [
                         'id' => $product->id,
                         'label' => $baseName,
+                        'variation_id' => null,
+                        'notes' => null,
                     ];
                 }
 
@@ -336,6 +373,8 @@ class StockController extends Controller
                     $options[] = [
                         'id' => $product->id,
                         'label' => $baseName !== '' ? "{$baseName} - {$variationName}" : $variationName,
+                        'variation_id' => $variation->id,
+                        'notes' => $variation->notes,
                     ];
                 }
 

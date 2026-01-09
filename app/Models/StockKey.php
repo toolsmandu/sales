@@ -14,6 +14,7 @@ class StockKey extends Model
 {
     protected $fillable = [
         'product_id',
+        'variation_id',
         'activation_key',
         'view_limit',
         'view_count',
@@ -30,6 +31,11 @@ class StockKey extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variation(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariation::class, 'variation_id');
     }
 
     public function viewLogs(): HasMany

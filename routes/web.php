@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
     Route::get('/stock/keys/create', [StockController::class, 'createKeys'])->name('stock.keys.create');
     Route::post('/stock/keys', [StockController::class, 'store'])->name('stock.keys.store');
+    Route::put('/stock/variations/{variation}/notes', [StockController::class, 'updateVariationNotes'])->name('stock.variations.notes.update');
     Route::post('/stock/keys/{stockKey}/reveal', [StockController::class, 'reveal'])->name('stock.keys.reveal');
     Route::put('/stock/keys/{stockKey}', [StockController::class, 'update'])->name('stock.keys.update');
     Route::delete('/stock/keys/{stockKey}', [StockController::class, 'destroy'])->name('stock.keys.destroy');

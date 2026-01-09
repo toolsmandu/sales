@@ -6,6 +6,8 @@
             return;
         }
 
+        const variationNotesMap = @json($variationNotesMap ?? []);
+        const stockInstructionMap = @json($stockInstructionMap ?? []);
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
         const searchInput = document.getElementById('stock-search');
         const searchCombobox = document.querySelector('[data-stock-search]');
@@ -173,6 +175,28 @@
         searchInput?.addEventListener('input', filterItems);
         searchCombobox?.addEventListener('product-combobox:select', filterItems);
 
+        const handleCopy = async (button, text) => {
+            const feedback = button.nextElementSibling && button.nextElementSibling.classList.contains('copy-inline-feedback')
+                ? button.nextElementSibling
+                : null;
+            const setFeedback = (message) => {
+                if (!feedback) return;
+                feedback.textContent = message;
+                window.clearTimeout(button._copyTimeout);
+                button._copyTimeout = window.setTimeout(() => {
+                    feedback.textContent = '';
+                }, 1500);
+            };
+
+            try {
+                await navigator.clipboard.writeText(text);
+                setFeedback('Copied');
+            } catch (error) {
+                console.warn('Unable to copy text', error);
+                setFeedback('Copy failed');
+            }
+        };
+
         stockRoot.addEventListener('click', (event) => {
             const copyButton = event.target.closest('[data-stock-copy]');
             if (copyButton) {
@@ -181,27 +205,31 @@
                 if (!activation) {
                     return;
                 }
-                const feedback = copyButton.nextElementSibling && copyButton.nextElementSibling.classList.contains('copy-inline-feedback')
-                    ? copyButton.nextElementSibling
-                    : null;
-                const setFeedback = (text) => {
-                    if (!feedback) return;
-                    feedback.textContent = text;
-                    window.clearTimeout(copyButton._copyTimeout);
-                    copyButton._copyTimeout = window.setTimeout(() => {
-                        feedback.textContent = '';
-                    }, 1500);
-                };
-                const doCopy = async () => {
-                    try {
-                        await navigator.clipboard.writeText(activation);
-                        setFeedback('Copied');
-                    } catch (error) {
-                        console.warn('Unable to copy key', error);
-                        setFeedback('Copy failed');
-                    }
-                };
-                doCopy();
+                handleCopy(copyButton, activation);
+                return;
+            }
+
+            const instructionButton = event.target.closest('[data-stock-copy-instruction]');
+            if (instructionButton) {
+                const item = instructionButton.closest('[data-stock-item]');
+                const code = instructionButton.dataset.copyCode || item?.dataset.activation || '';
+                if (!code) {
+                    return;
+                }
+                const template = instructionButton.dataset.copyTemplate || '';
+                const mapInstruction = item?.dataset.stockId
+                    ? (stockInstructionMap[item.dataset.stockId] ?? '')
+                    : '';
+                const fallbackInstruction = item?.dataset.variationId
+                    ? (variationNotesMap[item.dataset.variationId] ?? '')
+                    : '';
+                const activeInstruction = template.trim() !== ''
+                    ? template
+                    : (mapInstruction.trim() !== '' ? mapInstruction : fallbackInstruction);
+                const text = activeInstruction.trim() === ''
+                    ? code
+                    : activeInstruction.replaceAll('{key}', code);
+                handleCopy(instructionButton, text);
                 return;
             }
 
