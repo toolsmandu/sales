@@ -193,7 +193,8 @@
         flex-wrap: nowrap;
     }
 
-    .stock-item:not(.stock-item--revealed) [data-stock-copy-instruction] {
+    .stock-item:not(.stock-item--revealed) [data-stock-copy-instruction],
+    .stock-item:not(.stock-item--revealed) [data-stock-copy] {
         display: none;
     }
 
