@@ -487,8 +487,10 @@
                 const remarksResponse = payload.remarks ?? remarksValue;
                 const viewCount = payload.view_count ?? null;
                 const viewLimit = payload.view_limit ?? null;
-                const viewedAt = payload.viewed_at ?? null;
                 const viewLogs = Array.isArray(payload.view_logs) ? payload.view_logs : [];
+                const reachedLimit = viewLimit !== null && viewCount !== null
+                    ? Number(viewCount) >= Number(viewLimit)
+                    : false;
 
                 item.dataset.key = revealedKey;
                 item.dataset.activation = revealedKey;
@@ -515,21 +517,17 @@
 
                 item.classList.add('stock-item--revealed');
 
-                if (viewedAt) {
-                    // Move to viewed list when limit is reached.
-                    item.dataset.panel = 'viewed';
+                const timestampBlocks = item.querySelectorAll('.stock-item__timestamp');
+                if (timestampBlocks.length > 0 && viewLimit !== null && viewCount !== null) {
+                    const remainingViews = Math.max(Number(viewLimit) - Number(viewCount), 0);
+                    const limitElement = timestampBlocks[timestampBlocks.length - 1];
+                    limitElement.textContent = `Stock Limit: ${remainingViews} / ${viewLimit}`;
+                }
+
+                if (reachedLimit) {
+                    // Keep item in fresh list until the page is refreshed, but disable further reveals.
                     const revealAction = item.querySelector('[data-stock-reveal]');
                     revealAction?.remove();
-
-                    if (freshList && viewedList) {
-                        item.remove();
-                        viewedList.prepend(item);
-                    }
-                    if (timestampElement && payload.viewed_at) {
-                        const viewerLabel = payload.viewer?.name ?? '—';
-                        const remarksDisplay = remarksResponse || '—';
-                        timestampElement.textContent = `Viewed on: ${formatDateTime(payload.viewed_at)} | Viewed by: ${viewerLabel} | Remarks: ${remarksDisplay}`;
-                    }
 
                     // Render view history if available.
                     if (viewLogs.length > 0) {

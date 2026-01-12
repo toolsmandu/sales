@@ -107,6 +107,7 @@
             <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
             <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
             <option value="refunded" @selected(($filters['status'] ?? '') === 'refunded')>Refunded</option>
+            <option value="cancelled" @selected(($filters['status'] ?? '') === 'cancelled')>Cancelled</option>
         </select>
     </label>
 
@@ -377,6 +378,7 @@
                         $statusLabel = match ($status) {
                             'completed' => 'Completed',
                             'refunded' => 'Refunded',
+                            'cancelled' => 'Cancelled',
                             default => 'Pending',
                         };
                     @endphp
@@ -387,6 +389,7 @@
                             $statusIcon = match ($status) {
                                 'completed' => '☑️',
                                 'refunded' => '♻',
+                                'cancelled' => '✖️',
                                 default => '⌛',
                             };
                         @endphp

@@ -96,7 +96,7 @@ class SaleController extends Controller
             $salesQuery->where('product_name', 'like', '%' . $filters['product_name'] . '%');
         }
 
-        if ($filters['status'] !== '' && in_array($filters['status'], ['pending', 'completed', 'refunded'], true)) {
+        if ($filters['status'] !== '' && in_array($filters['status'], ['pending', 'completed', 'refunded', 'cancelled'], true)) {
             $salesQuery->where('status', $filters['status']);
         }
 
@@ -251,6 +251,10 @@ class SaleController extends Controller
         });
 
         $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch, $startsWithTm, $isEmailSearch) {
+            $status = strtolower((string) ($sale->status ?? ''));
+            if ($status === 'cancelled' || $status === 'refunded') {
+                return false;
+            }
             // Apply search across serial, email, and phone (normalized digits) before paging.
             if ($normalizedSearch !== null) {
                 $serialMatch = mb_strtolower(trim((string) $sale->serial_number)) === $normalizedSearch;
@@ -733,7 +737,7 @@ class SaleController extends Controller
                 },
             ],
             'product_expiry_days' => ['nullable', 'integer', 'min:0'],
-            'status' => ['nullable', 'string', Rule::in(['completed', 'refunded', 'pending'])],
+            'status' => ['nullable', 'string', Rule::in(['completed', 'refunded', 'pending', 'cancelled'])],
         ]);
 
         $hasAmount = array_key_exists('sales_amount', $data) && $data['sales_amount'] !== null && $data['sales_amount'] !== '';

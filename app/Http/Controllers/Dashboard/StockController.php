@@ -24,8 +24,8 @@ class StockController extends Controller
             ->with(['product:id,name', 'variation:id,notes'])
             ->fresh()
             ->latest('created_at')
-            ->get(['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at'])
-            ->map(function (StockKey $key): StockKey {
+            ->paginate(25, ['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at'], 'fresh_page')
+            ->through(function (StockKey $key): StockKey {
                 $activationKey = (string) $key->activation_key;
                 $visible = substr($activationKey, 0, 5);
                 $masked = $visible . str_repeat('*', max(strlen($activationKey) - 5, 0));
@@ -45,7 +45,7 @@ class StockController extends Controller
             ])
             ->viewed()
             ->latest('viewed_at')
-            ->get(['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks']);
+            ->paginate(25, ['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at', 'viewed_at', 'viewed_by_user_id', 'viewed_remarks'], 'viewed_page');
 
         $products = Product::query()
             ->with(['variations' => fn ($query) => $query->orderBy('name')])

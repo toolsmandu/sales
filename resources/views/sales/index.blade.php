@@ -987,6 +987,7 @@
                             <select id="edit-sales-status" name="status">
                                 <option value="completed" @selected($editStatusValue === 'completed')>Completed</option>
                                 <option value="refunded" @selected($editStatusValue === 'refunded')>Refunded</option>
+                                <option value="cancelled" @selected($editStatusValue === 'cancelled')>Cancelled</option>
                             </select>
                         </label>
 

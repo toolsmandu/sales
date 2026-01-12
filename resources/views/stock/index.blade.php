@@ -34,7 +34,7 @@
                         ->filter(fn ($option) => !empty($option['variation_id']))
                         ->mapWithKeys(fn ($option) => [(string) $option['variation_id'] => $option['notes'] ?? ''])
                         ->all();
-                    $stockInstructionMap = $freshKeys
+                    $stockInstructionMap = $freshKeys->getCollection()
                         ->mapWithKeys(fn ($key) => [(string) $key->id => $key->variation?->notes ?? ''])
                         ->all();
                 @endphp
@@ -91,7 +91,7 @@
                             tabindex="0"
                         >
                             Fresh Keys
-                            <span class="stock-tab__count" data-stock-count="fresh">{{ $freshKeys->count() }}</span>
+                            <span class="stock-tab__count" data-stock-count="fresh">{{ $freshKeys->total() }}</span>
                         </button>
                         <button
                             type="button"
@@ -104,7 +104,7 @@
                             tabindex="-1"
                         >
                             Viewed Keys
-                            <span class="stock-tab__count" data-stock-count="viewed">{{ $viewedKeys->count() }}</span>
+                            <span class="stock-tab__count" data-stock-count="viewed">{{ $viewedKeys->total() }}</span>
                         </button>
                     </div>
 
@@ -203,12 +203,17 @@
                                     @endforeach
                                 @endif
                             </ul>
+                            @if ($freshKeys->hasPages())
+                                <nav class="stock-pagination">
+                                    {{ $freshKeys->onEachSide(1)->links() }}
+                                </nav>
+                            @endif
 
                             <p
                                 id="fresh-empty"
                                 class="stock-empty"
                                 data-stock-empty
-                                @if ($freshKeys->isNotEmpty()) hidden @endif
+                                @if ($freshKeys->total() > 0) hidden @endif
                             >
                                 No fresh keys available. Add new keys to see them here.
                             </p>
@@ -309,12 +314,17 @@
                                     @endforeach
                                 @endif
                             </ul>
+                            @if ($viewedKeys->hasPages())
+                                <nav class="stock-pagination">
+                                    {{ $viewedKeys->onEachSide(1)->links() }}
+                                </nav>
+                            @endif
 
                             <p
                                 id="viewed-empty"
                                 class="stock-empty"
                                 data-stock-empty
-                                @if ($viewedKeys->isNotEmpty()) hidden @endif
+                                @if ($viewedKeys->total() > 0) hidden @endif
                             >
                                 No keys have been viewed yet.
                             </p>
