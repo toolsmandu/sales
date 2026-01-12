@@ -1,16 +1,20 @@
-@extends('layouts.app')
+@extends(($embed ?? false) ? 'layouts.iframe' : 'layouts.app')
 
 @push('styles')
-    @include('partials.dashboard-styles')
+    @if (!($embed ?? false))
+        @include('partials.dashboard-styles')
+    @endif
     @include('chatbot.partials.styles')
     @include('partials.product-combobox-styles')
 @endpush
 
 @section('content')
-    <div class="dashboard-grid">
-        @include('partials.dashboard-sidebar')
+    <div class="{{ ($embed ?? false) ? 'chatbot-embed' : 'dashboard-grid' }}">
+        @if (!($embed ?? false))
+            @include('partials.dashboard-sidebar')
+        @endif
 
-        <section class="dashboard-content">
+        <section class="{{ ($embed ?? false) ? '' : 'dashboard-content' }}">
             <div class="chatbot-grid">
                 <section class="card chatbot-simulator">
                     <header>
@@ -121,40 +125,28 @@
                             @elseif ($selectedProduct)
                                 You’re chatting about {{ $selectedProduct->name }}.
                             @else
-                                Search and pick a product to begin, then start chatting below.
                             @endif
                         </p>
                     </div>
 
-                    <div class="chatbot-interface" data-chat-interface {{ $selectedProductId > 0 ? '' : 'hidden' }}>
-                        <div class="chatbot-window" role="log" aria-live="polite" data-chat-window>
-                            <div class="chatbot-placeholder" data-chat-placeholder>
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                    <path d="M12 3c4.97 0 9 3.582 9 8 0 3.636-2.88 6.676-6.84 7.692-.207.053-.395.185-.5.362l-1.09 1.856a.5.5 0 0 1-.86-.022l-.915-1.68a.7.7 0 0 0-.462-.337C7.02 18.539 3 15.538 3 11c0-4.418 4.03-8 9-8Z" stroke="currentColor" stroke-width="1.4" />
-                                    <path d="M8 11h8M8 7h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                                </svg>
-                                <div>Select a product and start your conversation.</div>
-                            </div>
+                    <div  data-chat-interface {{ $selectedProductId > 0 ? '' : 'hidden' }}>
+                        <div  data-chat-window>
                         </div>
 
                         <form method="GET" action="{{ route('chatbot.start') }}" class="chatbot-input" id="chatbot-simulator-form">
                             <div class="chatbot-input__toolbar">
                                 <div class="chatbot-input__field">
                                     <label for="chatbot-term">
-                                        Ask the assistant <i>(Type "all" to list all topics.)</i>
+
                                         <textarea
                                             id="chatbot-term"
                                             name="term"
                                             rows="3"
-                                            placeholder="Type question here..."
+                                            placeholder="You can use commands all to list all topics and reset to clear chats."
                                             autocomplete="on"
                                         ></textarea>
                                     </label>
                                 </div>
-                            </div>
-
-                            <div class="chatbot-input__actions">
-                                <button type="submit" id="chatbot-send-button" disabled>Send</button>
                             </div>
                         </form>
                     </div>
@@ -377,50 +369,36 @@
 
                 const avatar = document.createElement('span');
                 avatar.className = 'chatbot-message__avatar';
-                avatar.textContent = message.role === 'user' ? 'You' : 'AI';
+                if (message.role === 'assistant') {
+                    avatar.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M11 3a1 1 0 1 1 2 0v1h2a3 3 0 0 1 3 3v2h1a1 1 0 1 1 0 2h-1v4a3 3 0 0 1-3 3h-7a3 3 0 0 1-3-3v-4H4a1 1 0 1 1 0-2h1V7a3 3 0 0 1 3-3h3V3zm-3 5a1.5 1.5 0 0 0-1.5 1.5v4a2.5 2.5 0 0 0 2.5 2.5h7a2.5 2.5 0 0 0 2.5-2.5v-4A1.5 1.5 0 0 0 16 8H8zm1.25 3a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zm5.5 0a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM9 19a1 1 0 0 0-1 1v1a1 1 0 1 0 2 0v-1a1 1 0 0 0-1-1zm6 0a1 1 0 0 0-1 1v1a1 1 0 1 0 2 0v-1a1 1 0 0 0-1-1z"/></svg>';
+                } else {
+                    avatar.textContent = 'You';
+                }
 
                 const bubble = document.createElement('div');
                 bubble.className = 'chatbot-message__bubble';
-
-                const meta = document.createElement('div');
-                meta.className = 'chatbot-message__meta';
-
-                if (message.role === 'user' && message.product_tag) {
-                    const tag = document.createElement('span');
-                    tag.className = 'chatbot-message__tag';
-                    tag.textContent = message.product_tag;
-                    meta.appendChild(tag);
-                } else if (message.role === 'assistant') {
-                    const name = document.createElement('strong');
-                    name.textContent = 'Assistant';
-                    meta.appendChild(name);
-                }
-
-                const time = document.createElement('span');
-                time.textContent = formatTimestamp(message.timestamp || new Date().toISOString());
-                meta.appendChild(time);
-
-                bubble.appendChild(meta);
 
                 let hasCustomContent = false;
                 if (message.type === 'question-list' && Array.isArray(message.options) && message.options.length > 0) {
                     if (message.content) {
                         const intro = document.createElement('div');
-                        intro.className = 'chatbot-message__content';
+                        intro.className = 'chatbot-message__content chatbot-message__content--emphasis';
                         intro.textContent = message.content;
                         bubble.appendChild(intro);
                     }
 
-                    const optionsWrapper = document.createElement('div');
-                    optionsWrapper.className = 'chatbot-message__options';
+                    const optionsWrapper = document.createElement('ul');
+                    optionsWrapper.className = 'chatbot-message__simple-list';
 
                     message.options.forEach((option) => {
+                        const item = document.createElement('li');
                         const button = document.createElement('button');
                         button.type = 'button';
-                        button.className = 'chatbot-message__option';
+                        button.className = 'chatbot-message__simple-link';
                         button.textContent = option.question;
                         button.addEventListener('click', () => handleQuestionSelection(option));
-                        optionsWrapper.appendChild(button);
+                        item.appendChild(button);
+                        optionsWrapper.appendChild(item);
                     });
 
                     bubble.appendChild(optionsWrapper);
@@ -435,7 +413,7 @@
                     }
 
                     const optionsWrapper = document.createElement('div');
-                    optionsWrapper.className = 'chatbot-message__options';
+                    optionsWrapper.className = 'chatbot-message__options chatbot-message__options--split';
 
                     message.options.forEach((option) => {
                         const button = document.createElement('button');
@@ -601,9 +579,13 @@
                 messageInput.addEventListener('keydown', (event) => {
                     if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
-                        if (form && !sendButton?.disabled) {
+                        if (form) {
+                            const isBlocked = !state.productId || state.busy || messageInput.value.trim() === '';
+                            if (isBlocked) {
+                                return;
+                            }
                             if (typeof form.requestSubmit === 'function') {
-                                form.requestSubmit(sendButton || null);
+                                form.requestSubmit();
                             } else {
                                 form.submit();
                             }
@@ -625,6 +607,15 @@
 
                 const question = messageInput.value.trim();
                 if (question === '') {
+                    updateSendState();
+                    return;
+                }
+
+                if (question.toLowerCase() === 'reset') {
+                    messageInput.value = '';
+                    resetConversation();
+                    clearProductSelection();
+                    updateInterfaceVisibility();
                     updateSendState();
                     return;
                 }

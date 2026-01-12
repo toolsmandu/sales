@@ -132,6 +132,7 @@ class ChatbotController extends Controller
             'selectedProductId' => $selectedProductId,
             'searchTerm' => $searchTerm,
             'chatbotResults' => $chatbotResults,
+            'embed' => $request->boolean('embed'),
         ]);
     }
 

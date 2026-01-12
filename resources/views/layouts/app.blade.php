@@ -469,6 +469,66 @@
                 font-size: 0.8rem;
                 color: rgba(15, 23, 42, 0.65);
             }
+
+            .chatbot-fab {
+                position: fixed;
+                right: 1.25rem;
+                bottom: 1.25rem;
+                z-index: 50;
+                width: 3.1rem;
+                height: 3.1rem;
+                border-radius: 50%;
+                border: none;
+                background: #0f172a;
+                color: #fff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+                cursor: pointer;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            .chatbot-fab:hover,
+            .chatbot-fab:focus-visible {
+                transform: translateY(-2px);
+                box-shadow: 0 16px 32px rgba(15, 23, 42, 0.28);
+                outline: none;
+            }
+
+            .chatbot-panel {
+                position: fixed;
+                right: 1.25rem;
+                bottom: 5.1rem;
+                width: min(420px, calc(100vw - 2.5rem));
+                height: min(70vh, 640px);
+                background: #fff;
+                border-radius: 16px;
+                box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
+                border: 1px solid rgba(15, 23, 42, 0.1);
+                overflow: hidden;
+                display: none;
+                z-index: 50;
+            }
+
+            .chatbot-panel.is-open {
+                display: block;
+            }
+
+            .chatbot-panel__frame {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+
+            @media (max-width: 768px) {
+                .chatbot-panel {
+                    right: 0.75rem;
+                    left: 0.75rem;
+                    width: auto;
+                    bottom: 5rem;
+                }
+            }
         </style>
 
         @stack('styles')
@@ -691,6 +751,15 @@
         </header>
         @endunless
 
+        @auth
+            <button type="button" class="chatbot-fab" id="chatbot-fab" aria-label="Open chatbot" aria-expanded="false" aria-controls="chatbot-panel">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M352 0c0-17.7-14.3-32-32-32S288-17.7 288 0l0 64-96 0c-53 0-96 43-96 96l0 224c0 53 43 96 96 96l256 0c53 0 96-43 96-96l0-224c0-53-43-96-96-96l-96 0 0-64zM160 368c0-13.3 10.7-24 24-24l32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0c-13.3 0-24-10.7-24-24zm120 0c0-13.3 10.7-24 24-24l32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0c-13.3 0-24-10.7-24-24zm120 0c0-13.3 10.7-24 24-24l32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0c-13.3 0-24-10.7-24-24zM224 176a48 48 0 1 1 0 96 48 48 0 1 1 0-96zm144 48a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zM64 224c0-17.7-14.3-32-32-32S0 206.3 0 224l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96zm544-32c-17.7 0-32 14.3-32 32l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32z"/></svg>
+            </button>
+            <section class="chatbot-panel" id="chatbot-panel" role="dialog" aria-label="Chatbot">
+                <iframe class="chatbot-panel__frame" src="{{ url('/chatbot?embed=1') }}" title="Chatbot"></iframe>
+            </section>
+        @endauth
+
         <main class="app-main">
             @if (session('status'))
                 <article role="alert">
@@ -872,6 +941,31 @@
                         });
                     }
                 }
+            });
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const fab = document.getElementById('chatbot-fab');
+                const panel = document.getElementById('chatbot-panel');
+                if (!fab || !panel) {
+                    return;
+                }
+
+                const togglePanel = (open) => {
+                    panel.classList.toggle('is-open', open);
+                    fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+                };
+
+                fab.addEventListener('click', () => {
+                    const isOpen = panel.classList.contains('is-open');
+                    togglePanel(!isOpen);
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && panel.classList.contains('is-open')) {
+                        togglePanel(false);
+                    }
+                });
             });
         </script>
 
