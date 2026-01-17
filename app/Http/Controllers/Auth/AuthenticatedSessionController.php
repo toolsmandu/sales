@@ -5,35 +5,29 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
      * Display the login form.
      */
-    public function create(): Response
+    public function create(): View
     {
-        return response()
-            ->view('auth.login')
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-            ->header('Pragma', 'no-cache');
+        return view('auth.login');
     }
 
     /**
      * Allow admins to preview the login page without signing out.
      */
-    public function preview(Request $request): Response
+    public function preview(Request $request): View
     {
         abort_unless(($request->user()->role ?? null) === 'admin', 403);
 
-        return response()
-            ->view('auth.login', [
-                'isLoginPreview' => true,
-            ])
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-            ->header('Pragma', 'no-cache');
+        return view('auth.login', [
+            'isLoginPreview' => true,
+        ]);
     }
 
     /**
