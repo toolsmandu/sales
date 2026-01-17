@@ -2,6 +2,17 @@
 
 use Illuminate\Support\Str;
 
+$sessionDomain = env('SESSION_DOMAIN');
+if (is_string($sessionDomain)) {
+    $normalizedDomain = trim($sessionDomain);
+    if ($normalizedDomain === '' || strtolower($normalizedDomain) === 'null') {
+        $sessionDomain = null;
+    } else {
+        $host = parse_url($normalizedDomain, PHP_URL_HOST);
+        $sessionDomain = $host ?: $normalizedDomain;
+    }
+}
+
 return [
 
     /*
@@ -156,7 +167,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => $sessionDomain,
 
     /*
     |--------------------------------------------------------------------------
