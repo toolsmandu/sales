@@ -1260,12 +1260,14 @@
             const addPhoneInput = document.getElementById('sales-phone');
             const addEmailInput = document.getElementById('sales-email');
             const addEmailDefaultPlaceholder = addEmailInput?.getAttribute('placeholder') || 'Email address';
+            const emailLookupUrl = '{{ route('orders.lookup-email') }}';
             const remarksToggle = document.getElementById('sales-remarks-toggle');
             const remarksInput = document.getElementById('sales-remarks');
+            const normalizePhone = (value) => (value || '').replace(/\D+/g, '');
             const collectPhoneEmailMap = () => {
                 const map = new Map();
                 document.querySelectorAll('#orders-table tbody tr').forEach((row) => {
-                    const phone = (row.dataset.phone || '').replace(/\D+/g, '');
+                    const phone = normalizePhone(row.dataset.phone || '');
                     const email = (row.dataset.email || '').trim();
                     if (phone && email && !map.has(phone)) {
                         map.set(phone, email);
@@ -1274,26 +1276,69 @@
                 return map;
             };
             const phoneEmailMap = collectPhoneEmailMap();
-            const autofillEmail = () => {
+            let emailLookupTimer = null;
+            let emailLookupToken = 0;
+            const autofillEmail = async () => {
                 if (!addPhoneInput || !addEmailInput) return;
-                const digits = (addPhoneInput.value || '').replace(/\D+/g, '');
+                const digits = normalizePhone(addPhoneInput.value || '');
                 addEmailInput.setAttribute('placeholder', addEmailDefaultPlaceholder);
                 if (!digits) return;
                 const isEmailEmpty = addEmailInput.value.trim() === '';
+                if (!isEmailEmpty) return;
                 const foundEmail = phoneEmailMap.get(digits);
                 if (foundEmail && isEmailEmpty) {
                     addEmailInput.value = foundEmail;
                     addEmailInput.dispatchEvent(new Event('input', { bubbles: true }));
                     addEmailInput.setAttribute('placeholder', addEmailDefaultPlaceholder);
-                } else if (isEmailEmpty) {
-                    addEmailInput.setAttribute('placeholder', 'No Matching Records');
+                    return;
+                }
+                const lookupToken = ++emailLookupToken;
+                try {
+                    const response = await fetch(`${emailLookupUrl}?phone=${encodeURIComponent(digits)}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                        },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Lookup failed');
+                    }
+                    const payload = await response.json();
+                    if (lookupToken !== emailLookupToken) return;
+                    if (normalizePhone(addPhoneInput.value || '') !== digits) return;
+                    const email = typeof payload?.email === 'string' ? payload.email.trim() : '';
+                    if (email && addEmailInput.value.trim() === '') {
+                        addEmailInput.value = email;
+                        addEmailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        addEmailInput.setAttribute('placeholder', addEmailDefaultPlaceholder);
+                    } else if (addEmailInput.value.trim() === '') {
+                        addEmailInput.setAttribute('placeholder', 'No Matching Records');
+                    }
+                } catch (error) {
+                    if (lookupToken !== emailLookupToken) return;
+                    if (normalizePhone(addPhoneInput.value || '') !== digits) return;
+                    if (addEmailInput.value.trim() === '') {
+                        addEmailInput.setAttribute('placeholder', 'No Matching Records');
+                    }
                 }
             };
-            addPhoneInput?.addEventListener('blur', autofillEmail);
-            addPhoneInput?.addEventListener('change', autofillEmail);
+            const scheduleAutofill = () => {
+                if (emailLookupTimer) {
+                    window.clearTimeout(emailLookupTimer);
+                }
+                emailLookupTimer = window.setTimeout(() => {
+                    void autofillEmail();
+                }, 250);
+            };
+            addPhoneInput?.addEventListener('input', scheduleAutofill);
+            addPhoneInput?.addEventListener('blur', () => {
+                void autofillEmail();
+            });
+            addPhoneInput?.addEventListener('change', () => {
+                void autofillEmail();
+            });
             addPhoneInput?.addEventListener('keyup', (event) => {
                 if (event.key === 'Enter') {
-                    autofillEmail();
+                    void autofillEmail();
                 }
             });
 

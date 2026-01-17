@@ -376,6 +376,29 @@ class SaleController extends Controller
         ]);
     }
 
+    public function lookupEmail(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:50'],
+        ]);
+
+        $normalizedPhone = preg_replace('/\D+/', '', $data['phone']);
+        $email = null;
+
+        if ($normalizedPhone !== '') {
+            $email = Sale::query()
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->whereRaw("REGEXP_REPLACE(phone, '[^0-9]+', '') = ?", [$normalizedPhone])
+                ->orderByDesc('created_at')
+                ->value('email');
+        }
+
+        return response()->json([
+            'email' => $email ? trim((string) $email) : null,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $nowKathmandu = Carbon::now('Asia/Kathmandu');
