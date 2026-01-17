@@ -1264,6 +1264,7 @@
             const remarksToggle = document.getElementById('sales-remarks-toggle');
             const remarksInput = document.getElementById('sales-remarks');
             const normalizePhone = (value) => (value || '').replace(/\D+/g, '');
+            const sanitizePhoneInput = (value) => (value || '').replace(/[()\s-]+/g, '');
             const collectPhoneEmailMap = () => {
                 const map = new Map();
                 document.querySelectorAll('#orders-table tbody tr').forEach((row) => {
@@ -1329,7 +1330,15 @@
                     void autofillEmail();
                 }, 250);
             };
-            addPhoneInput?.addEventListener('input', scheduleAutofill);
+            addPhoneInput?.addEventListener('input', () => {
+                if (addPhoneInput) {
+                    const cleaned = sanitizePhoneInput(addPhoneInput.value || '');
+                    if (addPhoneInput.value !== cleaned) {
+                        addPhoneInput.value = cleaned;
+                    }
+                }
+                scheduleAutofill();
+            });
             addPhoneInput?.addEventListener('blur', () => {
                 void autofillEmail();
             });

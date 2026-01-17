@@ -704,10 +704,19 @@
             const linkCardToggle = document.getElementById('toggle-link-card');
             const linkCardBody = document.getElementById('link-card-body');
 
-            const handleFilterInput = (input, key) => {
+            const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
+            const handleFilterInput = (input, key, sanitize = false) => {
                 if (!input) return;
                 input.addEventListener('input', (event) => {
-                    state[key] = (event.target.value || '').toLowerCase();
+                    let next = event.target.value || '';
+                    if (sanitize) {
+                        const cleaned = sanitizePhoneSearch(next);
+                        if (cleaned !== next) {
+                            event.target.value = cleaned;
+                            next = cleaned;
+                        }
+                    }
+                    state[key] = next.toLowerCase();
                     renderRecords();
                 });
             };
@@ -800,7 +809,7 @@
                 .filter(Boolean)
                 .map(parseCsvLine);
 
-            handleFilterInput(filterPhoneInput, 'phoneFilter');
+            handleFilterInput(filterPhoneInput, 'phoneFilter', true);
             handleFilterInput(filterEmailInput, 'emailFilter');
 
             if (showMoreButton) {

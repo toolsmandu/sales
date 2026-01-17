@@ -1172,12 +1172,22 @@
                 applyRowFilters();
             };
 
-            const bindFilterInput = (input) => {
+            const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
+            const bindFilterInput = (input, sanitize = false) => {
                 if (!input) return;
-                input.addEventListener('input', applyRowFilters);
+                input.addEventListener('input', () => {
+                    if (sanitize) {
+                        const value = input.value || '';
+                        const cleaned = sanitizePhoneSearch(value);
+                        if (cleaned !== value) {
+                            input.value = cleaned;
+                        }
+                    }
+                    applyRowFilters();
+                });
             };
 
-            bindFilterInput(filterPhoneInput);
+            bindFilterInput(filterPhoneInput, true);
             bindFilterInput(filterEmailInput);
 
             if (memberToggleFields && memberForm && memberFieldControls) {

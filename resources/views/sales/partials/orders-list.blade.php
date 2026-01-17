@@ -532,6 +532,14 @@
             if (searchForm && searchInput) {
                 let debounceId;
                 searchInput.addEventListener('input', () => {
+                    const value = searchInput.value || '';
+                    const shouldSanitize = /[0-9]/.test(value) && !value.includes('@') && !value.toLowerCase().startsWith('tm');
+                    if (shouldSanitize) {
+                        const cleaned = value.replace(/[()\s-]+/g, '');
+                        if (cleaned !== value) {
+                            searchInput.value = cleaned;
+                        }
+                    }
                     window.clearTimeout(debounceId);
                     debounceId = window.setTimeout(() => {
                         searchForm.requestSubmit ? searchForm.requestSubmit() : searchForm.submit();
