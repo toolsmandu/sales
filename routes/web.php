@@ -87,8 +87,9 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('sheet.entries.update');
     Route::delete('/sheet/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('sheet.entries.destroy');
     Route::post('/sheet/products/{recordProduct}/import', [RecordController::class, 'importEntries'])->name('sheet.entries.import');
-    Route::get('/family-sheet', [\App\Http\Controllers\FamilySheetController::class, 'index'])->name('family-sheet.index');
-    Route::post('/family-sheet/products', [\App\Http\Controllers\FamilySheetController::class, 'storeProduct'])->name('family-sheet.products.store');
+Route::get('/family-sheet', [\App\Http\Controllers\FamilySheetController::class, 'index'])->name('family-sheet.index');
+Route::post('/family-sheet/import', [\App\Http\Controllers\FamilySheetController::class, 'importCsv'])->name('family-sheet.import');
+Route::post('/family-sheet/products', [\App\Http\Controllers\FamilySheetController::class, 'storeProduct'])->name('family-sheet.products.store');
     Route::post('/family-sheet/products/link', [\App\Http\Controllers\FamilySheetController::class, 'linkProduct'])->name('family-sheet.products.link');
     Route::post('/family-sheet/accounts', [\App\Http\Controllers\FamilySheetController::class, 'storeAccount'])->name('family-sheet.accounts.store');
     Route::put('/family-sheet/accounts/{account}', [\App\Http\Controllers\FamilySheetController::class, 'updateAccount'])->name('family-sheet.accounts.update');

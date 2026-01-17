@@ -203,6 +203,226 @@ class FamilySheetController extends Controller
         return redirect()->route('family-sheet.index')->with('status', 'Family product created.');
     }
 
+    public function importCsv(Request $request)
+    {
+        $data = $request->validate([
+            'family_product_id' => ['required', 'integer', 'exists:family_products,id'],
+            'csv_file' => ['required', 'file', 'mimes:csv,txt'],
+        ]);
+
+        $product = DB::table('family_products')->where('id', $data['family_product_id'])->first();
+        if (!$product) {
+            return redirect()->back()->withErrors(['family_product_id' => 'Family product not found.']);
+        }
+
+        $file = $request->file('csv_file');
+        $lines = file($file->getRealPath(), FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return redirect()->back()->withErrors(['csv_file' => 'Unable to read CSV file.']);
+        }
+
+        $headerIndex = null;
+        $headerLine = null;
+        foreach ($lines as $index => $line) {
+            if (trim((string) $line) === '') {
+                continue;
+            }
+            $headerIndex = $index;
+            $headerLine = $line;
+            break;
+        }
+
+        if ($headerLine === null) {
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file has no header row.']);
+        }
+
+        $delimiter = $this->detectCsvDelimiter($headerLine);
+        $headers = str_getcsv($headerLine, $delimiter);
+        if (empty($headers)) {
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file has no header row.']);
+        }
+
+        $normalizedHeaders = array_map([$this, 'normalizeCsvHeader'], $headers);
+        $headerMap = [];
+        foreach ($normalizedHeaders as $index => $header) {
+            $field = $this->mapCsvHeaderToField($header);
+            if ($field !== null) {
+                $headerMap[$index] = $field;
+            }
+        }
+        $usePositionalMap = empty($headerMap);
+        if ($usePositionalMap) {
+            $headerMap = [
+                0 => 'email',
+                1 => 'phone',
+                2 => 'purchase_date',
+                3 => 'expiry',
+            ];
+        }
+
+        $rows = [];
+        foreach ($lines as $index => $line) {
+            if ($headerIndex !== null && $index <= $headerIndex && !$usePositionalMap) {
+                continue;
+            }
+            if (trim((string) $line) === '') {
+                continue;
+            }
+            $row = str_getcsv($line, $delimiter);
+            if ($this->rowIsEmpty($row)) {
+                continue;
+            }
+            $rows[] = $row;
+        }
+
+        if (empty($rows)) {
+            return redirect()->back()->withErrors(['csv_file' => 'CSV file has no data rows.']);
+        }
+
+        $hasFamilyProductId = Schema::hasColumn('family_accounts', 'family_product_id');
+        $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
+        $hasMemberAccountName = Schema::hasColumn('family_members', 'account_name');
+        $hasMemberProductId = Schema::hasColumn('family_members', 'family_product_id');
+        $hasMemberAccountId = Schema::hasColumn('family_members', 'family_account_id');
+        $linkedProductName = null;
+        if (!empty($product->linked_product_id)) {
+            $linkedProductName = DB::table('products')
+                ->where('id', $product->linked_product_id)
+                ->value('name');
+            $linkedProductName = $linkedProductName !== null ? trim((string) $linkedProductName) : null;
+        }
+
+        $maxIndexQuery = DB::table('family_accounts');
+        if ($hasFamilyProductId) {
+            $maxIndexQuery->where('family_product_id', $product->id);
+        }
+        $nextAccountIndex = (int) ($maxIndexQuery->max('account_index') ?? 0) + 1;
+        $defaultCapacity = $product->default_capacity ?? 5;
+        $groupSize = 6;
+
+        DB::transaction(function () use (
+            $rows,
+            $headerMap,
+            $product,
+            $defaultCapacity,
+            $groupSize,
+            $hasFamilyProductId,
+            $hasMemberProductName,
+            $hasMemberAccountName,
+            $hasMemberProductId,
+            $hasMemberAccountId,
+            $linkedProductName,
+            &$nextAccountIndex
+        ) {
+            $groups = array_chunk($rows, $groupSize);
+            foreach ($groups as $group) {
+                $accountRow = $group[0] ?? null;
+                if (!$accountRow) {
+                    continue;
+                }
+
+                $accountData = $this->extractRowData($accountRow, $headerMap);
+                $accountName = trim((string) ($accountData['email']
+                    ?? $accountData['account_name']
+                    ?? $accountData['family_name']
+                    ?? ''));
+                $accountProduct = $accountData['product'] ?? null;
+
+                if ($accountName === '') {
+                    continue;
+                }
+
+                $accountIndex = $this->parseInteger($accountData['account_index'] ?? null) ?? $nextAccountIndex;
+                $memberRows = array_slice($group, 1);
+                $memberCount = count(array_filter($memberRows, fn ($row) => !$this->rowIsEmpty($row)));
+                $capacity = $this->parseInteger($accountData['capacity'] ?? null) ?? $defaultCapacity;
+                if ($capacity !== null && $memberCount > $capacity) {
+                    $capacity = $memberCount;
+                }
+
+                $accountPayload = [
+                    'family_product_name' => $product->name,
+                    'name' => $accountName,
+                    'capacity' => $capacity,
+                    'account_index' => $accountIndex,
+                    'remarks' => $accountData['remarks'] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+
+                if ($hasFamilyProductId) {
+                    $accountPayload['family_product_id'] = $product->id;
+                }
+
+                $accountId = DB::table('family_accounts')->insertGetId($accountPayload);
+                $nextAccountIndex = max($nextAccountIndex, $accountIndex + 1);
+
+                $account = (object) [
+                    'id' => $accountId,
+                    'name' => $accountName,
+                    'family_product_id' => $product->id,
+                    'family_product_name' => $product->name,
+                    'capacity' => $capacity,
+                ];
+
+                foreach ($memberRows as $memberRow) {
+                    if ($this->rowIsEmpty($memberRow)) {
+                        continue;
+                    }
+
+                    $memberData = $this->extractRowData($memberRow, $headerMap);
+                    if ($this->rowIsEmpty($memberData)) {
+                        continue;
+                    }
+                    if (empty($memberData['product'])) {
+                        $memberData['product'] = $accountProduct ?: $linkedProductName;
+                    }
+
+                    $resolvedExpiry = $this->parseInteger($memberData['expiry'] ?? null)
+                        ?? $this->inferExpiryDays($memberData['product'] ?? null);
+                    $purchaseDate = $this->parseDate($memberData['purchase_date'] ?? null);
+
+                    $payload = $this->encryptSensitiveFields([
+                        'family_name' => $this->resolveFamilyName($account, $memberData),
+                        'email' => $memberData['email'] ?? null,
+                        'password' => $memberData['password'] ?? null,
+                        'order_id' => $memberData['order_id'] ?? null,
+                        'phone' => $memberData['phone'] ?? null,
+                        'product' => $memberData['product'] ?? '',
+                        'sales_amount' => $this->parseInteger($memberData['sales_amount'] ?? null),
+                        'purchase_date' => $purchaseDate,
+                        'expiry' => $resolvedExpiry,
+                        'remaining_days' => $this->parseInteger($memberData['remaining_days'] ?? null)
+                            ?? $this->computeRemainingDays($purchaseDate, $resolvedExpiry),
+                        'remarks' => $memberData['remarks'] ?? null,
+                        'two_factor' => $memberData['two_factor'] ?? null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    if ($hasMemberProductName) {
+                        $payload['family_product_name'] = $account->family_product_name ?? null;
+                    }
+                    if ($hasMemberAccountName) {
+                        $payload['account_name'] = $account->name ?? null;
+                    }
+                    if ($hasMemberProductId) {
+                        $payload['family_product_id'] = $account->family_product_id;
+                    }
+                    if ($hasMemberAccountId) {
+                        $payload['family_account_id'] = $account->id;
+                    }
+
+                    DB::table('family_members')->insert($payload);
+                }
+            }
+        });
+
+        return redirect()
+            ->route('family-sheet.index', ['product_id' => $product->id])
+            ->with('status', 'CSV imported.');
+    }
+
     public function linkProduct(Request $request)
     {
         // Make sure linkage columns exist (in case they were removed).
@@ -559,6 +779,175 @@ class FamilySheetController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function normalizeCsvHeader(string $header): string
+    {
+        $header = strtolower(trim($header));
+        $header = preg_replace('/[^a-z0-9]+/', '_', $header);
+        return trim((string) $header, '_');
+    }
+
+    private function mapCsvHeaderToField(string $header): ?string
+    {
+        $map = [
+            'main_account' => 'account_name',
+            'account' => 'account_name',
+            'account_name' => 'account_name',
+            'family_account' => 'account_name',
+            'family_email' => 'account_name',
+            'main_email' => 'account_name',
+            'account_email' => 'account_name',
+            'email' => 'email',
+            'email_address' => 'email',
+            'emailid' => 'email',
+            'member_email' => 'email',
+            'memberemail' => 'email',
+            'email2' => 'email',
+            'name' => 'family_name',
+            'family_name' => 'family_name',
+            'order' => 'order_id',
+            'order_id' => 'order_id',
+            'orderid' => 'order_id',
+            'phone' => 'phone',
+            'phone_number' => 'phone',
+            'phonenumber' => 'phone',
+            'mobile' => 'phone',
+            'mobile_number' => 'phone',
+            'product' => 'product',
+            'product_name' => 'product',
+            'amount' => 'sales_amount',
+            'sales_amount' => 'sales_amount',
+            'price' => 'sales_amount',
+            'total' => 'sales_amount',
+            'purchase' => 'purchase_date',
+            'purchase_date' => 'purchase_date',
+            'purchasedate' => 'purchase_date',
+            'date_of_purchase' => 'purchase_date',
+            'expiry' => 'expiry',
+            'expiry_days' => 'expiry',
+            'period_days' => 'expiry',
+            'period' => 'expiry',
+            'remaining' => 'remaining_days',
+            'remaining_days' => 'remaining_days',
+            'remarks' => 'remarks',
+            'note' => 'remarks',
+            'two_factor' => 'two_factor',
+            'password' => 'password',
+            'password2' => 'password',
+            'capacity' => 'capacity',
+            'max_members' => 'capacity',
+            'account_index' => 'account_index',
+            'index' => 'account_index',
+        ];
+
+        if (isset($map[$header])) {
+            return $map[$header];
+        }
+
+        if (str_contains($header, 'email')) {
+            return 'email';
+        }
+        if (str_contains($header, 'phone') || str_contains($header, 'mobile')) {
+            return 'phone';
+        }
+        if (str_contains($header, 'purchase')) {
+            return 'purchase_date';
+        }
+        if (str_contains($header, 'period') || str_contains($header, 'expiry')) {
+            return 'expiry';
+        }
+        if (str_contains($header, 'remaining')) {
+            return 'remaining_days';
+        }
+        if (str_contains($header, 'amount') || str_contains($header, 'sales')) {
+            return 'sales_amount';
+        }
+        if (str_contains($header, 'order')) {
+            return 'order_id';
+        }
+        if (str_contains($header, 'account') && str_contains($header, 'name')) {
+            return 'account_name';
+        }
+        if (str_contains($header, 'family') && str_contains($header, 'name')) {
+            return 'family_name';
+        }
+
+        return null;
+    }
+
+    private function extractRowData(array $row, array $headerMap): array
+    {
+        $data = [];
+        foreach ($headerMap as $index => $field) {
+            if (!array_key_exists($index, $row)) {
+                continue;
+            }
+            $value = trim((string) $row[$index]);
+            if ($value === '') {
+                continue;
+            }
+            if (!array_key_exists($field, $data)) {
+                $data[$field] = $value;
+            }
+        }
+
+        return $data;
+    }
+
+    private function rowIsEmpty(array $row): bool
+    {
+        foreach ($row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function parseInteger(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $value = trim((string) $value);
+        if ($value === '' || !is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    private function parseDate(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function detectCsvDelimiter(string $line): string
+    {
+        $delimiters = [',', "\t", ';', '|'];
+        $bestDelimiter = ',';
+        $bestCount = -1;
+
+        foreach ($delimiters as $delimiter) {
+            $count = substr_count($line, $delimiter);
+            if ($count > $bestCount) {
+                $bestCount = $count;
+                $bestDelimiter = $delimiter;
+            }
+        }
+
+        return $bestDelimiter;
     }
 
     private function ensureTables(): void

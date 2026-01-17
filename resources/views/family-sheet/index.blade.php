@@ -566,6 +566,14 @@
                             <input type="search" id="family-filter-email" placeholder="Search email">
                         </label>
                     </div>
+                    <div class="family-inline-row__spacer">
+                        <form method="POST" action="{{ route('family-sheet.import') }}" enctype="multipart/form-data" class="family-inline-row">
+                            @csrf
+                            <input type="hidden" name="family_product_id" value="{{ $selectedProduct->id }}">
+                            <input type="file" name="csv_file" accept=".csv,text/csv" required>
+                            <button type="submit" class="ghost-button">Import CSV</button>
+                        </form>
+                    </div>
                 </div>
                 <div style="margin-bottom: 0.5rem;">
                 </div>
