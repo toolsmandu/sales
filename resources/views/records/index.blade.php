@@ -496,6 +496,7 @@
                             <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
                             <div class="pill" id="records-count">0 Data</div>
                             <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
+                            <button type="button" id="records-export-trigger" class="secondary outline">Export CSV</button>
                             <input type="file" id="records-import-file" accept=".csv" style="display: none;">
                         </div>
                         <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
@@ -577,6 +578,7 @@
                 updateEntry: (productId, entryId) => @json(route('sheet.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
                 deleteEntry: (productId, entryId) => @json(route('sheet.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
                 importEntries: (productId) => @json(route('sheet.entries.import', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                exportEntries: (productId) => @json(route('sheet.entries.export', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
             };
             const siteProducts = @json($siteProducts);
             const siteVariations = @json($variations);
@@ -692,6 +694,7 @@
             const newProductInput = document.getElementById('record-new-product');
             const importFileInput = document.getElementById('records-import-file');
             const importTrigger = document.getElementById('records-import-trigger');
+            const exportTrigger = document.getElementById('records-export-trigger');
             const importModal = document.getElementById('records-import-modal');
             const importClose = document.getElementById('records-import-close');
             const importChoose = document.getElementById('records-import-choose');
@@ -1964,6 +1967,14 @@
 
             importChoose?.addEventListener('click', () => {
                 importFileInput?.click();
+            });
+
+            exportTrigger?.addEventListener('click', () => {
+                if (!state.selectedProductId) {
+                    setStatus('Select a product to export.');
+                    return;
+                }
+                window.location.href = routes.exportEntries(state.selectedProductId);
             });
 
             importFileInput?.addEventListener('change', async () => {

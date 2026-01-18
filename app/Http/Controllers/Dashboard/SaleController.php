@@ -127,6 +127,7 @@ class SaleController extends Controller
             ->withQueryString();
 
         $this->appendFamilySyncStatus($sales);
+        $this->appendSheetSyncStatus($sales);
 
         $productOptions = Product::query()
             ->where('is_in_stock', true)
@@ -431,6 +432,7 @@ class SaleController extends Controller
 
         $createdSale = null;
         $familySyncStatus = null;
+        $sheetSyncStatus = null;
 
         DB::transaction(function () use ($data, $nowKathmandu, $createdBy, &$createdSale) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
@@ -451,7 +453,12 @@ class SaleController extends Controller
             $createdSale = $sale;
         });
 
-        if ($familyContext && !$familyContext['full'] && $familyContext['account']) {
+        if (
+            $familyContext
+            && !$familyContext['full']
+            && $familyContext['account']
+            && ! $this->isCancelledOrRefunded($data['status'] ?? null)
+        ) {
             try {
                 $synced = $this->createFamilyMemberFromSale(
                     $familyContext['account'],
@@ -473,11 +480,19 @@ class SaleController extends Controller
             }
         }
 
-        if ($createdSale) {
+        if ($createdSale && ! $this->isCancelledOrRefunded($createdSale->status ?? null)) {
+            $recordLinked = false;
             try {
                 $this->ensureRecordLinkColumns();
-                $this->createRecordEntryFromSale($createdSale);
+                $recordLinked = $this->findRecordProductForSale($createdSale->product_name) !== null;
+                if ($recordLinked) {
+                    $this->createRecordEntryFromSale($createdSale);
+                    $sheetSyncStatus = 'sync_active';
+                }
             } catch (\Throwable $e) {
+                if ($recordLinked) {
+                    $sheetSyncStatus = 'error';
+                }
                 Log::warning('Unable to sync record entry from sale', [
                     'sale_id' => $createdSale->id,
                     'error' => $e->getMessage(),
@@ -502,6 +517,7 @@ class SaleController extends Controller
                 'email' => $createdSale->email,
                 'sales_amount' => $createdSale->sales_amount,
                 'family_status' => $familySyncStatus,
+                'sheet_status' => $sheetSyncStatus,
             ] : null);
     }
 
@@ -584,6 +600,11 @@ class SaleController extends Controller
             $changeMessages[] = 'Changed Status from ' . ($originalStatus ?? 'N/A') . ' to ' . ($newStatus ?? 'N/A');
         }
 
+        if ($this->isCancelledOrRefunded($newStatus)) {
+            $this->removeFamilyMemberForSale($sale);
+            $this->removeRecordEntryForSale($sale);
+        }
+
         if (count($changeMessages) > 0 && Schema::hasTable('sale_edit_notifications')) {
             $actorName = $request->user()?->name ?? 'Employee';
             $message = $actorName . ' edited the ' . ($sale->serial_number ?? 'order') . ': ' . implode('; ', $changeMessages);
@@ -596,14 +617,16 @@ class SaleController extends Controller
         }
 
         // Sync to sheet records when a linked product is present (mirrors creation flow).
-        try {
-            $this->ensureRecordLinkColumns();
-            $this->createRecordEntryFromSale($sale);
-        } catch (\Throwable $e) {
-            Log::warning('Unable to sync record entry from sale update', [
-                'sale_id' => $sale->id,
-                'error' => $e->getMessage(),
-            ]);
+        if (! $this->isCancelledOrRefunded($sale->status ?? null)) {
+            try {
+                $this->ensureRecordLinkColumns();
+                $this->createRecordEntryFromSale($sale);
+            } catch (\Throwable $e) {
+                Log::warning('Unable to sync record entry from sale update', [
+                    'sale_id' => $sale->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         $message = 'Sale updated successfully.';
@@ -908,6 +931,40 @@ class SaleController extends Controller
         }
 
         DB::table($tableName)->insert($payload);
+    }
+
+    private function removeRecordEntryForSale(Sale $sale): void
+    {
+        $orderId = trim((string) ($sale->serial_number ?? ''));
+        if ($orderId === '') {
+            return;
+        }
+
+        $productName = trim((string) ($sale->product_name ?? ''));
+        if ($productName === '') {
+            return;
+        }
+
+        try {
+            $match = $this->findRecordProductForSale($productName);
+            if (!$match) {
+                return;
+            }
+
+            $recordProduct = $match['product'];
+            $tableName = $recordProduct?->table_name;
+            if (!$tableName || !Schema::hasTable($tableName)) {
+                return;
+            }
+
+            DB::table($tableName)->where('serial_number', $orderId)->delete();
+        } catch (\Throwable $e) {
+            Log::warning('Unable to remove record entry for cancelled/refunded sale', [
+                'sale_id' => $sale->id,
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function ensureRecordTableExists(string $tableName): void
@@ -1304,6 +1361,20 @@ class SaleController extends Controller
         });
     }
 
+    private function appendSheetSyncStatus(LengthAwarePaginator $sales): void
+    {
+        if ($sales->isEmpty()) {
+            return;
+        }
+
+        $this->ensureRecordLinkColumns();
+
+        $sales->getCollection()->transform(function (Sale $sale) {
+            $sale->sheet_sync_state = $this->determineSheetSyncState($sale);
+            return $sale;
+        });
+    }
+
     private function determineFamilySyncState(Sale $sale, bool $hasFamilyMembers): string
     {
         $productName = trim((string) ($sale->product_name ?? ''));
@@ -1336,5 +1407,63 @@ class SaleController extends Controller
             ->exists();
 
         return $hasRecord ? 'active' : 'error';
+    }
+
+    private function determineSheetSyncState(Sale $sale): string
+    {
+        $productName = trim((string) ($sale->product_name ?? ''));
+        if ($productName === '') {
+            return 'unlinked';
+        }
+
+        $match = $this->findRecordProductForSale($productName);
+        if (!$match || empty($match['product'])) {
+            return 'unlinked';
+        }
+
+        $recordProduct = $match['product'];
+        $tableName = $recordProduct->table_name ?? null;
+        if (!$tableName || !Schema::hasTable($tableName)) {
+            return 'error';
+        }
+
+        $serial = trim((string) ($sale->serial_number ?? ''));
+        if ($serial === '') {
+            return 'error';
+        }
+
+        $hasRecord = DB::table($tableName)
+            ->where('serial_number', $serial)
+            ->exists();
+
+        return $hasRecord ? 'active' : 'error';
+    }
+
+    private function removeFamilyMemberForSale(Sale $sale): void
+    {
+        if (!Schema::hasTable('family_members') || !Schema::hasColumn('family_members', 'order_id')) {
+            return;
+        }
+
+        $orderId = trim((string) ($sale->serial_number ?? ''));
+        if ($orderId === '') {
+            return;
+        }
+
+        try {
+            DB::table('family_members')->where('order_id', $orderId)->delete();
+        } catch (\Throwable $e) {
+            Log::warning('Unable to remove family member for cancelled/refunded sale', [
+                'sale_id' => $sale->id,
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function isCancelledOrRefunded(?string $status): bool
+    {
+        $normalized = strtolower(trim((string) $status));
+        return $normalized === 'cancelled' || $normalized === 'refunded';
     }
 }

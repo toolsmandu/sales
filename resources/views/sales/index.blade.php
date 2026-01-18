@@ -1103,6 +1103,12 @@
             'error' => ['text' => 'ERROR', 'icon' => '✖', 'color' => '#b91c1c'],
             default => null,
         };
+        $sheetStatus = $saleConfirmation['sheet_status'] ?? null;
+        $sheetStatusDisplay = match ($sheetStatus) {
+            'sync_active' => ['text' => 'Sync Active', 'icon' => '✔', 'color' => '#15803d'],
+            'error' => ['text' => 'ERROR', 'icon' => '✖', 'color' => '#b91c1c'],
+            default => null,
+        };
     @endphp
 
     @if ($saleConfirmation && $orderId)
@@ -1148,6 +1154,16 @@
                                 <dd>
                                     <span style="color: {{ $familyStatusDisplay['color'] }};">
                                         {{ $familyStatusDisplay['icon'] }} {{ $familyStatusDisplay['text'] }}
+                                    </span>
+                                </dd>
+                            </div>
+                        @endif
+                        @if ($sheetStatusDisplay)
+                            <div>
+                                <dt>Sheet Status</dt>
+                                <dd>
+                                    <span style="color: {{ $sheetStatusDisplay['color'] }};">
+                                        {{ $sheetStatusDisplay['icon'] }} {{ $sheetStatusDisplay['text'] }}
                                     </span>
                                 </dd>
                             </div>

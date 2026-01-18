@@ -423,6 +423,150 @@ class FamilySheetController extends Controller
             ->with('status', 'CSV imported.');
     }
 
+    public function exportCsv(Request $request)
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:family_products,id'],
+        ]);
+
+        $product = DB::table('family_products')->where('id', $data['product_id'])->first();
+        if (!$product) {
+            return redirect()->back()->withErrors(['product_id' => 'Family product not found.']);
+        }
+
+        $hasFamilyProductId = Schema::hasColumn('family_accounts', 'family_product_id');
+        $hasFamilyProductName = Schema::hasColumn('family_accounts', 'family_product_name');
+        $hasMemberAccountId = Schema::hasColumn('family_members', 'family_account_id');
+        $hasMemberProductId = Schema::hasColumn('family_members', 'family_product_id');
+        $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
+
+        $accountQuery = DB::table('family_accounts')
+            ->orderByDesc('family_accounts.account_index')
+            ->orderBy('family_accounts.name');
+
+        if ($hasFamilyProductId) {
+            $accountQuery->join('family_products', 'family_accounts.family_product_id', '=', 'family_products.id')
+                ->where('family_accounts.family_product_id', $product->id)
+                ->select([
+                    'family_accounts.*',
+                    'family_products.name as product_name',
+                    'family_accounts.family_product_name',
+                ]);
+        } elseif ($hasFamilyProductName) {
+            $accountQuery->where('family_accounts.family_product_name', $product->name)
+                ->select([
+                    'family_accounts.*',
+                    'family_accounts.family_product_name',
+                ]);
+        } else {
+            $accountQuery->select(['family_accounts.*']);
+        }
+
+        $accounts = $accountQuery->get();
+        $accountIds = $accounts->pluck('id')->filter()->values();
+        $accountsById = $accounts->keyBy('id');
+
+        $membersQuery = DB::table('family_members')
+            ->orderBy('family_account_id')
+            ->orderBy('id');
+
+        if ($hasMemberAccountId && $accountIds->isNotEmpty()) {
+            $membersQuery->whereIn('family_account_id', $accountIds);
+        } elseif ($hasMemberProductId) {
+            $membersQuery->where('family_product_id', $product->id);
+        } elseif ($hasMemberProductName) {
+            $membersQuery->where('family_product_name', $product->name);
+        }
+
+        $membersByAccount = $membersQuery
+            ->get()
+            ->map(fn ($member) => $this->decryptSensitiveFields($member))
+            ->groupBy('family_account_id');
+
+        $headers = [
+            'account_name',
+            'account_index',
+            'capacity',
+            'account_remarks',
+            'account_product',
+            'order_id',
+            'email',
+            'phone',
+            'product',
+            'sales_amount',
+            'purchase_date',
+            'expiry',
+            'remaining_days',
+            'remarks',
+            'two_factor',
+        ];
+
+        $filename = sprintf('family-sheet-%s-%s.csv', $product->id, Carbon::now()->format('Ymd_His'));
+
+        return response()->streamDownload(function () use ($headers, $accounts, $accountsById, $membersByAccount) {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, $headers);
+
+            foreach ($accounts as $account) {
+                $members = $membersByAccount->get($account->id) ?? collect();
+                $accountProduct = $account->product_name ?? $account->family_product_name ?? null;
+
+                if ($members->isEmpty()) {
+                    fputcsv($handle, [
+                        $account->name,
+                        $account->account_index,
+                        $account->capacity,
+                        $account->remarks,
+                        $accountProduct,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                    ]);
+                    continue;
+                }
+
+                foreach ($members as $member) {
+                    $accountForMember = $accountsById->get($member->family_account_id) ?? $account;
+                    $familyName = $this->resolveFamilyName($accountForMember, [], $member);
+                    $remainingDays = $member->remaining_days ?? $this->computeRemainingDays($member->purchase_date ?? null, $member->expiry ?? null);
+
+                    fputcsv($handle, [
+                        $accountForMember->name ?? null,
+                        $accountForMember->account_index ?? null,
+                        $accountForMember->capacity ?? null,
+                        $accountForMember->remarks ?? null,
+                        $accountProduct,
+                        $member->order_id ?? null,
+                        $member->email ?? null,
+                        $member->phone ?? null,
+                        $member->product ?? null,
+                        $member->sales_amount ?? null,
+                        $member->purchase_date ?? null,
+                        $member->expiry ?? null,
+                        $remainingDays,
+                        $member->remarks ?? null,
+                        $member->two_factor ?? null,
+                    ]);
+                }
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     public function linkProduct(Request $request)
     {
         // Make sure linkage columns exist (in case they were removed).

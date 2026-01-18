@@ -89,6 +89,8 @@ class RecordController extends Controller
         $this->createTableIfMissing($tableName);
 
         $records = DB::table($tableName)
+            ->orderByRaw('remaining_days is null')
+            ->orderBy('remaining_days')
             ->orderByDesc('purchase_date')
             ->orderByDesc('id')
             ->get()
@@ -96,6 +98,72 @@ class RecordController extends Controller
 
         return response()->json([
             'records' => $records,
+        ]);
+    }
+
+    public function exportEntries(RecordProduct $recordProduct)
+    {
+        $tableName = $recordProduct->table_name;
+        $this->createTableIfMissing($tableName);
+
+        $records = DB::table($tableName)
+            ->orderByDesc('purchase_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($record) => $this->decryptSensitiveFields($record));
+
+        $headers = [
+            'serial_number',
+            'purchase_date',
+            'product',
+            'email',
+            'password',
+            'phone',
+            'sales_amount',
+            'expiry',
+            'remaining_days',
+            'remarks',
+            'two_factor',
+            'email2',
+            'password2',
+        ];
+
+        $filename = sprintf('sheet-%s-%s.csv', $recordProduct->id, Carbon::now()->format('Ymd_His'));
+
+        return response()->streamDownload(function () use ($headers, $records) {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, $headers);
+
+            foreach ($records as $record) {
+                $remaining = $record->remaining_days ?? $this->computeRemainingDays(
+                    $record->purchase_date ?? null,
+                    $record->expiry ?? null
+                );
+
+                fputcsv($handle, [
+                    $record->serial_number ?? null,
+                    $record->purchase_date ?? null,
+                    $record->product ?? null,
+                    $record->email ?? null,
+                    $record->password ?? null,
+                    $record->phone ?? null,
+                    $record->sales_amount ?? null,
+                    $record->expiry ?? null,
+                    $remaining,
+                    $record->remarks ?? null,
+                    $record->two_factor ?? null,
+                    $record->email2 ?? null,
+                    $record->password2 ?? null,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
         ]);
     }
 
@@ -368,6 +436,20 @@ class RecordController extends Controller
         }
 
         return $payload;
+    }
+
+    private function computeRemainingDays(?string $purchaseDate, $expiryDays): ?int
+    {
+        if (empty($purchaseDate) || $expiryDays === null || $expiryDays === '') {
+            return null;
+        }
+
+        try {
+            $endDate = Carbon::parse($purchaseDate)->startOfDay()->addDays((int) $expiryDays);
+            return Carbon::today()->startOfDay()->diffInDays($endDate, false);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function decryptSensitiveFields(object $record): object

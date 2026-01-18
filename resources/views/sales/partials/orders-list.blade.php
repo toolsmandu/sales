@@ -396,14 +396,23 @@
                         <span aria-label="{{ $statusLabel }}" title="{{ $statusLabel }}" style="font-size: 1.1rem;">{{ $statusIcon }}</span>
                     </td>
                     @php
-                        $syncState = $sale->family_sync_state ?? 'unlinked';
-                        $syncLabel = match ($syncState) {
-                            'active' => 'Active',
-                            'error' => 'Error',
-                            default => '—',
-                        };
+                        $sheetSyncState = $sale->sheet_sync_state ?? 'unlinked';
+                        $familySyncState = $sale->family_sync_state ?? 'unlinked';
+                        if ($status === 'refunded') {
+                            $syncLabel = 'Refunded';
+                        } elseif ($status === 'cancelled') {
+                            $syncLabel = 'Cancelled';
+                        } elseif ($sheetSyncState === 'active') {
+                            $syncLabel = 'Sheet';
+                        } elseif ($familySyncState === 'active') {
+                            $syncLabel = 'Family';
+                        } elseif ($sheetSyncState === 'error' || $familySyncState === 'error') {
+                            $syncLabel = 'Error';
+                        } else {
+                            $syncLabel = '-';
+                        }
                     @endphp
-                    <td aria-label="Family Sync Status">{{ $syncLabel }}</td>
+                    <td aria-label="Sync Status">{{ $syncLabel }}</td>
                     <td style="white-space: nowrap;">{{ $sale->createdBy?->name ?? 'Unknown employee' }}</td>
                     <td>
                         <div class="table-actions">

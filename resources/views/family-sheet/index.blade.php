@@ -162,6 +162,60 @@
             flex-shrink: 0;
         }
 
+        .family-import-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+        }
+
+        .family-import-export form {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0;
+        }
+
+        .family-file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        .family-file-label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.45rem 0.9rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #1d4ed8;
+            background: #eef2ff;
+            cursor: pointer;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .family-file-name {
+            max-width: 180px;
+            font-size: 0.9rem;
+            color: #475569;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .family-export-button {
+            border-radius: 0.65rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
         .family-card--full {
             grid-column: 1 / -1;
         }
@@ -575,12 +629,17 @@
                         </label>
                     </div>
                     <div class="family-inline-row__spacer">
-                        <form method="POST" action="{{ route('family-sheet.import') }}" enctype="multipart/form-data" class="family-inline-row">
-                            @csrf
-                            <input type="hidden" name="family_product_id" value="{{ $selectedProduct->id }}">
-                            <input type="file" name="csv_file" accept=".csv,text/csv" required>
-                            <button type="submit" class="ghost-button">Import CSV</button>
-                        </form>
+                        <div class="family-import-export">
+                            <form method="POST" action="{{ route('family-sheet.import') }}" enctype="multipart/form-data">
+                                @csrf
+                                <input type="hidden" name="family_product_id" value="{{ $selectedProduct->id }}">
+                                <input type="file" name="csv_file" id="family-import-file" class="family-file-input" accept=".csv,text/csv" required>
+                                <label for="family-import-file" class="family-file-label">Choose File</label>
+                                <span class="family-file-name" id="family-import-file-name">No file chosen</span>
+                                <button type="submit" class="secondary outline">Import CSV</button>
+                            </form>
+                            <a class="secondary outline family-export-button" href="{{ route('family-sheet.export', ['product_id' => $selectedProduct->id]) }}">Export CSV</a>
+                        </div>
                     </div>
                 </div>
                 <div style="margin-bottom: 0.5rem;">
@@ -770,6 +829,15 @@
                     accountSelect.addEventListener('change', applyAccountPeriod);
                     applyAccountPeriod();
                 }
+            }
+
+            const importFile = document.getElementById('family-import-file');
+            const importFileName = document.getElementById('family-import-file-name');
+            if (importFile && importFileName) {
+                importFile.addEventListener('change', () => {
+                    const file = importFile.files?.[0];
+                    importFileName.textContent = file ? file.name : 'No file chosen';
+                });
             }
 
             if (linkSiteProduct && linkVariations) {
