@@ -484,10 +484,12 @@ class FamilySheetController extends Controller
             'name' => ['required', 'string', 'max:190'],
             'capacity' => ['required', 'integer', 'min:1'],
             'account_index' => ['nullable', 'integer', 'min:1'],
+            'period' => ['nullable', 'integer', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:500'],
         ]);
 
         $hasFamilyProductId = Schema::hasColumn('family_accounts', 'family_product_id');
+        $hasAccountPeriod = Schema::hasColumn('family_accounts', 'period');
 
         $providedIndex = $data['account_index'] ?? null;
         $maxIndexQuery = DB::table('family_accounts');
@@ -515,6 +517,9 @@ class FamilySheetController extends Controller
 
         if ($hasFamilyProductId) {
             $payload['family_product_id'] = $data['family_product_id'];
+        }
+        if ($hasAccountPeriod) {
+            $payload['period'] = $data['period'] ?? null;
         }
 
         DB::table('family_accounts')->insert($payload);
@@ -549,10 +554,12 @@ class FamilySheetController extends Controller
             'name' => ['required', 'string', 'max:190'],
             'capacity' => ['required', 'integer', 'min:1'],
             'account_index' => ['nullable', 'integer', 'min:1'],
+            'period' => ['nullable', 'integer', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:500'],
         ]);
 
         $accountIndex = $data['account_index'] ?? null;
+        $hasAccountPeriod = Schema::hasColumn('family_accounts', 'period');
 
         $memberCount = DB::table('family_members')
             ->when(Schema::hasColumn('family_members', 'family_account_id'), fn ($q) => $q->where('family_account_id', $account->id))
@@ -564,15 +571,20 @@ class FamilySheetController extends Controller
                 ->withErrors(['capacity' => "Capacity cannot be less than the current member count ({$memberCount})."]);
         }
 
+        $payload = [
+            'name' => trim($data['name']),
+            'capacity' => (int) $data['capacity'],
+            'account_index' => $accountIndex,
+            'remarks' => $data['remarks'] ?? null,
+            'updated_at' => now(),
+        ];
+        if ($hasAccountPeriod) {
+            $payload['period'] = $data['period'] ?? null;
+        }
+
         DB::table('family_accounts')
             ->where('id', $accountId)
-            ->update([
-                'name' => trim($data['name']),
-                'capacity' => (int) $data['capacity'],
-                'account_index' => $accountIndex,
-                'remarks' => $data['remarks'] ?? null,
-                'updated_at' => now(),
-            ]);
+            ->update($payload);
 
         return redirect()
             ->route('family-sheet.index', ['product_id' => $account->family_product_id ?? null])
@@ -613,12 +625,13 @@ class FamilySheetController extends Controller
         }
 
         $now = Carbon::now();
-        $resolvedExpiry = $data['expiry'] ?? $this->inferExpiryDays($data['product'] ?? null);
+        $accountPeriod = Schema::hasColumn('family_accounts', 'period') ? ($account->period ?? null) : null;
+        $resolvedExpiry = $data['expiry'] ?? $accountPeriod ?? $this->inferExpiryDays($data['product'] ?? null);
         $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
         $hasMemberAccountName = Schema::hasColumn('family_members', 'account_name');
 
         $payload = $this->encryptSensitiveFields([
-            'family_name' => $this->resolveFamilyName($account, $data, $member),
+            'family_name' => $this->resolveFamilyName($account, $data),
             'email' => $data['email'] ?? null,
             'password' => $data['password'] ?? null,
             'order_id' => $data['order_id'] ?? null,
@@ -983,6 +996,7 @@ class FamilySheetController extends Controller
                 $table->string('name');
                 $table->integer('account_index')->nullable();
                 $table->integer('capacity')->nullable();
+                $table->integer('period')->nullable();
                 $table->text('remarks')->nullable();
                 $table->timestamps();
             });
@@ -1004,6 +1018,11 @@ class FamilySheetController extends Controller
             if (!Schema::hasColumn('family_accounts', 'remarks')) {
                 Schema::table('family_accounts', function (Blueprint $table) {
                     $table->text('remarks')->nullable()->after('capacity');
+                });
+            }
+            if (!Schema::hasColumn('family_accounts', 'period')) {
+                Schema::table('family_accounts', function (Blueprint $table) {
+                    $table->integer('period')->nullable()->after('capacity');
                 });
             }
         }

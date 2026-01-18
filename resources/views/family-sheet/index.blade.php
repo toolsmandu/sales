@@ -276,6 +276,10 @@
                                 <input type="number" name="capacity" min="1" placeholder="e.g. 5" required>
                             </label>
                             <label>
+                                Period (days)
+                                <input type="number" name="period" min="0" placeholder="e.g. 30">
+                            </label>
+                            <label>
                                 Remarks
                                 <input type="text" name="remarks" placeholder="Remarks">
                             </label>
@@ -442,7 +446,7 @@
                         Main Account
                         <select name="family_account_id" required>
                             @forelse ($accounts as $account)
-                                <option value="{{ $account->id }}">
+                                <option value="{{ $account->id }}" data-period="{{ $account->period ?? '' }}">
                                     {{ $account->name }} @if(!empty($account->account_index))(Index: {{ $account->account_index }})@endif ({{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used)
                                 </option>
                             @empty
@@ -455,7 +459,7 @@
                     </label>
                     <label data-member-field="purchase_date">
                         Purchase Date
-                        <input type="date" name="purchase_date">
+                        <input type="date" name="purchase_date" value="{{ old('purchase_date', now()->format('Y-m-d')) }}">
                     </label>
                     <label data-member-field="order_id">
                         Order ID
@@ -498,13 +502,14 @@
 
                 <div class="family-table-wrapper" id="family-accounts-table-wrapper" data-default-open="{{ old('account_edit') ? 'true' : 'false' }}" style="margin-top: 1rem; display: none;">
                     @if ($accounts->count())
-                        <table class="family-table" style="min-width: 720px;">
+                        <table class="family-table" style="min-width: 820px;">
                             <thead>
                                 <tr>
                                     <th>Main Account</th>
                                     <th>Product</th>
                                     <th>Index</th>
                                     <th>Max members</th>
+                                    <th>Period</th>
                                     <th>Usage</th>
                                     <th>Remarks</th>
                                     <th style="width: 180px;"></th>
@@ -534,6 +539,9 @@
                                         </td>
                                         <td>
                                             <input type="number" name="capacity" form="family-account-update-{{ $account->id }}" min="1" value="{{ old('capacity', $account->capacity) }}" required style="width: 100%;">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="period" form="family-account-update-{{ $account->id }}" min="0" value="{{ old('period', $account->period) }}" style="width: 100%;">
                                         </td>
                                         <td>
                                             {{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used
@@ -740,6 +748,23 @@
                     applyAccountsVisibility();
                 });
                 applyAccountsVisibility();
+            }
+
+            if (memberForm) {
+                const accountSelect = memberForm.querySelector('select[name="family_account_id"]');
+                const expiryInput = memberForm.querySelector('input[name="expiry"]');
+                const applyAccountPeriod = () => {
+                    if (!accountSelect || !expiryInput) return;
+                    const selected = accountSelect.selectedOptions?.[0];
+                    const period = selected?.dataset?.period ?? '';
+                    if (!expiryInput.value && period !== '') {
+                        expiryInput.value = period;
+                    }
+                };
+                if (accountSelect && expiryInput) {
+                    accountSelect.addEventListener('change', applyAccountPeriod);
+                    applyAccountPeriod();
+                }
             }
 
             if (linkSiteProduct && linkVariations) {
