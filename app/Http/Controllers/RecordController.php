@@ -195,6 +195,7 @@ class RecordController extends Controller
     {
         $tableName = $recordProduct->table_name;
         $this->createTableIfMissing($tableName);
+        $this->ensureSaleSyncColumns();
 
         $validated = $this->validateEntry($request);
         $now = Carbon::now();
@@ -205,6 +206,7 @@ class RecordController extends Controller
 
         $recordId = DB::table($tableName)->insertGetId($this->encryptSensitiveFields($payload));
         $record = $this->decryptSensitiveFields(DB::table($tableName)->find($recordId));
+        $this->markSheetSynced($record->serial_number ?? null);
 
         return response()->json([
             'record' => $record,
@@ -241,6 +243,7 @@ class RecordController extends Controller
             ->update($this->encryptSensitiveFields($payload, true));
 
         $record = $this->decryptSensitiveFields(DB::table($tableName)->find($entryId));
+        $this->markSheetSynced($record->serial_number ?? null);
 
         return response()->json([
             'record' => $record,
@@ -278,6 +281,7 @@ class RecordController extends Controller
     {
         $tableName = $recordProduct->table_name;
         $this->createTableIfMissing($tableName);
+        $this->ensureSaleSyncColumns();
 
         $request->validate([
             'file' => ['required', 'file'],
@@ -300,6 +304,7 @@ class RecordController extends Controller
 
         $headers = [];
         $inserted = 0;
+        $syncedSerials = [];
 
         try {
             if (($row = fgetcsv($handle, 0, ',')) !== false) {
@@ -372,11 +377,16 @@ class RecordController extends Controller
                 $payload['updated_at'] = Carbon::now();
 
                 DB::table($tableName)->insert($this->encryptSensitiveFields($payload));
+                if (!empty($payload['serial_number'])) {
+                    $syncedSerials[] = trim((string) $payload['serial_number']);
+                }
                 $inserted++;
             }
         } finally {
             fclose($handle);
         }
+
+        $this->markSheetSyncedMany($syncedSerials);
 
         return response()->json([
             'inserted' => $inserted,
@@ -529,5 +539,42 @@ class RecordController extends Controller
                 $table->json('linked_variation_ids')->nullable()->after('linked_product_id');
             });
         }
+    }
+
+    private function ensureSaleSyncColumns(): void
+    {
+        if (!Schema::hasTable('sales')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('sales', 'sheet_sync_state')) {
+            Schema::table('sales', function (Blueprint $table): void {
+                $table->string('sheet_sync_state')->nullable()->after('status');
+            });
+        }
+    }
+
+    private function markSheetSynced(?string $serialNumber): void
+    {
+        $serial = trim((string) $serialNumber);
+        if ($serial === '' || !Schema::hasTable('sales') || !Schema::hasColumn('sales', 'sheet_sync_state')) {
+            return;
+        }
+
+        DB::table('sales')
+            ->where('serial_number', $serial)
+            ->update(['sheet_sync_state' => 'active']);
+    }
+
+    private function markSheetSyncedMany(array $serialNumbers): void
+    {
+        $serials = array_values(array_filter(array_map(static fn ($value) => trim((string) $value), $serialNumbers)));
+        if (empty($serials) || !Schema::hasTable('sales') || !Schema::hasColumn('sales', 'sheet_sync_state')) {
+            return;
+        }
+
+        DB::table('sales')
+            ->whereIn('serial_number', array_unique($serials))
+            ->update(['sheet_sync_state' => 'active']);
     }
 }

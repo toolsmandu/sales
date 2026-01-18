@@ -402,6 +402,8 @@
                             $syncLabel = 'Refunded';
                         } elseif ($status === 'cancelled') {
                             $syncLabel = 'Cancelled';
+                        } elseif ($sheetSyncState === 'expired' || $familySyncState === 'expired') {
+                            $syncLabel = 'Expired';
                         } elseif ($sheetSyncState === 'active') {
                             $syncLabel = 'Sheet';
                         } elseif ($familySyncState === 'active') {

@@ -34,6 +34,7 @@ class SaleController extends Controller
 
     public function index(Request $request): View
     {
+        $this->ensureSaleSyncColumns();
         $perPage = (int) $request->query('per_page', 50);
         $perPage = in_array($perPage, [25, 50, 100, 200], true) ? $perPage : 50;
 
@@ -402,6 +403,7 @@ class SaleController extends Controller
 
     public function store(Request $request)
     {
+        $this->ensureSaleSyncColumns();
         $nowKathmandu = Carbon::now('Asia/Kathmandu');
 
         if (!$request->filled('purchase_date')) {
@@ -500,6 +502,10 @@ class SaleController extends Controller
             }
         }
 
+        if ($createdSale) {
+            $this->persistSyncStates($createdSale, $familySyncStatus, $sheetSyncStatus);
+        }
+
         $message = 'Sale saved successfully.';
 
         if ($request->expectsJson()) {
@@ -523,6 +529,7 @@ class SaleController extends Controller
 
     public function update(Request $request, Sale $sale)
     {
+        $this->ensureSaleSyncColumns();
         $originalSnapshot = [
             'status' => $sale->status,
             'sales_amount' => $sale->sales_amount,
@@ -628,6 +635,8 @@ class SaleController extends Controller
                 ]);
             }
         }
+
+        $this->refreshStoredSyncStates($sale);
 
         $message = 'Sale updated successfully.';
 
@@ -1386,6 +1395,9 @@ class SaleController extends Controller
         if (!$familyContext || empty($familyContext['family_product'])) {
             return 'unlinked';
         }
+        if (empty($familyContext['account'])) {
+            return 'expired';
+        }
 
         $variationContext = $this->getSaleVariationContext($sale);
         $isLinked = $this->matchesFamilyLink(
@@ -1406,7 +1418,11 @@ class SaleController extends Controller
             ->where('order_id', $sale->serial_number)
             ->exists();
 
-        return $hasRecord ? 'active' : 'error';
+        if ($hasRecord) {
+            return 'active';
+        }
+
+        return $sale->family_sync_state === 'active' ? 'expired' : 'error';
     }
 
     private function determineSheetSyncState(Sale $sale): string
@@ -1436,7 +1452,102 @@ class SaleController extends Controller
             ->where('serial_number', $serial)
             ->exists();
 
-        return $hasRecord ? 'active' : 'error';
+        if ($hasRecord) {
+            return 'active';
+        }
+
+        return $sale->sheet_sync_state === 'active' ? 'expired' : 'error';
+    }
+
+    private function ensureSaleSyncColumns(): void
+    {
+        if (!Schema::hasTable('sales')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('sales', 'family_sync_state')) {
+            Schema::table('sales', function (Blueprint $table) {
+                $table->string('family_sync_state')->nullable()->after('status');
+            });
+        }
+
+        if (!Schema::hasColumn('sales', 'sheet_sync_state')) {
+            Schema::table('sales', function (Blueprint $table) {
+                $table->string('sheet_sync_state')->nullable()->after('family_sync_state');
+            });
+        }
+    }
+
+    private function persistSyncStates(Sale $sale, ?string $familyStatus, ?string $sheetStatus): void
+    {
+        $payload = [];
+        if (Schema::hasColumn('sales', 'family_sync_state')) {
+            $mapped = $this->mapSyncStatus($familyStatus);
+            if ($mapped !== null) {
+                $payload['family_sync_state'] = $mapped;
+            }
+        }
+        if (Schema::hasColumn('sales', 'sheet_sync_state')) {
+            $mapped = $this->mapSyncStatus($sheetStatus);
+            if ($mapped !== null) {
+                $payload['sheet_sync_state'] = $mapped;
+            }
+        }
+
+        if (!empty($payload)) {
+            DB::table('sales')->where('id', $sale->id)->update($payload);
+            $sale->fill($payload);
+        }
+    }
+
+    private function refreshStoredSyncStates(Sale $sale): void
+    {
+        $payload = [];
+
+        if (Schema::hasColumn('sales', 'family_sync_state') && Schema::hasTable('family_members')) {
+            $orderId = trim((string) ($sale->serial_number ?? ''));
+            if ($orderId !== '' && Schema::hasColumn('family_members', 'order_id')) {
+                $hasMember = DB::table('family_members')
+                    ->where('order_id', $orderId)
+                    ->exists();
+                if ($hasMember) {
+                    $payload['family_sync_state'] = 'active';
+                }
+            }
+        }
+
+        if (Schema::hasColumn('sales', 'sheet_sync_state')) {
+            $productName = trim((string) ($sale->product_name ?? ''));
+            $serial = trim((string) ($sale->serial_number ?? ''));
+            if ($productName !== '' && $serial !== '') {
+                $match = $this->findRecordProductForSale($productName);
+                if ($match && !empty($match['product'])) {
+                    $tableName = $match['product']->table_name ?? null;
+                    if ($tableName && Schema::hasTable($tableName)) {
+                        $hasRecord = DB::table($tableName)
+                            ->where('serial_number', $serial)
+                            ->exists();
+                        if ($hasRecord) {
+                            $payload['sheet_sync_state'] = 'active';
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!empty($payload)) {
+            DB::table('sales')->where('id', $sale->id)->update($payload);
+            $sale->fill($payload);
+        }
+    }
+
+    private function mapSyncStatus(?string $status): ?string
+    {
+        return match ($status) {
+            'sync_active' => 'active',
+            'error' => 'error',
+            default => null,
+        };
     }
 
     private function removeFamilyMemberForSale(Sale $sale): void
