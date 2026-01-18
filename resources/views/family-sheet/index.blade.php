@@ -671,7 +671,12 @@
                                             <div style="display: flex; gap: 0.35rem; align-items: center;">
                                                 <input type="text" name="remarks" form="family-member-{{ $member->id }}" value="{{ $member->remarks }}" style="width: 100%;">
                                                 <button type="submit" form="family-member-{{ $member->id }}" class="ghost-button ghost-button--compact">Save</button>
+                                                <button type="submit" form="family-member-delete-{{ $member->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" onclick="return confirm('Delete this member?');">Delete</button>
                                             </div>
+                                            </form>
+                                            <form id="family-member-delete-{{ $member->id }}" method="POST" action="{{ route('family-sheet.members.destroy', $member->id) }}">
+                                                @csrf
+                                                @method('DELETE')
                                             </form>
                                         </td>
                                     </tr>

@@ -625,8 +625,19 @@ class FamilySheetController extends Controller
         }
 
         $now = Carbon::now();
+        $memberProduct = trim((string) ($data['product'] ?? ''));
+        if ($memberProduct === '' && Schema::hasColumn('family_accounts', 'family_product_id') && !empty($account->family_product_id)) {
+            $familyProduct = DB::table('family_products')->where('id', $account->family_product_id)->first();
+            if ($familyProduct && !empty($familyProduct->linked_product_id)) {
+                $linkedProduct = DB::table('products')->where('id', $familyProduct->linked_product_id)->first();
+                $memberProduct = $linkedProduct ? trim((string) $linkedProduct->name) : '';
+            }
+        }
+        if ($memberProduct === '') {
+            $memberProduct = trim((string) ($account->family_product_name ?? ''));
+        }
         $accountPeriod = Schema::hasColumn('family_accounts', 'period') ? ($account->period ?? null) : null;
-        $resolvedExpiry = $data['expiry'] ?? $accountPeriod ?? $this->inferExpiryDays($data['product'] ?? null);
+        $resolvedExpiry = $data['expiry'] ?? $accountPeriod ?? $this->inferExpiryDays($memberProduct ?: null);
         $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
         $hasMemberAccountName = Schema::hasColumn('family_members', 'account_name');
 
@@ -636,7 +647,7 @@ class FamilySheetController extends Controller
             'password' => $data['password'] ?? null,
             'order_id' => $data['order_id'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'product' => $data['product'] ?? '',
+            'product' => $memberProduct,
             'sales_amount' => $data['sales_amount'] ?? null,
             'purchase_date' => !empty($data['purchase_date']) ? Carbon::parse($data['purchase_date'])->toDateString() : null,
             'expiry' => $resolvedExpiry,
@@ -762,6 +773,21 @@ class FamilySheetController extends Controller
         return redirect()
             ->route('family-sheet.index', ['product_id' => $account->family_product_id])
             ->with('status', 'Member updated.');
+    }
+
+    public function destroyMember(int $memberId)
+    {
+        $member = DB::table('family_members')->where('id', $memberId)->first();
+        if (!$member) {
+            return redirect()->back()->withErrors(['member' => 'Member not found.']);
+        }
+
+        $account = DB::table('family_accounts')->where('id', $member->family_account_id)->first();
+        DB::table('family_members')->where('id', $memberId)->delete();
+
+        return redirect()
+            ->route('family-sheet.index', ['product_id' => $account->family_product_id ?? null])
+            ->with('status', 'Member deleted.');
     }
 
     private function inferExpiryDays(?string $productName): ?int

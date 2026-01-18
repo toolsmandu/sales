@@ -94,8 +94,9 @@ Route::post('/family-sheet/products', [\App\Http\Controllers\FamilySheetControll
     Route::post('/family-sheet/accounts', [\App\Http\Controllers\FamilySheetController::class, 'storeAccount'])->name('family-sheet.accounts.store');
     Route::put('/family-sheet/accounts/{account}', [\App\Http\Controllers\FamilySheetController::class, 'updateAccount'])->name('family-sheet.accounts.update');
     Route::delete('/family-sheet/accounts/{account}', [\App\Http\Controllers\FamilySheetController::class, 'destroyAccount'])->name('family-sheet.accounts.destroy');
-    Route::post('/family-sheet/members', [\App\Http\Controllers\FamilySheetController::class, 'storeMember'])->name('family-sheet.members.store');
-    Route::put('/family-sheet/members/{member}', [\App\Http\Controllers\FamilySheetController::class, 'updateMember'])->name('family-sheet.members.update');
+Route::post('/family-sheet/members', [\App\Http\Controllers\FamilySheetController::class, 'storeMember'])->name('family-sheet.members.store');
+Route::put('/family-sheet/members/{member}', [\App\Http\Controllers\FamilySheetController::class, 'updateMember'])->name('family-sheet.members.update');
+Route::delete('/family-sheet/members/{member}', [\App\Http\Controllers\FamilySheetController::class, 'destroyMember'])->name('family-sheet.members.destroy');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
     Route::get('/reports/sales-statement', [ReportsController::class, 'salesStatement'])->name('reports.sales-statement');
     Route::get('/reports/top-selling-reports', [ReportsController::class, 'topSellingReports'])->name('reports.top-selling');
