@@ -425,6 +425,17 @@ class SaleController extends Controller
         $createdBy = $request->user()?->id;
         $familyContext = $this->findFamilyAccountForProduct($data['product_name'] ?? null);
         if ($familyContext && $familyContext['full']) {
+            $variationContext = $this->getVariationContextForName($data['product_name'] ?? null);
+            $isLinked = $this->matchesFamilyLink(
+                $familyContext['family_product'],
+                $variationContext['variation_id'] ? (int) $variationContext['variation_id'] : null,
+                $variationContext['variation_product_id'] ? (int) $variationContext['variation_product_id'] : null
+            );
+            if (!$isLinked) {
+                $familyContext = null;
+            }
+        }
+        if ($familyContext && $familyContext['full']) {
             $message = 'Family is full for selected product. Please fix that.';
             if ($request->expectsJson()) {
                 return response()->json(['message' => $message], 422);
@@ -1308,12 +1319,17 @@ class SaleController extends Controller
 
     private function getSaleVariationContext(Sale $sale): array
     {
+        return $this->getVariationContextForName($sale->product_name);
+    }
+
+    private function getVariationContextForName(?string $productName): array
+    {
         $expiryDays = null;
         $variationId = null;
         $variationProductId = null;
 
-        if ($sale->product_name) {
-            $normalized = mb_strtolower(trim($sale->product_name));
+        if ($productName) {
+            $normalized = mb_strtolower(trim($productName));
             $variationRow = DB::table('product_variations')
                 ->join('products', 'product_variations.product_id', '=', 'products.id')
                 ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
