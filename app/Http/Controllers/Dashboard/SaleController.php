@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\RecordProduct;
 use App\Models\Sale;
 use App\Models\SaleEditNotification;
+use App\Models\StockProduct;
 use App\Models\User;
 use App\Services\SerialNumberGenerator;
 use Illuminate\Http\Request;
@@ -401,6 +402,42 @@ class SaleController extends Controller
         ]);
     }
 
+    public function phoneHistory(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:50'],
+        ]);
+
+        $normalizedPhone = preg_replace('/\D+/', '', $data['phone']);
+        if ($normalizedPhone === '') {
+            return response()->json([
+                'purchases' => [],
+            ]);
+        }
+
+        $sales = Sale::query()
+            ->whereRaw("REGEXP_REPLACE(phone, '[^0-9]+', '') = ?", [$normalizedPhone])
+            ->orderByDesc('purchase_date')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get(['product_name', 'purchase_date', 'created_at']);
+
+        $purchases = $sales->map(function (Sale $sale): array {
+            $date = $sale->purchase_date
+                ? Carbon::parse($sale->purchase_date)->format('Y-m-d')
+                : Carbon::parse($sale->created_at)->format('Y-m-d');
+
+            return [
+                'product' => $sale->product_name ?: 'Unknown product',
+                'date' => $date,
+            ];
+        })->values();
+
+        return response()->json([
+            'purchases' => $purchases,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->ensureSaleSyncColumns();
@@ -446,6 +483,18 @@ class SaleController extends Controller
         $createdSale = null;
         $familySyncStatus = null;
         $sheetSyncStatus = null;
+        $stockMatch = null;
+
+        if (!empty($data['product_name'])) {
+            $stockMatch = $this->findStockMatchForSale($data['product_name']);
+            if ($stockMatch && !$this->hasEmptyStockRow($stockMatch)) {
+                $message = 'No Stocks Left, Please add sufficient accounts in Stock account.';
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                return redirect()->back()->withErrors(['product_name' => $message])->withInput();
+            }
+        }
 
         DB::transaction(function () use ($data, $nowKathmandu, $createdBy, &$createdSale) {
             $purchaseDate = Carbon::createFromFormat('Y-m-d', $data['purchase_date'])->startOfDay();
@@ -516,6 +565,21 @@ class SaleController extends Controller
         if ($createdSale) {
             $this->persistSyncStates($createdSale, $familySyncStatus, $sheetSyncStatus);
         }
+        $stockAccountNote = null;
+        if ($createdSale) {
+            try {
+                $assignedRow = $this->assignStockAccountRow($createdSale, $stockMatch);
+                $stockAccountNote = $this->renderStockAccountNote(
+                    $this->extractStockNote($stockMatch),
+                    $assignedRow
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Unable to handle stock account assignment for sale', [
+                    'sale_id' => $createdSale->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         $message = 'Sale saved successfully.';
 
@@ -535,6 +599,7 @@ class SaleController extends Controller
                 'sales_amount' => $createdSale->sales_amount,
                 'family_status' => $familySyncStatus,
                 'sheet_status' => $sheetSyncStatus,
+                'stock_account_note' => $stockAccountNote,
             ] : null);
     }
 
@@ -1149,6 +1214,289 @@ class SaleController extends Controller
         });
 
         return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
+    }
+
+    private function extractStockNote(?array $match): ?string
+    {
+        if (!$match) {
+            return null;
+        }
+
+        $note = trim((string) ($match['product']->stock_account_note ?? ''));
+
+        return $note !== '' ? $note : null;
+    }
+
+    private function findStockMatchForSale(?string $productName): ?array
+    {
+        $normalized = $this->normalizeName($productName);
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (!Schema::hasTable('stock_products') || !Schema::hasColumn('stock_products', 'linked_product_id')) {
+            return null;
+        }
+
+        $baseName = $normalized;
+        if (str_contains($normalized, ' - ')) {
+            [$baseName] = array_map(static fn ($v) => trim($v), explode(' - ', $normalized, 2));
+        }
+
+        $siteProducts = DB::table('products')->select('id', 'name')->get()->keyBy('id');
+
+        $stockLinks = StockProduct::query()
+            ->whereNotNull('linked_product_id')
+            ->get()
+            ->map(function (StockProduct $stockProduct) use ($siteProducts) {
+                $stockProduct->site_product_name = $stockProduct->linked_product_id
+                    ? ($siteProducts[$stockProduct->linked_product_id]->name ?? null)
+                    : null;
+                $raw = $stockProduct->linked_variation_ids;
+                $stockProduct->linked_variation_ids = $raw
+                    ? (is_string($raw) ? json_decode($raw, true) : $raw)
+                    : [];
+                return $stockProduct;
+            });
+
+        $variationRow = DB::table('product_variations')
+            ->join('products', 'product_variations.product_id', '=', 'products.id')
+            ->whereRaw('LOWER(CONCAT(products.name, " - ", product_variations.name)) = ?', [$normalized])
+            ->select([
+                'product_variations.id as variation_id',
+                'products.id as product_id',
+                'products.name as product_name',
+            ])
+            ->first();
+        $variationId = $variationRow->variation_id ?? null;
+        $productIdFromName = $variationRow->product_id
+            ?? $siteProducts->first(function ($p) use ($normalized, $baseName) {
+                $name = $this->normalizeName($p->name);
+                return $name === $normalized || $name === $baseName;
+            })?->id;
+
+        $matchesOrder = function (StockProduct $stockProduct) use ($normalized, $baseName, $variationId) {
+            $linkedIds = array_map(static fn ($v) => (int) $v, $stockProduct->linked_variation_ids ?: []);
+
+            if (!$stockProduct->linked_product_id) {
+                return false;
+            }
+            if (!empty($linkedIds)) {
+                if (!$variationId) return false;
+                if (!in_array((int) $variationId, $linkedIds, true)) return false;
+            } else {
+                return false;
+            }
+
+            $siteNameNorm = $stockProduct->site_product_name ? $this->normalizeName($stockProduct->site_product_name) : null;
+            $stockNameNorm = $this->normalizeName($stockProduct->name);
+
+            if ($stockNameNorm === $normalized || $stockNameNorm === $baseName) return true;
+            if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) return true;
+            return false;
+        };
+
+        if ($productIdFromName) {
+            $linkedForProduct = $stockLinks->filter(fn ($sp) => (int) $sp->linked_product_id === (int) $productIdFromName);
+
+            if ($linkedForProduct->isNotEmpty()) {
+                $matched = $linkedForProduct->first(function (StockProduct $sp) use ($matchesOrder) {
+                    return $matchesOrder($sp);
+                });
+
+                if ($matched) {
+                    return ['product' => $matched, 'variation_id' => $variationId];
+                }
+            }
+        }
+
+        $matchedBySiteName = $stockLinks->first(function (StockProduct $sp) use ($matchesOrder) {
+            return $matchesOrder($sp);
+        });
+        if ($matchedBySiteName) {
+            return ['product' => $matchedBySiteName, 'variation_id' => $variationId];
+        }
+
+        $fallback = $stockLinks->first(function (StockProduct $sp) use ($matchesOrder) {
+            return $matchesOrder($sp);
+        });
+
+        return $fallback ? ['product' => $fallback, 'variation_id' => $variationId] : null;
+    }
+
+    private function hasEmptyStockRow(?array $match): bool
+    {
+        if (!$match) {
+            return false;
+        }
+
+        /** @var StockProduct $stockProduct */
+        $stockProduct = $match['product'];
+        $tableName = $stockProduct->table_name ?? null;
+        if (!$tableName || !Schema::hasTable($tableName)) {
+            return false;
+        }
+
+        $rowQuery = DB::table($tableName)->whereRaw("COALESCE(TRIM(phone), '') = ''");
+        if (Schema::hasColumn($tableName, 'stock_index')) {
+            $rowQuery->orderBy('stock_index');
+        }
+
+        return $rowQuery->orderBy('id')->exists();
+    }
+
+    private function assignStockAccountRow(Sale $sale, ?array $match): ?object
+    {
+        if (!$match) {
+            return null;
+        }
+
+        /** @var StockProduct $stockProduct */
+        $stockProduct = $match['product'];
+        $tableName = $stockProduct->table_name ?? null;
+        if (!$tableName || !Schema::hasTable($tableName)) {
+            return null;
+        }
+
+        if (!Schema::hasColumn($tableName, 'phone') || !Schema::hasColumn($tableName, 'serial_number')) {
+            return null;
+        }
+
+        $expiryDays = null;
+        $variationId = $match['variation_id'] ?? null;
+        if ($variationId) {
+            $expiryDays = DB::table('product_variations')
+                ->where('id', $variationId)
+                ->value('expiry_days');
+        }
+
+        $rowQuery = DB::table($tableName)
+            ->whereRaw("COALESCE(TRIM(phone), '') = ''");
+        if (Schema::hasColumn($tableName, 'stock_index')) {
+            $rowQuery->orderBy('stock_index');
+        }
+        $row = $rowQuery
+            ->orderBy('id')
+            ->first(['id']);
+
+        if (!$row) {
+            return null;
+        }
+
+        $payload = [
+            'serial_number' => $sale->serial_number ?? null,
+            'phone' => $sale->phone,
+        ];
+
+        if (Schema::hasColumn($tableName, 'purchase_date')) {
+            $payload['purchase_date'] = $sale->purchase_date
+                ? Carbon::parse($sale->purchase_date)->toDateString()
+                : null;
+        }
+
+        if (Schema::hasColumn($tableName, 'expiry')) {
+            $payload['expiry'] = $expiryDays !== null ? (int) $expiryDays : null;
+        }
+
+        DB::table($tableName)
+            ->where('id', $row->id)
+            ->update($payload);
+
+        $columns = [
+            'id',
+            'stock_index',
+            'serial_number',
+            'purchase_date',
+            'product',
+            'email',
+            'password',
+            'phone',
+            'sales_amount',
+            'expiry',
+            'remaining_days',
+            'remarks',
+            'two_factor',
+            'email2',
+            'password2',
+        ];
+
+        $assigned = DB::table($tableName)->where('id', $row->id)->first($columns);
+
+        return $assigned ? $this->decryptStockRow($assigned) : null;
+    }
+
+    private function decryptStockRow(object $row): object
+    {
+        foreach (['password', 'password2'] as $field) {
+            if (!isset($row->{$field}) || $row->{$field} === null) {
+                continue;
+            }
+
+            try {
+                $row->{$field} = Crypt::decryptString($row->{$field});
+            } catch (\Throwable $e) {
+                Log::warning("Unable to decrypt {$field} for stock row", [
+                    'row_id' => $row->id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $row;
+    }
+
+    private function renderStockAccountNote(?string $template, ?object $row): ?string
+    {
+        if ($template === null) {
+            return null;
+        }
+
+        if (!$row) {
+            return $template;
+        }
+
+        $map = [
+            'index' => 'stock_index',
+            'order_id' => 'serial_number',
+            'orderid' => 'serial_number',
+            'purchase' => 'purchase_date',
+            'purchase_date' => 'purchase_date',
+            'product' => 'product',
+            'email' => 'email',
+            'password' => 'password',
+            'phone' => 'phone',
+            'price' => 'sales_amount',
+            'sales_amount' => 'sales_amount',
+            'period' => 'expiry',
+            'expiry' => 'expiry',
+            'remaining' => 'remaining_days',
+            'remaining_days' => 'remaining_days',
+            'remarks' => 'remarks',
+            '2fa' => 'two_factor',
+            'two_factor' => 'two_factor',
+            'email2' => 'email2',
+            'password2' => 'password2',
+        ];
+
+        return preg_replace_callback('/\{([^}]+)\}/', function ($matches) use ($row, $map) {
+            $rawKey = trim($matches[1]);
+            if ($rawKey === '') {
+                return $matches[0];
+            }
+
+            $normalized = strtolower(preg_replace('/\s+/', '_', $rawKey));
+            $column = $map[$normalized] ?? $normalized;
+            if (!property_exists($row, $column)) {
+                return $matches[0];
+            }
+
+            $value = $row->{$column};
+            if ($value === null) {
+                return '';
+            }
+
+            return (string) $value;
+        }, $template);
     }
 
     private function normalizeName(?string $value): string

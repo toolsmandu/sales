@@ -86,6 +86,12 @@
         'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm-8 120c0-13.3 10.7-24 24-24s24 10.7 24 24v120h80c13.3 0 24 10.7 24 24s-10.7 24-24 24H248c-13.3 0-24-10.7-24-24V128z"/></svg>',
     ];
     $links[] = [
+        'route' => 'stock-account.index',
+        'active' => ['stock-account.*'],
+        'label' => 'Stock Account',
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 32c-88.4 0-160 71.6-160 160s71.6 160 160 160 160-71.6 160-160S344.4 32 256 32zm0 64a96 96 0 1 1 0 192 96 96 0 1 1 0-192zM64 480c0-70.7 57.3-128 128-128h128c70.7 0 128 57.3 128 128v32H64v-32z"/></svg>',
+    ];
+    $links[] = [
         'route' => 'sheet.index',
         'active' => ['sheet.index'],
         'label' => 'Sheet',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RecordProduct;
+use App\Models\StockProduct;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,11 +22,13 @@ class RecordController extends Controller
     public function index(): View
     {
         $this->ensureLinkColumns();
-        $products = RecordProduct::query()->orderBy('name')->get();
+        $modelClass = $this->productModelClass();
+        $products = $modelClass::query()->orderBy('name')->get();
         $siteProducts = DB::table('products')->orderBy('name')->get();
         $variations = DB::table('product_variations')->orderBy('product_id')->orderBy('name')->get()->groupBy('product_id');
+        $viewName = request()->routeIs('stock-account.*') ? 'stock-account.index' : 'records.index';
 
-        return view('records.index', [
+        return view($viewName, [
             'products' => $products,
             'siteProducts' => $siteProducts,
             'variations' => $variations,
@@ -35,7 +38,8 @@ class RecordController extends Controller
     public function products(): JsonResponse
     {
         $this->ensureLinkColumns();
-        $products = RecordProduct::query()->orderBy('name')->get();
+        $modelClass = $this->productModelClass();
+        $products = $modelClass::query()->orderBy('name')->get();
 
         return response()->json([
             'products' => $products,
@@ -55,12 +59,14 @@ class RecordController extends Controller
         $requestedName = trim($validated['name']);
         $slug = Str::slug($requestedName) ?: Str::random(8);
         $tableSafeSlug = str_replace('-', '_', $slug);
-        $tableName = 'record_' . $tableSafeSlug;
+        $modelClass = $this->productModelClass();
+        $tablePrefix = $this->productTablePrefix();
+        $tableName = $tablePrefix . $tableSafeSlug;
         $baseSlug = $slug;
         $baseTableName = $tableName;
         $suffix = 1;
 
-        while (RecordProduct::where('slug', $slug)->exists() || Schema::hasTable($tableName)) {
+        while ($modelClass::where('slug', $slug)->exists() || Schema::hasTable($tableName)) {
             $slug = "{$baseSlug}-{$suffix}";
             $tableName = "{$baseTableName}_{$suffix}";
             $suffix++;
@@ -68,7 +74,7 @@ class RecordController extends Controller
 
         $this->createTableIfMissing($tableName);
 
-        $product = RecordProduct::create([
+        $product = $modelClass::create([
             'name' => $requestedName,
             'slug' => $slug,
             'table_name' => $tableName,
@@ -83,10 +89,12 @@ class RecordController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    public function listEntries(RecordProduct $recordProduct): JsonResponse
+    public function listEntries(string $recordProduct): JsonResponse
     {
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
+        $this->ensureStockIndexes($tableName);
 
         $records = DB::table($tableName)
             ->orderByRaw('remaining_days is null')
@@ -101,10 +109,12 @@ class RecordController extends Controller
         ]);
     }
 
-    public function exportEntries(RecordProduct $recordProduct)
+    public function exportEntries(string $recordProduct)
     {
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
+        $this->ensureStockIndexes($tableName);
 
         $records = DB::table($tableName)
             ->orderByDesc('purchase_date')
@@ -170,37 +180,56 @@ class RecordController extends Controller
     public function linkProduct(Request $request): JsonResponse
     {
         $this->ensureLinkColumns();
+        $tableName = $this->productTableName();
         $data = $request->validate([
-            'record_product_id' => ['required', 'integer', 'exists:record_products,id'],
+            'record_product_id' => ['required', 'integer', "exists:{$tableName},id"],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
             'linked_variation_ids' => ['array', 'max:1'],
             'linked_variation_ids.*' => ['integer'],
+            'stock_account_note' => ['nullable', 'string', 'max:5000'],
         ]);
+        if ($this->isStockContext() && !empty($data['stock_account_note'])) {
+            $wordCount = str_word_count(strip_tags((string) $data['stock_account_note']));
+            if ($wordCount > 500) {
+                return response()->json([
+                    'message' => 'Stock Account Note must be 500 words or fewer.',
+                    'errors' => ['stock_account_note' => ['Stock Account Note must be 500 words or fewer.']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
 
-        $product = RecordProduct::findOrFail($data['record_product_id']);
+        $product = $this->findProduct((string) $data['record_product_id']);
         $variationIds = !empty($data['linked_variation_ids'])
             ? array_slice($data['linked_variation_ids'], 0, 1)
             : [];
-        $product->update([
+        $payload = [
             'linked_product_id' => $data['linked_product_id'] ?? null,
             'linked_variation_ids' => !empty($variationIds) ? $variationIds : null,
-        ]);
+        ];
+        if ($this->isStockContext()) {
+            $payload['stock_account_note'] = $data['stock_account_note'] ?? null;
+        }
+        $product->update($payload);
 
         return response()->json([
             'product' => $product->fresh(),
         ]);
     }
 
-    public function storeEntry(Request $request, RecordProduct $recordProduct): JsonResponse
+    public function storeEntry(Request $request, string $recordProduct): JsonResponse
     {
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
         $this->ensureSaleSyncColumns();
 
         $validated = $this->validateEntry($request);
         $now = Carbon::now();
 
-        $payload = $this->normalizePayload($validated, $recordProduct->name);
+        $payload = $this->normalizePayload($validated, $product->name);
+        if ($this->isStockContext() && $this->isStockTable($tableName)) {
+            $payload['stock_index'] = $this->nextStockIndex($tableName);
+        }
         $payload['created_at'] = $now;
         $payload['updated_at'] = $now;
 
@@ -215,10 +244,11 @@ class RecordController extends Controller
 
     public function updateEntry(
         Request $request,
-        RecordProduct $recordProduct,
+        string $recordProduct,
         int $entryId
     ): JsonResponse {
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
 
         $existing = DB::table($tableName)->find($entryId);
@@ -235,7 +265,7 @@ class RecordController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $payload = $this->normalizePayload($validated, $recordProduct->name, true);
+        $payload = $this->normalizePayload($validated, $product->name, true);
         $payload['updated_at'] = Carbon::now();
 
         DB::table($tableName)
@@ -251,7 +281,7 @@ class RecordController extends Controller
     }
 
     public function deleteEntry(
-        RecordProduct $recordProduct,
+        string $recordProduct,
         int $entryId
     ): JsonResponse {
         if (auth()->user()?->role === 'employee') {
@@ -260,7 +290,8 @@ class RecordController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
 
         $existing = DB::table($tableName)->find($entryId);
@@ -277,11 +308,15 @@ class RecordController extends Controller
         ]);
     }
 
-    public function importEntries(Request $request, RecordProduct $recordProduct): JsonResponse
+    public function importEntries(Request $request, string $recordProduct): JsonResponse
     {
-        $tableName = $recordProduct->table_name;
+        $product = $this->findProduct($recordProduct);
+        $tableName = $product->table_name;
         $this->createTableIfMissing($tableName);
         $this->ensureSaleSyncColumns();
+        $nextStockIndex = ($this->isStockContext() && $this->isStockTable($tableName))
+            ? $this->nextStockIndex($tableName)
+            : null;
 
         $request->validate([
             'file' => ['required', 'file'],
@@ -372,7 +407,11 @@ class RecordController extends Controller
                         : null;
                 }
 
-                $payload['product'] = $payload['product'] ?? $recordProduct->name;
+                $payload['product'] = $payload['product'] ?? $product->name;
+                if ($nextStockIndex !== null) {
+                    $payload['stock_index'] = $nextStockIndex;
+                    $nextStockIndex++;
+                }
                 $payload['created_at'] = Carbon::now();
                 $payload['updated_at'] = Carbon::now();
 
@@ -399,7 +438,7 @@ class RecordController extends Controller
             'serial_number' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:190'],
             'email' => [$partial ? 'sometimes' : 'required', 'nullable', 'string', 'max:255'],
             'password' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:255'],
-            'phone' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:60'],
+            'phone' => [$partial ? 'sometimes' : 'nullable', 'nullable', 'string', 'max:60'],
             'product' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:190'],
             'sales_amount' => [$partial ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
             'purchase_date' => [$partial ? 'sometimes' : 'required', 'date'],
@@ -483,13 +522,79 @@ class RecordController extends Controller
         return $record;
     }
 
+    private function isStockContext(): bool
+    {
+        return request()->routeIs('stock-account.*');
+    }
+
+    private function productModelClass(): string
+    {
+        return $this->isStockContext() ? StockProduct::class : RecordProduct::class;
+    }
+
+    private function productTableName(): string
+    {
+        return $this->isStockContext() ? 'stock_products' : 'record_products';
+    }
+
+    private function productTablePrefix(): string
+    {
+        return $this->isStockContext() ? 'stock_' : 'record_';
+    }
+
+    private function findProduct(string $recordProduct): object
+    {
+        $modelClass = $this->productModelClass();
+
+        return $modelClass::query()->findOrFail($recordProduct);
+    }
+
+    private function isStockTable(string $tableName): bool
+    {
+        return str_starts_with($tableName, 'stock_');
+    }
+
+    private function nextStockIndex(string $tableName): int
+    {
+        $max = DB::table($tableName)->max('stock_index');
+        $maxValue = is_numeric($max) ? (int) $max : 0;
+
+        return $maxValue + 1;
+    }
+
+    private function ensureStockIndexes(string $tableName): void
+    {
+        if (!$this->isStockTable($tableName)) {
+            return;
+        }
+
+        $max = DB::table($tableName)->max('stock_index');
+        $nextIndex = is_numeric($max) ? ((int) $max + 1) : 1;
+
+        $rows = DB::table($tableName)
+            ->whereNull('stock_index')
+            ->orderBy('id')
+            ->get(['id']);
+
+        foreach ($rows as $row) {
+            DB::table($tableName)
+                ->where('id', $row->id)
+                ->update(['stock_index' => $nextIndex]);
+            $nextIndex++;
+        }
+    }
+
     private function createTableIfMissing(string $tableName): void
     {
         $tableExists = Schema::hasTable($tableName);
+        $isStockTable = $this->isStockTable($tableName);
 
         if (!$tableExists) {
-            Schema::create($tableName, function (Blueprint $table): void {
+            Schema::create($tableName, function (Blueprint $table) use ($isStockTable): void {
                 $table->id();
+                if ($isStockTable) {
+                    $table->integer('stock_index')->nullable();
+                }
                 $table->string('serial_number')->nullable();
                 $table->string('email')->nullable();
                 $table->string('password')->nullable();
@@ -509,6 +614,11 @@ class RecordController extends Controller
         }
 
         // Add any missing columns for existing tables
+        if ($isStockTable && !Schema::hasColumn($tableName, 'stock_index')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->integer('stock_index')->nullable()->after('id');
+            });
+        }
         if (!Schema::hasColumn($tableName, 'sales_amount')) {
             Schema::table($tableName, function (Blueprint $table): void {
                 $table->integer('sales_amount')->nullable()->after('product');
@@ -524,19 +634,26 @@ class RecordController extends Controller
 
     private function ensureLinkColumns(): void
     {
-        if (!Schema::hasTable('record_products')) {
+        $tableName = $this->productTableName();
+        if (!Schema::hasTable($tableName)) {
             return;
         }
 
-        if (!Schema::hasColumn('record_products', 'linked_product_id')) {
-            Schema::table('record_products', function (Blueprint $table): void {
+        if (!Schema::hasColumn($tableName, 'linked_product_id')) {
+            Schema::table($tableName, function (Blueprint $table): void {
                 $table->foreignId('linked_product_id')->nullable()->after('table_name')->constrained('products')->nullOnDelete();
             });
         }
 
-        if (!Schema::hasColumn('record_products', 'linked_variation_ids')) {
-            Schema::table('record_products', function (Blueprint $table): void {
+        if (!Schema::hasColumn($tableName, 'linked_variation_ids')) {
+            Schema::table($tableName, function (Blueprint $table): void {
                 $table->json('linked_variation_ids')->nullable()->after('linked_product_id');
+            });
+        }
+
+        if ($this->isStockContext() && !Schema::hasColumn($tableName, 'stock_account_note')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->string('stock_account_note')->nullable()->after('linked_variation_ids');
             });
         }
     }

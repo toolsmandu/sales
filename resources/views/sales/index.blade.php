@@ -137,6 +137,7 @@
             font-size: 0.95rem;
             color: rgba(15, 23, 42, 0.75);
             line-height: 1.5;
+            white-space: pre-wrap;
         }
 
         .sale-confirmation-actions {
@@ -302,6 +303,63 @@
         .orders-field--submit {
             align-self: end;
             justify-self: stretch;
+        }
+
+        .orders-create-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1100px) {
+            .orders-create-shell {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .orders-phone-history-panel {
+            height: fit-content;
+        }
+
+        .orders-phone-history {
+            font-size: 0.85rem;
+        }
+
+        .orders-phone-history__header {
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.35rem;
+        }
+
+        .orders-phone-history__list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .orders-phone-history__item {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .orders-phone-history__product {
+            font-weight: 600;
+            color: #0f172a;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .orders-phone-history__date {
+            color: #64748b;
+            white-space: nowrap;
         }
 
         /* Hide number input spinners for amount */
@@ -679,185 +737,186 @@
             @endphp
 
             @if (!$saleToEdit)
-                <section class="card stack orders-card orders-card--create">
-                    <header class="orders-card__header">
-                        <div>
-                            <h1>Add Order</h1>
-                        </div>
-                        <div class="orders-card__actions">
-                            <button class="orders-layout-toggle" id="orders-layout-toggle">✍️</button>
-                        </div>
-                    </header>
-                    <div class="orders-layout-panel" id="orders-layout-panel" hidden>
-                        <label>
-                            Purchase Date Width (%)
-                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="1">
-                        </label>
-                        <label>
-                            Phone Number Width (%)
-                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="2">
-                        </label>
-                        <label>
-                            Email Width (%)
-                            <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="3">
-                        </label>
-                        <label>
-                            Row Gap (px)
-                            <input type="range" min="0" max="24" value="0" data-layout-input data-row="primary" data-gap>
-                        </label>
-                        <label>
-                            Product Width (%)
-                            <input type="range" min="20" max="70" value="45" data-layout-input data-row="secondary" data-col="1">
-                        </label>
-                        <label>
-                            Amount Width (%)
-                            <input type="range" min="15" max="50" value="25" data-layout-input data-row="secondary" data-col="2">
-                        </label>
-                        <label>
-                            Submit Width (%)
-                            <input type="range" min="15" max="50" value="30" data-layout-input data-row="secondary" data-col="3">
-                        </label>
-                        <label>
-                            Second Row Gap (px)
-                            <input type="range" min="0" max="24" value="8" data-layout-input data-row="secondary" data-gap>
-                        </label>
-                    </div>
-                    <div class="orders-card__section">
-                    <form method="POST" action="{{ route('dashboard.orders.store') }}" class="orders-form">
-                        @csrf
-                        @php
-                            $createPurchaseDate = old('purchase_date', now('Asia/Kathmandu')->toDateString());
-                            $createProductValue = old('product_name');
-                            $createExpiryValue = old('product_expiry_days');
-                            $createOptions = $ensureOptionPresent($normalizedProductOptions, $createProductValue, $createExpiryValue);
-                        @endphp
-                        <div class="orders-row orders-row--primary">
-                            <div class="orders-field orders-field--purchase-date">
-                                <label for="sales-purchase-date">
-                                    Purchase Date
-                                    <input
-                                        type="date"
-                                        id="sales-purchase-date"
-                                        name="purchase_date"
-                                        value="{{ $createPurchaseDate }}"
-                                        required>
-                                </label>
+                <div class="orders-create-shell">
+                    <section class="card stack orders-card orders-card--create">
+                        <header class="orders-card__header">
+                            <div>
+                                <h1>Add Order</h1>
                             </div>
-
-                            <div class="orders-field orders-field--phone">
-                                <label for="sales-phone">
-                                    Phone Number
-                                    <input
-                                        type="tel"
-                                        id="sales-phone"
-                                        name="phone"
-                                        value="{{ old('phone') }}"
-                                        placeholder="Phone (Required)"
-                                        required>
-                                </label>
+                            <div class="orders-card__actions">
+                                <button class="orders-layout-toggle" id="orders-layout-toggle">✍️</button>
                             </div>
-
-                            <div class="orders-field orders-field--email">
-                                <label for="sales-email">
-                                    Email
-                                    <input
-                                        type="email"
-                                        id="sales-email"
-                                        name="email"
-                                        value="{{ old('email') }}"
-                                        placeholder="Email address">
-                                </label>
-                            </div>
+                        </header>
+                        <div class="orders-layout-panel" id="orders-layout-panel" hidden>
+                            <label>
+                                Purchase Date Width (%)
+                                <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="1">
+                            </label>
+                            <label>
+                                Phone Number Width (%)
+                                <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="2">
+                            </label>
+                            <label>
+                                Email Width (%)
+                                <input type="range" min="20" max="60" value="33" data-layout-input data-row="primary" data-col="3">
+                            </label>
+                            <label>
+                                Row Gap (px)
+                                <input type="range" min="0" max="24" value="0" data-layout-input data-row="primary" data-gap>
+                            </label>
+                            <label>
+                                Product Width (%)
+                                <input type="range" min="20" max="70" value="45" data-layout-input data-row="secondary" data-col="1">
+                            </label>
+                            <label>
+                                Amount Width (%)
+                                <input type="range" min="15" max="50" value="25" data-layout-input data-row="secondary" data-col="2">
+                            </label>
+                            <label>
+                                Submit Width (%)
+                                <input type="range" min="15" max="50" value="30" data-layout-input data-row="secondary" data-col="3">
+                            </label>
+                            <label>
+                                Second Row Gap (px)
+                                <input type="range" min="0" max="24" value="8" data-layout-input data-row="secondary" data-gap>
+                            </label>
                         </div>
-
-                        <div class="orders-row orders-row--secondary">
-                            <div class="orders-field orders-field--product">
-                                <div
-                                    class="product-combobox"
-                                    data-product-combobox
-                                    data-allow-free-entry="true"
-                                    data-expiry-input="create-product-expiry">
-                                    <label for="sales-product-name">
-                                        Product
-                                    <input
-                                        type="text"
-                                        id="sales-product-name"
-                                        class="product-combobox__input"
-                                        name="product_name"
-                                        value="{{ $createProductValue }}"
-                                        placeholder="Choose one (optional)"
-                                        autocomplete="off"
-                                        data-selected-name="{{ $createProductValue }}"
-                                    >
+                        <div class="orders-card__section">
+                        <form method="POST" action="{{ route('dashboard.orders.store') }}" class="orders-form">
+                            @csrf
+                            @php
+                                $createPurchaseDate = old('purchase_date', now('Asia/Kathmandu')->toDateString());
+                                $createProductValue = old('product_name');
+                                $createExpiryValue = old('product_expiry_days');
+                                $createOptions = $ensureOptionPresent($normalizedProductOptions, $createProductValue, $createExpiryValue);
+                            @endphp
+                            <div class="orders-row orders-row--primary">
+                                <div class="orders-field orders-field--purchase-date">
+                                    <label for="sales-purchase-date">
+                                        Purchase Date
                                         <input
-                                            type="hidden"
-                                            name="product_expiry_days"
-                                            id="create-product-expiry"
-                                            value="{{ $createExpiryValue }}"
-                                        >
+                                            type="date"
+                                            id="sales-purchase-date"
+                                            name="purchase_date"
+                                            value="{{ $createPurchaseDate }}"
+                                            required>
                                     </label>
+                                </div>
 
-                                    <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
-                                        @if ($createOptions->isEmpty())
-                                            <p class="product-combobox__empty">No products available yet.</p>
-                                        @else
-                                            <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
-                                            @foreach ($createOptions as $option)
-                                                @php
-                                                    $label = $option['label'];
-                                                    $expiryDays = $option['expiry_days'];
-                                                    $isSelectedOption = $createProductValue === $label;
-                                                @endphp
-                                                <button
-                                                    type="button"
-                                                    class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
-                                                    data-product-option
-                                                    data-product-name="{{ $label }}"
-                                                    data-product-id="{{ $label }}"
-                                                    data-product-expiry-days="{{ $expiryDays ?? '' }}"
-                                                    role="option"
-                                                    aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
-                                                >
-                                                    {{ $label }}
-                                                </button>
-                                            @endforeach
-                                        @endif
-                                    </div>
+                                <div class="orders-field orders-field--phone">
+                                    <label for="sales-phone">
+                                        Phone Number
+                                        <input
+                                            type="tel"
+                                            id="sales-phone"
+                                            name="phone"
+                                            value="{{ old('phone') }}"
+                                            placeholder="Phone (Required)"
+                                            required>
+                                    </label>
+                                </div>
+
+                                <div class="orders-field orders-field--email">
+                                    <label for="sales-email">
+                                        Email
+                                        <input
+                                            type="email"
+                                            id="sales-email"
+                                            name="email"
+                                            value="{{ old('email') }}"
+                                            placeholder="Email address">
+                                    </label>
                                 </div>
                             </div>
 
-                            <div class="orders-field orders-field--amount">
-                                <label for="sales-amount">
-                                    Amount
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        min="0"
-                                        id="sales-amount"
-                                        name="sales_amount"
-                                        value="{{ old('sales_amount') !== null ? (int) old('sales_amount') : '' }}"
-                                        placeholder="Rs."
-                                    >
-                                </label>
-                            </div>
-
-                            <div class="orders-field orders-field--submit">
-                                <div class="orders-actions">
-                                    <label class="remarks-toggle" aria-label="Add remarks">
+                            <div class="orders-row orders-row--secondary">
+                                <div class="orders-field orders-field--product">
+                                    <div
+                                        class="product-combobox"
+                                        data-product-combobox
+                                        data-allow-free-entry="true"
+                                        data-expiry-input="create-product-expiry">
+                                        <label for="sales-product-name">
+                                            Product
                                         <input
-                                            type="checkbox"
-                                            class="remarks-toggle-checkbox"
-                                            id="sales-remarks-toggle"
-                                            {{ old('remarks') ? 'checked' : '' }}
-                                            title="Add remarks">
+                                            type="text"
+                                            id="sales-product-name"
+                                            class="product-combobox__input"
+                                            name="product_name"
+                                            value="{{ $createProductValue }}"
+                                            placeholder="Choose one (optional)"
+                                            autocomplete="off"
+                                            data-selected-name="{{ $createProductValue }}"
+                                        >
+                                            <input
+                                                type="hidden"
+                                                name="product_expiry_days"
+                                                id="create-product-expiry"
+                                                value="{{ $createExpiryValue }}"
+                                            >
+                                        </label>
+
+                                        <div class="product-combobox__dropdown" role="listbox" aria-label="Product options">
+                                            @if ($createOptions->isEmpty())
+                                                <p class="product-combobox__empty">No products available yet.</p>
+                                            @else
+                                                <p class="product-combobox__empty" data-empty-message hidden>No matching products found.</p>
+                                                @foreach ($createOptions as $option)
+                                                    @php
+                                                        $label = $option['label'];
+                                                        $expiryDays = $option['expiry_days'];
+                                                        $isSelectedOption = $createProductValue === $label;
+                                                    @endphp
+                                                    <button
+                                                        type="button"
+                                                        class="product-combobox__option {{ $isSelectedOption ? 'is-active' : '' }}"
+                                                        data-product-option
+                                                        data-product-name="{{ $label }}"
+                                                        data-product-id="{{ $label }}"
+                                                        data-product-expiry-days="{{ $expiryDays ?? '' }}"
+                                                        role="option"
+                                                        aria-selected="{{ $isSelectedOption ? 'true' : 'false' }}"
+                                                    >
+                                                        {{ $label }}
+                                                    </button>
+                                                @endforeach
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="orders-field orders-field--amount">
+                                    <label for="sales-amount">
+                                        Amount
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            min="0"
+                                            id="sales-amount"
+                                            name="sales_amount"
+                                            value="{{ old('sales_amount') !== null ? (int) old('sales_amount') : '' }}"
+                                            placeholder="Rs."
+                                        >
                                     </label>
-                                    <input
-                                        type="hidden"
-                                        id="sales-remarks"
-                                        name="remarks"
-                                        value="{{ old('remarks') }}"
-                                    >
-                                    <button type="submit" class="createorder" style="margin:20px;">
+                                </div>
+
+                                <div class="orders-field orders-field--submit">
+                                    <div class="orders-actions">
+                                        <label class="remarks-toggle" aria-label="Add remarks">
+                                            <input
+                                                type="checkbox"
+                                                class="remarks-toggle-checkbox"
+                                                id="sales-remarks-toggle"
+                                                {{ old('remarks') ? 'checked' : '' }}
+                                                title="Add remarks">
+                                        </label>
+                                        <input
+                                            type="hidden"
+                                            id="sales-remarks"
+                                            name="remarks"
+                                            value="{{ old('remarks') }}"
+                                        >
+                                        <button type="submit" class="createorder" style="margin:20px;">
                                         Create Order
                                     </button>
                                 </div>
@@ -870,6 +929,13 @@
                     </div>
                     
                 </section>
+                <aside class="card orders-phone-history-panel" id="orders-phone-history-panel" hidden>
+                    <div class="orders-phone-history">
+                        <div class="orders-phone-history__header">Last 5 purchases</div>
+                        <ul class="orders-phone-history__list"></ul>
+                    </div>
+                </aside>
+                </div>
                 <section class="card stack orders-card orders-card--list">
                     <div class="orders-card__section">
                         <div class="orders-card__list-header">
@@ -1109,6 +1175,7 @@
             'error' => ['text' => 'ERROR', 'icon' => '✖', 'color' => '#b91c1c'],
             default => null,
         };
+        $stockAccountNote = trim((string) ($saleConfirmation['stock_account_note'] ?? ''));
     @endphp
 
     @if ($saleConfirmation && $orderId)
@@ -1169,6 +1236,18 @@
                             </div>
                         @endif
                     </dl>
+                    @if ($stockAccountNote !== '')
+                        <div class="sale-confirmation-note" data-stock-note>{{ $stockAccountNote }}</div>
+                        <div class="sale-confirmation-actions">
+                            <button type="button" class="ghost-button button-with-icon sale-confirmation-copy" data-stock-note-copy>
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                    <rect x="4" y="7" width="12" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span>Copy Note</span>
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </div>
         </section>
@@ -1277,6 +1356,9 @@
             const addEmailInput = document.getElementById('sales-email');
             const addEmailDefaultPlaceholder = addEmailInput?.getAttribute('placeholder') || 'Email address';
             const emailLookupUrl = '{{ route('orders.lookup-email') }}';
+            const phoneHistoryUrl = '{{ route('orders.phone-history') }}';
+            const phoneHistoryPanel = document.getElementById('orders-phone-history-panel');
+            const phoneHistoryList = phoneHistoryPanel?.querySelector('.orders-phone-history__list');
             const remarksToggle = document.getElementById('sales-remarks-toggle');
             const remarksInput = document.getElementById('sales-remarks');
             const normalizePhone = (value) => (value || '').replace(/\D+/g, '');
@@ -1295,6 +1377,8 @@
             const phoneEmailMap = collectPhoneEmailMap();
             let emailLookupTimer = null;
             let emailLookupToken = 0;
+            let historyLookupTimer = null;
+            let historyLookupToken = 0;
             const autofillEmail = async () => {
                 if (!addPhoneInput || !addEmailInput) return;
                 const digits = normalizePhone(addPhoneInput.value || '');
@@ -1346,6 +1430,67 @@
                     void autofillEmail();
                 }, 250);
             };
+            const renderPhoneHistory = (purchases) => {
+                if (!phoneHistoryPanel || !phoneHistoryList) return;
+                phoneHistoryList.innerHTML = '';
+                if (!Array.isArray(purchases) || purchases.length === 0) {
+                    phoneHistoryPanel.hidden = true;
+                    return;
+                }
+                purchases.forEach((purchase) => {
+                    const item = document.createElement('li');
+                    item.className = 'orders-phone-history__item';
+
+                    const product = document.createElement('span');
+                    product.className = 'orders-phone-history__product';
+                    product.textContent = purchase?.product || 'Unknown product';
+
+                    const date = document.createElement('span');
+                    date.className = 'orders-phone-history__date';
+                    date.textContent = purchase?.date || '';
+
+                    item.appendChild(product);
+                    item.appendChild(date);
+                    phoneHistoryList.appendChild(item);
+                });
+                phoneHistoryPanel.hidden = false;
+            };
+            const fetchPhoneHistory = async () => {
+                if (!addPhoneInput) return;
+                const digits = normalizePhone(addPhoneInput.value || '');
+                if (!digits) {
+                    renderPhoneHistory([]);
+                    return;
+                }
+                const lookupToken = ++historyLookupToken;
+                try {
+                    const response = await fetch(`${phoneHistoryUrl}?phone=${encodeURIComponent(digits)}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                        },
+                    });
+                    if (!response.ok) {
+                        throw new Error('History lookup failed');
+                    }
+                    const payload = await response.json();
+                    if (lookupToken !== historyLookupToken) return;
+                    if (normalizePhone(addPhoneInput.value || '') !== digits) return;
+                    const purchases = Array.isArray(payload?.purchases) ? payload.purchases : [];
+                    renderPhoneHistory(purchases);
+                } catch (error) {
+                    if (lookupToken !== historyLookupToken) return;
+                    if (normalizePhone(addPhoneInput.value || '') !== digits) return;
+                    renderPhoneHistory([]);
+                }
+            };
+            const scheduleHistoryLookup = () => {
+                if (historyLookupTimer) {
+                    window.clearTimeout(historyLookupTimer);
+                }
+                historyLookupTimer = window.setTimeout(() => {
+                    void fetchPhoneHistory();
+                }, 250);
+            };
             addPhoneInput?.addEventListener('input', () => {
                 if (addPhoneInput) {
                     const cleaned = sanitizePhoneInput(addPhoneInput.value || '');
@@ -1354,16 +1499,20 @@
                     }
                 }
                 scheduleAutofill();
+                scheduleHistoryLookup();
             });
             addPhoneInput?.addEventListener('blur', () => {
                 void autofillEmail();
+                void fetchPhoneHistory();
             });
             addPhoneInput?.addEventListener('change', () => {
                 void autofillEmail();
+                void fetchPhoneHistory();
             });
             addPhoneInput?.addEventListener('keyup', (event) => {
                 if (event.key === 'Enter') {
                     void autofillEmail();
+                    void fetchPhoneHistory();
                 }
             });
 
@@ -1564,6 +1713,8 @@
             if (confirmationModal) {
                 const closeButtons = confirmationModal.querySelectorAll('[data-sale-confirmation-close]');
                 const closeLabel = confirmationModal.querySelector('[data-sale-confirmation-close-label]');
+                const copyNoteButton = confirmationModal.querySelector('[data-stock-note-copy]');
+                const noteElement = confirmationModal.querySelector('[data-stock-note]');
                 let confirmationCountdownId = null;
                 let confirmationTimeoutId = null;
 
@@ -1619,6 +1770,38 @@
 
                 closeButtons.forEach((button) => button.addEventListener('click', hideConfirmation));
 
+                if (copyNoteButton && noteElement) {
+                    copyNoteButton.addEventListener('click', async () => {
+                        const noteText = noteElement.textContent?.trim() || '';
+                        if (!noteText) return;
+                        try {
+                            if (navigator.clipboard?.writeText) {
+                                await navigator.clipboard.writeText(noteText);
+                            } else {
+                                const textarea = document.createElement('textarea');
+                                textarea.value = noteText;
+                                textarea.setAttribute('readonly', 'readonly');
+                                textarea.style.position = 'absolute';
+                                textarea.style.left = '-9999px';
+                                document.body.appendChild(textarea);
+                                textarea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textarea);
+                            }
+                            const label = copyNoteButton.querySelector('span');
+                            if (label) {
+                                const original = label.textContent;
+                                label.textContent = 'Copied';
+                                window.setTimeout(() => {
+                                    label.textContent = original;
+                                }, 1500);
+                            }
+                        } catch (error) {
+                            console.error('Unable to copy stock account note', error);
+                        }
+                    });
+                }
+
                 document.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape' && !confirmationModal.classList.contains('is-hidden')) {
                         hideConfirmation();
@@ -1628,7 +1811,9 @@
                 confirmationModal.classList.remove('is-hidden');
                 confirmationModal.style.display = '';
                 confirmationModal.setAttribute('aria-hidden', 'false');
-                startAutoClose();
+                if (!noteElement) {
+                    startAutoClose();
+                }
             }
         });
     </script>

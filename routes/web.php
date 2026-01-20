@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/coupons/{couponCode}', [CouponCodeController::class, 'destroy'])->name('coupons.destroy');
     Route::get('/orders', [SaleController::class, 'index'])->name('orders.index');
     Route::get('/orders/lookup-email', [SaleController::class, 'lookupEmail'])->name('orders.lookup-email');
+    Route::get('/orders/phone-history', [SaleController::class, 'phoneHistory'])->name('orders.phone-history');
     Route::get('/orders/expired', [SaleController::class, 'expiredOrders'])->name('orders.expired');
     Route::get('/orders/logs', [SaleController::class, 'logs'])->name('orders.logs');
     Route::get('/orders/customer/{phone}', [SaleController::class, 'customerProfile'])
@@ -67,6 +68,18 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/stock/keys/{stockKey}/reveal', [StockController::class, 'reveal'])->name('stock.keys.reveal');
     Route::put('/stock/keys/{stockKey}', [StockController::class, 'update'])->name('stock.keys.update');
     Route::delete('/stock/keys/{stockKey}', [StockController::class, 'destroy'])->name('stock.keys.destroy');
+    Route::prefix('stock-account')->name('stock-account.')->group(function (): void {
+        Route::get('/', [RecordController::class, 'index'])->name('index');
+        Route::get('/products', [RecordController::class, 'products'])->name('products');
+        Route::post('/products', [RecordController::class, 'storeProduct'])->name('products.store');
+        Route::post('/products/link', [RecordController::class, 'linkProduct'])->name('products.link');
+        Route::get('/products/{recordProduct}/entries', [RecordController::class, 'listEntries'])->name('entries.index');
+        Route::post('/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('entries.store');
+        Route::put('/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('entries.update');
+        Route::delete('/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'deleteEntry'])->name('entries.destroy');
+        Route::post('/products/{recordProduct}/import', [RecordController::class, 'importEntries'])->name('entries.import');
+        Route::get('/products/{recordProduct}/export', [RecordController::class, 'exportEntries'])->name('entries.export');
+    });
     Route::prefix('chatbot')->name('chatbot.')->group(function (): void {
         Route::get('/add', [ChatbotController::class, 'knowledge'])->name('knowledge');
         Route::get('/knowledgebase', [ChatbotController::class, 'existing'])->name('knowledgebase');

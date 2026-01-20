@@ -14,6 +14,7 @@
             $product->id => [
                 'linked_product_id' => $product->linked_product_id ?? null,
                 'linked_variation_ids' => $decoded,
+                'stock_account_note' => $product->stock_account_note ?? '',
             ],
         ];
     });
@@ -432,6 +433,10 @@
                                 @endforeach
                             </select>
                         </label>
+                        <label style="min-width: 260px;">
+                            <span class="muted" style="display:block;">Stock Account Note</span>
+                            <textarea id="records-link-note" rows="3" placeholder="Stock Account Note"></textarea>
+                        </label>
                         <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
                             <button type="button" id="records-link-save" class="primary">Save link</button>
                             <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
@@ -571,15 +576,15 @@
             const canDeleteRecords = @json($canDeleteRecords);
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const routes = {
-                products: @json(route('sheet.products')),
-                createProduct: @json(route('sheet.products.store')),
-                linkProduct: @json(route('sheet.products.link')),
-                entries: (productId) => @json(route('sheet.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
-                storeEntry: (productId) => @json(route('sheet.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
-                updateEntry: (productId, entryId) => @json(route('sheet.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
-                deleteEntry: (productId, entryId) => @json(route('sheet.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
-                importEntries: (productId) => @json(route('sheet.entries.import', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
-                exportEntries: (productId) => @json(route('sheet.entries.export', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                products: @json(route('stock-account.products')),
+                createProduct: @json(route('stock-account.products.store')),
+                linkProduct: @json(route('stock-account.products.link')),
+                entries: (productId) => @json(route('stock-account.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                storeEntry: (productId) => @json(route('stock-account.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                updateEntry: (productId, entryId) => @json(route('stock-account.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
+                deleteEntry: (productId, entryId) => @json(route('stock-account.entries.destroy', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
+                importEntries: (productId) => @json(route('stock-account.entries.import', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                exportEntries: (productId) => @json(route('stock-account.entries.export', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
             };
             const siteProducts = @json($siteProducts);
             const siteVariations = @json($variations);
@@ -598,6 +603,7 @@
             const requestedProductId = urlParams.get('product') ? Number(urlParams.get('product')) : null;
 
             const columns = [
+                { id: 'stock_index', label: 'Index', type: 'text' },
                 { id: 'serial_number', label: 'Order ID', type: 'text-editable' },
                 { id: 'purchase_date', label: 'Purchase', type: 'date' },
                 { id: 'product', label: 'Product', type: 'text-editable' },
@@ -615,7 +621,7 @@
             ];
 
             const storageKey = 'records_table_prefs';
-            const storageVersion = 'v2';
+            const storageVersion = 'v3';
             const lastProductKey = `${storageKey}_${storageVersion}_last_product`;
             const baseOrder = columns.map((c) => c.id);
 
@@ -676,7 +682,6 @@
                     focused: false,
                 },
             };
-            const dirtyRecords = new Set();
 
             const productSelect = document.getElementById('record-product-select');
             const productInput = document.getElementById('record-product-input');
@@ -703,6 +708,7 @@
             const importDownload = document.getElementById('records-download-sample');
             const linkRecordProductSelect = document.getElementById('records-link-product');
             const linkSiteProductSelect = document.getElementById('records-link-site-product');
+            const linkNoteInput = document.getElementById('records-link-note');
             const linkSaveButton = document.getElementById('records-link-save');
             const linkClearButton = document.getElementById('records-link-clear');
             const linkStatus = document.getElementById('records-link-status');
@@ -739,7 +745,7 @@
             };
 
             const getLinkForProduct = (productId) => {
-                return state.productLinks?.[productId] ?? { linked_product_id: null, linked_variation_ids: [] };
+                return state.productLinks?.[productId] ?? { linked_product_id: null, linked_variation_ids: [], stock_account_note: '' };
             };
 
             const applyLinkFormValues = (productId) => {
@@ -763,6 +769,9 @@
                             : `product:${link.linked_product_id}`;
                     }
                     linkSiteProductSelect.value = optionValue;
+                }
+                if (linkNoteInput) {
+                    linkNoteInput.value = link.stock_account_note || '';
                 }
                 const statusText = link.linked_product_id ? 'Linked' : 'Not linked';
                 setLinkStatus(statusText, Boolean(link.linked_product_id));
@@ -1119,6 +1128,7 @@
                         state.productLinks[product.id] = {
                             linked_product_id: product.linked_product_id ?? null,
                             linked_variation_ids: [],
+                            stock_account_note: product.stock_account_note || '',
                         };
                         if (newProductInput) newProductInput.value = '';
                         selectProduct(product);
@@ -1136,6 +1146,7 @@
             const formatRecord = (record) => {
                 return {
                     ...record,
+                    stock_index: record.stock_index ?? '',
                     serial_number: record.serial_number ?? '',
                     purchase_date: record.purchase_date ?? '',
                     product: record.product ?? '',
@@ -1163,6 +1174,7 @@
                 const linkedProductId = selectedOption?.dataset?.productId || null;
                 const linkedVariationId = selectedOption?.dataset?.variationId || null;
                 const linkedVariationIds = linkedVariationId ? [linkedVariationId] : [];
+                const stockAccountNote = linkNoteInput?.value?.trim() || null;
 
                 try {
                     setLinkStatus('Saving...');
@@ -1177,6 +1189,7 @@
                             record_product_id: recordProductId,
                             linked_product_id: linkedProductId || null,
                             linked_variation_ids: linkedVariationIds,
+                            stock_account_note: stockAccountNote,
                         }),
                     });
                     if (!response.ok) {
@@ -1191,6 +1204,7 @@
                             linked_variation_ids: product.linked_variation_ids
                                 ? (Array.isArray(product.linked_variation_ids) ? product.linked_variation_ids : JSON.parse(product.linked_variation_ids || '[]'))
                                 : [],
+                            stock_account_note: product.stock_account_note || '',
                         };
                         setLinkStatus('Link saved', true);
                         applyLinkFormValues(product.id);
@@ -1494,7 +1508,10 @@
                 if (!value) return '';
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return '';
-                return date.toISOString().slice(0, 10);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             };
 
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1615,7 +1632,6 @@
                             renderRecords();
                         }
                     }
-                    dirtyRecords.delete(String(recordId));
                     setStatus('Saved', true);
                 } catch (error) {
                     setStatus(error.message ?? 'Unable to update value');
@@ -1651,6 +1667,22 @@
                 return payload;
             };
 
+            const buildRowDiff = (recordId, payload) => {
+                const existing = state.records.find((row) => String(row.id) === String(recordId));
+                if (!existing) {
+                    return payload;
+                }
+                const diff = {};
+                Object.keys(payload).forEach((key) => {
+                    const current = payload[key] ?? '';
+                    const previous = existing[key] ?? '';
+                    if (String(current) !== String(previous)) {
+                        diff[key] = payload[key];
+                    }
+                });
+                return diff;
+            };
+
             const saveRow = async (recordId, rowEl) => {
                 if (!state.selectedProductId) {
                     return;
@@ -1658,11 +1690,12 @@
                 if (!rowEl) {
                     return;
                 }
-                if (!dirtyRecords.has(String(recordId))) {
-                    setStatus('Unchanged Data');
+                const payload = collectRowPayload(rowEl);
+                const diff = buildRowDiff(recordId, payload);
+                if (!Object.keys(diff).length) {
+                    setStatus('Unchanged data');
                     return;
                 }
-                const payload = collectRowPayload(rowEl);
                 setStatus('Saving row...');
                 try {
                     const response = await fetch(routes.updateEntry(state.selectedProductId, recordId), {
@@ -1672,7 +1705,7 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
                         },
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify(diff),
                     });
                     if (!response.ok) {
                         const data = await response.json().catch(() => null);
@@ -1687,8 +1720,7 @@
                             renderRecords();
                         }
                     }
-                    dirtyRecords.delete(String(recordId));
-                    setStatus('Data Updated Successfully.', true);
+                    setStatus('Saved', true);
                 } catch (error) {
                     setStatus(error.message ?? 'Unable to save row');
                 }
@@ -1731,7 +1763,6 @@
                     renderRecords();
                     return;
                 }
-                dirtyRecords.add(String(recordId));
                 updateCell(recordId, field, value);
                 const localIndex = state.records.findIndex((r) => String(r.id) === String(recordId));
                 if (localIndex !== -1) {
@@ -1762,7 +1793,6 @@
                     renderRecords();
                     return;
                 }
-                dirtyRecords.add(String(recordId));
                 updateCell(recordId, field, value);
             };
 
@@ -1777,6 +1807,7 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 state.newRow = {
+                    stock_index: '',
                     serial_number: '',
                     purchase_date: formatDate(today),
                     product: getSelectedProductName(),
@@ -2022,6 +2053,7 @@
             linkSaveButton?.addEventListener('click', saveLink);
             linkClearButton?.addEventListener('click', () => {
                 if (linkSiteProductSelect) linkSiteProductSelect.value = '';
+                if (linkNoteInput) linkNoteInput.value = '';
                 setLinkStatus('Not linked');
             });
             createProductButton?.addEventListener('click', () => createProduct());

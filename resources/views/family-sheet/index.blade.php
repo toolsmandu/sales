@@ -604,8 +604,22 @@
                                             <input type="text" name="remarks" form="family-account-update-{{ $account->id }}" value="{{ old('remarks', $account->remarks) }}" style="width: 100%;">
                                         </td>
                                         <td style="display: flex; gap: 0.35rem; align-items: center; justify-content: center;">
-                                            <button type="submit" form="family-account-update-{{ $account->id }}" class="ghost-button ghost-button--compact">Save</button>
-                                            <button type="submit" form="family-account-delete-{{ $account->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" onclick="return confirm('Delete this main account and all its members?');">Delete</button>
+                                            <button type="submit" form="family-account-update-{{ $account->id }}" class="ghost-button ghost-button--compact" aria-label="Save">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                    <path d="M7 4v6h10V4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                    <path d="M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                </svg>
+                                            </button>
+                                            <button type="submit" form="family-account-delete-{{ $account->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" aria-label="Delete" onclick="return confirm('Delete this main account and all its members?');">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                    <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                    <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                    <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                    <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                </svg>
+                                            </button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -729,8 +743,22 @@
                                         <td data-col-id="remarks">
                                             <div style="display: flex; gap: 0.35rem; align-items: center;">
                                                 <input type="text" name="remarks" form="family-member-{{ $member->id }}" value="{{ $member->remarks }}" style="width: 100%;">
-                                                <button type="submit" form="family-member-{{ $member->id }}" class="ghost-button ghost-button--compact">Save</button>
-                                                <button type="submit" form="family-member-delete-{{ $member->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" onclick="return confirm('Delete this member?');">Delete</button>
+                                                <button type="submit" form="family-member-{{ $member->id }}" class="ghost-button ghost-button--compact" aria-label="Save">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                        <path d="M7 4v6h10V4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                        <path d="M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="submit" form="family-member-delete-{{ $member->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" aria-label="Delete" onclick="return confirm('Delete this member?');">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                        <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                        <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                                    </svg>
+                                                </button>
                                             </div>
                                             </form>
                                             <form id="family-member-delete-{{ $member->id }}" method="POST" action="{{ route('family-sheet.members.destroy', $member->id) }}">
