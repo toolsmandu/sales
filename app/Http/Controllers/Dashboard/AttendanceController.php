@@ -20,6 +20,10 @@ class AttendanceController extends Controller
             ? 'Attendance started. Have a productive day!'
             : 'You already have an active work session.';
 
+        if ($user->isEmployee()) {
+            return back();
+        }
+
         return back()->with('status', $message);
     }
 
@@ -31,6 +35,10 @@ class AttendanceController extends Controller
         $message = $this->endWorkSession($user)
             ? 'Great job! Work session recorded.'
             : 'No active work session found.';
+
+        if ($user->isEmployee()) {
+            return back();
+        }
 
         return back()->with('status', $message);
     }

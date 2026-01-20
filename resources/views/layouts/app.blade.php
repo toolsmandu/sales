@@ -550,10 +550,6 @@
                                     @csrf
                                     <button type="submit" @disabled($activeAttendance)>Start Work</button>
                                 </form>
-                                <form method="POST" action="{{ route('user-logs.attendance.end') }}">
-                                    @csrf
-                                    <button type="submit" @disabled(!$activeAttendance)>End Work</button>
-                                </form>
                                 @if ($activeAttendance)
                                     <span class="header-attendance-indicator">
                                         Active since {{ $activeAttendance->started_at->setTimezone('Asia/Kathmandu')->format('g:i A') }}

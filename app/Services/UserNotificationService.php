@@ -122,36 +122,7 @@ class UserNotificationService
             ];
         }
 
-        $attendanceLogs = AttendanceLog::query()
-            ->with('user:id,name')
-            ->whereDate('work_date', $today->toDateString())
-            ->get();
-
-        foreach ($attendanceLogs as $log) {
-            if ($log->started_at) {
-                $id = 'attendance_start_' . $log->id;
-                if (! in_array($id, $hidden, true)) {
-                    $items[] = [
-                        'type' => 'employee_start',
-                        'id' => $id,
-                        'title' => 'Work started',
-                        'message' => $log->user->name . ' started work at ' . self::formatTime($log->started_at, $timezone) . '.',
-                    ];
-                }
-            }
-
-            if ($log->ended_at) {
-                $id = 'attendance_end_' . $log->id;
-                if (! in_array($id, $hidden, true)) {
-                    $items[] = [
-                        'type' => 'employee_end',
-                        'id' => $id,
-                        'title' => 'Work ended',
-                        'message' => $log->user->name . ' ended work at ' . self::formatTime($log->ended_at, $timezone) . '.',
-                    ];
-                }
-            }
-        }
+        // Attendance start/end notifications are intentionally suppressed.
 
         $stockViews = StockKey::query()
             ->with(['product:id,name', 'viewedBy:id,name'])

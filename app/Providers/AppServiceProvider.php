@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Services\UserNotificationService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -29,6 +31,27 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', function ($view): void {
             $authUser = Auth::user();
             $session = session();
+
+            if ($authUser && $authUser->isEmployee()) {
+                $authUser->loadMissing('employeeSetting');
+                $dailyHours = (int) ($authUser->employeeSetting->daily_hours_quota ?? 0);
+                if ($dailyHours > 0) {
+                    $activeLog = AttendanceLog::where('user_id', $authUser->id)
+                        ->whereNull('ended_at')
+                        ->latest('started_at')
+                        ->first();
+                    if ($activeLog && $activeLog->started_at) {
+                        $now = Carbon::now('Asia/Kathmandu');
+                        $minutes = AttendanceLog::minutesBetween($activeLog->started_at, $now);
+                        if ($minutes >= $dailyHours * 60) {
+                            $activeLog->update([
+                                'ended_at' => $now,
+                                'total_minutes' => $minutes,
+                            ]);
+                        }
+                    }
+                }
+            }
 
             $view->with('headerNotifications', UserNotificationService::buildFor($authUser, $session));
 
