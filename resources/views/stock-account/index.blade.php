@@ -445,10 +445,19 @@
                             <span class="muted" style="display:block;">Stock Account Note</span>
                             <textarea id="records-link-note" rows="3" placeholder="Stock Account Note"></textarea>
                         </label>
+                        <label style="min-width: 220px;">
+                            <span class="muted" style="display:block;">Edit product name</span>
+                            <input type="text" id="records-edit-product-name" placeholder="Product name">
+                        </label>
+                        <label style="min-width: 160px;">
+                            <span class="muted" style="display:block;">Edit expiry (days)</span>
+                            <input type="number" id="records-edit-product-expiry" min="0" step="1" placeholder="0">
+                        </label>
                         <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
                             <button type="button" id="records-link-save" class="primary">Save link</button>
                             <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
                         </div>
+                        <button type="button" id="records-edit-product-save" class="secondary">Update product</button>
                     </div>
                     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
@@ -586,6 +595,7 @@
             const routes = {
                 products: @json(route('stock-account.products')),
                 createProduct: @json(route('stock-account.products.store')),
+                updateProduct: (productId) => @json(route('stock-account.products.update', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 linkProduct: @json(route('stock-account.products.link')),
                 entries: (productId) => @json(route('stock-account.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 storeEntry: (productId) => @json(route('stock-account.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
@@ -723,6 +733,9 @@
             const linkStatus = document.getElementById('records-link-status');
             const linkCardToggle = document.getElementById('toggle-link-card');
             const linkCardBody = document.getElementById('link-card-body');
+            const editProductNameInput = document.getElementById('records-edit-product-name');
+            const editProductExpiryInput = document.getElementById('records-edit-product-expiry');
+            const editProductSaveButton = document.getElementById('records-edit-product-save');
 
             const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
             const handleFilterInput = (input, key, sanitize = false) => {
@@ -761,6 +774,7 @@
                 if (!productId) {
                     if (linkRecordProductSelect) linkRecordProductSelect.value = '';
                     setLinkStatus('Not linked');
+                    applyEditProductValues(null);
                     return;
                 }
                 const link = getLinkForProduct(productId);
@@ -784,6 +798,7 @@
                 }
                 const statusText = link.linked_product_id ? 'Linked' : 'Not linked';
                 setLinkStatus(statusText, Boolean(link.linked_product_id));
+                applyEditProductValues(productId);
             };
 
             const syncLinkProductOptions = () => {
@@ -882,6 +897,34 @@
                 const product = state.products.find((entry) => Number(entry.id) === Number(state.selectedProductId));
                 const value = Number(product?.expiry_days);
                 return Number.isFinite(value) ? value : '';
+            };
+
+            const setEditProductEnabled = (enabled) => {
+                if (editProductNameInput) editProductNameInput.disabled = !enabled;
+                if (editProductExpiryInput) editProductExpiryInput.disabled = !enabled;
+                if (editProductSaveButton) editProductSaveButton.disabled = !enabled;
+            };
+
+            const applyEditProductValues = (productId) => {
+                if (!productId) {
+                    if (editProductNameInput) editProductNameInput.value = '';
+                    if (editProductExpiryInput) editProductExpiryInput.value = '';
+                    setEditProductEnabled(false);
+                    return;
+                }
+                const product = state.products.find((entry) => Number(entry.id) === Number(productId));
+                if (!product) {
+                    if (editProductNameInput) editProductNameInput.value = '';
+                    if (editProductExpiryInput) editProductExpiryInput.value = '';
+                    setEditProductEnabled(false);
+                    return;
+                }
+                if (editProductNameInput) editProductNameInput.value = product.name ?? '';
+                if (editProductExpiryInput) {
+                    const expiryValue = Number(product.expiry_days);
+                    editProductExpiryInput.value = Number.isFinite(expiryValue) ? expiryValue : '';
+                }
+                setEditProductEnabled(true);
             };
 
             const setStatus = (message, highlight = false) => {
@@ -1057,6 +1100,7 @@
                     renderTableStructure();
                     renderRecords();
                     setStatus('Waiting for a product...');
+                    applyEditProductValues(null);
                     return;
                 }
 
@@ -1161,6 +1205,84 @@
                     }
                 } catch (error) {
                     setStatus(error.message ?? 'Unable to add product');
+                }
+            };
+
+            const updateProductDisplay = (product) => {
+                if (!product?.id) return;
+                const idValue = String(product.id);
+
+                const dropdownOptions = document.querySelectorAll('[data-product-option][data-product-id]');
+                dropdownOptions.forEach((option) => {
+                    if (option.dataset.productId === idValue) {
+                        option.dataset.productName = product.name ?? '';
+                        option.textContent = product.name ?? '';
+                    }
+                });
+
+                if (linkRecordProductSelect) {
+                    const option = Array.from(linkRecordProductSelect.options)
+                        .find((opt) => opt.value === idValue);
+                    if (option) {
+                        option.textContent = product.name ?? '';
+                    }
+                }
+
+                if (state.selectedProductId && Number(state.selectedProductId) === Number(product.id)) {
+                    if (productInput) {
+                        productInput.value = product.name ?? '';
+                        productInput.dataset.selectedName = product.name ?? '';
+                    }
+                }
+            };
+
+            const saveProductEdits = async () => {
+                const productId = linkRecordProductSelect?.value || state.selectedProductId;
+                if (!productId) {
+                    alert('Select a product to update.');
+                    return;
+                }
+                const name = (editProductNameInput?.value ?? '').trim();
+                if (!name) {
+                    alert('Product name is required.');
+                    return;
+                }
+                const expiryRaw = editProductExpiryInput?.value ?? '';
+                const expiryDays = expiryRaw === '' ? null : Number(expiryRaw);
+
+                setStatus('Updating product...');
+                try {
+                    const response = await fetch(routes.updateProduct(productId), {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            name,
+                            expiry_days: Number.isFinite(expiryDays) ? expiryDays : null,
+                        }),
+                    });
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => null);
+                        const message = payload?.message ?? 'Unable to update product.';
+                        throw new Error(message);
+                    }
+                    const payload = await response.json();
+                    const updated = payload?.product;
+                    if (updated?.id) {
+                        state.products = state.products.map((entry) => (
+                            Number(entry.id) === Number(updated.id) ? updated : entry
+                        ));
+                        updateProductDisplay(updated);
+                        applyEditProductValues(updated.id);
+                        setStatus('Product updated', true);
+                    } else {
+                        setStatus('Product updated', true);
+                    }
+                } catch (error) {
+                    setStatus(error.message ?? 'Unable to update product');
                 }
             };
 
@@ -2078,6 +2200,7 @@
                 setLinkStatus('Not linked');
             });
             createProductButton?.addEventListener('click', () => createProduct());
+            editProductSaveButton?.addEventListener('click', saveProductEdits);
             newProductInput?.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
@@ -2088,6 +2211,18 @@
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     createProduct();
+                }
+            });
+            editProductNameInput?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveProductEdits();
+                }
+            });
+            editProductExpiryInput?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveProductEdits();
                 }
             });
 

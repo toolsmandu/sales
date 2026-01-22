@@ -98,6 +98,32 @@ class RecordController extends Controller
         ], Response::HTTP_CREATED);
     }
 
+    public function updateProduct(Request $request, string $recordProduct): JsonResponse
+    {
+        if (!$this->isStockContext()) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $this->ensureLinkColumns();
+        $product = $this->findProduct($recordProduct);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:190'],
+            'expiry_days' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $product->update([
+            'name' => trim($validated['name']),
+            'expiry_days' => $validated['expiry_days'] ?? null,
+        ]);
+
+        return response()->json([
+            'product' => $product->fresh(),
+        ]);
+    }
+
     public function listEntries(string $recordProduct): JsonResponse
     {
         $product = $this->findProduct($recordProduct);
