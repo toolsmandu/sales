@@ -1064,13 +1064,14 @@
                         const label = document.createElement('span');
                         label.textContent = col.label;
                         headerContent.appendChild(label);
-                        if (col.id === 'remaining') {
+                        if (col.id === 'remaining' || col.id === 'stock_index') {
                             const isSorted = state.sort.column === col.id;
                             const sortButton = document.createElement('button');
                             sortButton.type = 'button';
                             sortButton.className = `sort-button${isSorted ? ' is-active' : ''}`;
-                            sortButton.setAttribute('aria-label', isSorted ? `Sorted ${state.sort.direction === 'asc' ? 'ascending' : 'descending'}` : 'Sort by remaining');
-                            sortButton.title = 'Sort by remaining days';
+                            const label = col.id === 'remaining' ? 'remaining days' : 'index';
+                            sortButton.setAttribute('aria-label', isSorted ? `Sorted ${state.sort.direction === 'asc' ? 'ascending' : 'descending'}` : `Sort by ${label}`);
+                            sortButton.title = `Sort by ${label}`;
                             sortButton.textContent = isSorted
                                 ? (state.sort.direction === 'asc' ? '▲' : '▼')
                                 : '⇅';
@@ -1443,12 +1444,14 @@
             };
 
             const getSortedRecords = (records = state.records) => {
-                if (state.sort.column !== 'remaining') {
+                if (!['remaining', 'stock_index'].includes(state.sort.column)) {
                     return [...records];
                 }
                 const sorted = [...records];
                 const toNumber = (record) => {
-                    const raw = computeRemainingDays(record);
+                    const raw = state.sort.column === 'remaining'
+                        ? computeRemainingDays(record)
+                        : record.stock_index ?? '';
                     if (raw === '' || raw === null || raw === undefined) {
                         return null;
                     }
@@ -1470,7 +1473,7 @@
             };
 
             const setSort = (columnId) => {
-                if (columnId !== 'remaining') return;
+                if (!['remaining', 'stock_index'].includes(columnId)) return;
                 const isSame = state.sort.column === columnId;
                 const nextDirection = isSame && state.sort.direction === 'asc' ? 'desc' : 'asc';
                 state.sort = {
