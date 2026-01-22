@@ -403,66 +403,72 @@
         <section class="dashboard-content stack records-layout">
             <section class="card stack">
                 <header class="records-toolbar" style="justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                    <div id="link-card-body" style="display: none; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
-                        <div class="add-product-inline">
-                            <label for="record-new-product" style="margin:0;">
-                                <span class="muted" style="display:block;">Product name</span>
-                                <input type="text" id="record-new-product" class="add-product-name" placeholder="New product name">
-                            </label>
-                            <label for="record-new-expiry" style="margin:0;">
-                                <span class="muted" style="display:block;">Expiry (days)</span>
-                                <input type="number" id="record-new-expiry" class="add-product-expiry" min="0" step="1" placeholder="0">
-                            </label>
-                            <button type="button" id="records-create-product" class="primary">Create</button>
+                    <div id="link-card-body" style="display: none; flex-direction: column; gap: 0.85rem;">
+                        <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                            <div class="add-product-inline">
+                                <label for="record-new-product" style="margin:0;">
+                                    <span class="muted" style="display:block;">Product name</span>
+                                    <input type="text" id="record-new-product" class="add-product-name" placeholder="New product name">
+                                </label>
+                                <label for="record-new-expiry" style="margin:0;">
+                                    <span class="muted" style="display:block;">Expiry (days)</span>
+                                    <input type="number" id="record-new-expiry" class="add-product-expiry" min="0" step="1" placeholder="0">
+                                </label>
+                                <button type="button" id="records-create-product" class="primary">Create</button>
+                            </div>
                         </div>
-                        <label style="min-width: 220px;">
-                            <span class="muted" style="display:block;">Record product</span>
-                            <select id="records-link-product">
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <label style="min-width: 320px;">
-                            <span class="muted" style="display:block;">Website product (choose product + variation)</span>
-                            <select id="records-link-site-product">
-                                <option value="">-- Select website product/variation --</option>
-                                @foreach ($siteProducts as $siteProduct)
-                                    @php
-                                        $productVariations = $variations[$siteProduct->id] ?? collect();
-                                    @endphp
-                                    @if ($productVariations->count())
-                                        @foreach ($productVariations as $variation)
-                                            <option value="variation:{{ $siteProduct->id }}:{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="{{ $variation->id }}">↳ {{ $siteProduct->name }} - {{ $variation->name }}</option>
-                                        @endforeach
-                                    @else
-                                        <option value="product:{{ $siteProduct->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="">📦 {{ $siteProduct->name }}</option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </label>
-                        <label style="min-width: 260px;">
-                            <span class="muted" style="display:block;">Stock Account Note</span>
-                            <textarea id="records-link-note" rows="3" placeholder="Stock Account Note"></textarea>
-                        </label>
-                        <label style="min-width: 220px;">
-                            <span class="muted" style="display:block;">Edit product name</span>
-                            <input type="text" id="records-edit-product-name" placeholder="Product name">
-                        </label>
-                        <label style="min-width: 160px;">
-                            <span class="muted" style="display:block;">Edit expiry (days)</span>
-                            <input type="number" id="records-edit-product-expiry" min="0" step="1" placeholder="0">
-                        </label>
-                        <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
-                            <button type="button" id="records-link-save" class="primary">Save link</button>
-                            <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
+                        <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                            <label style="min-width: 220px;">
+                                <span class="muted" style="display:block;">Record product</span>
+                                <select id="records-link-product">
+                                    @foreach ($products as $product)
+                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label style="min-width: 320px;">
+                                <span class="muted" style="display:block;">Website product (choose product + variation)</span>
+                                <select id="records-link-site-product">
+                                    <option value="">-- Select website product/variation --</option>
+                                    @foreach ($siteProducts as $siteProduct)
+                                        @php
+                                            $productVariations = $variations[$siteProduct->id] ?? collect();
+                                        @endphp
+                                        @if ($productVariations->count())
+                                            @foreach ($productVariations as $variation)
+                                                <option value="variation:{{ $siteProduct->id }}:{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="{{ $variation->id }}">↳ {{ $siteProduct->name }} - {{ $variation->name }}</option>
+                                            @endforeach
+                                        @else
+                                            <option value="product:{{ $siteProduct->id }}" data-product-id="{{ $siteProduct->id }}" data-variation-id="">📦 {{ $siteProduct->name }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </label>
+                            <div style="display: inline-flex; gap: 0.75rem; align-items: center;">
+                                <button type="button" id="records-link-save" class="primary">Save link</button>
+                                <button type="button" id="records-link-clear" class="ghost-button">Clear</button>
+                            </div>
                         </div>
-                        <button type="button" id="records-edit-product-save" class="secondary">Update product</button>
+                        <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                            <label style="min-width: 260px;">
+                                <span class="muted" style="display:block;">Stock Account Note</span>
+                                <textarea id="records-link-note" rows="3" placeholder="Stock Account Note"></textarea>
+                            </label>
+                            <label style="min-width: 220px;">
+                                <span class="muted" style="display:block;">Edit product name</span>
+                                <input type="text" id="records-edit-product-name" placeholder="Product name">
+                            </label>
+                            <label style="min-width: 160px;">
+                                <span class="muted" style="display:block;">Edit expiry (days)</span>
+                                <input type="number" id="records-edit-product-expiry" min="0" step="1" placeholder="0">
+                            </label>
+                            <button type="button" id="records-edit-product-save" class="secondary">Update product</button>
+                        </div>
                     </div>
                     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                             <input type="checkbox" id="toggle-link-card">
-                            <span class="muted">Show Product Setting</span>
+                            <span class="muted">Add/Edit Product</span>
                         </label>
                         <div class="pill" id="records-link-status" style="min-width: 160px; text-align: center;">Not linked</div>
                     </div>

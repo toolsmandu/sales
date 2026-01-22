@@ -440,7 +440,7 @@
                     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                             <input type="checkbox" id="toggle-link-card">
-                            <span class="muted">Show Product Setting</span>
+                            <span class="muted">Add/Edit Product </span>
                         </label>
                         <div class="pill" id="records-link-status" style="min-width: 160px; text-align: center;">Not linked</div>
                     </div>

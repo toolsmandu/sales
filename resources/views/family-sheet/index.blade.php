@@ -285,7 +285,7 @@
 <br>
             <div class="family-card family-card--full">
                 <div class="family-inline-row" style="align-items: center; justify-content: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
-                    <strong>Show Product Creating sections:</strong>
+                    <strong>Add/Edit Family Account:</strong>
                     <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                         <input type="checkbox" id="toggle-create-sections">
                     </label>
