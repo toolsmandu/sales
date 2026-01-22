@@ -49,12 +49,16 @@ class RecordController extends Controller
     public function storeProduct(Request $request): JsonResponse
     {
         $this->ensureLinkColumns();
-        $validated = $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:190'],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
             'linked_variation_ids' => ['array', 'max:1'],
             'linked_variation_ids.*' => ['integer'],
-        ]);
+        ];
+        if ($this->isStockContext()) {
+            $rules['expiry_days'] = ['nullable', 'integer', 'min:0'];
+        }
+        $validated = $request->validate($rules);
 
         $requestedName = trim($validated['name']);
         $slug = Str::slug($requestedName) ?: Str::random(8);
@@ -74,7 +78,7 @@ class RecordController extends Controller
 
         $this->createTableIfMissing($tableName);
 
-        $product = $modelClass::create([
+        $payload = [
             'name' => $requestedName,
             'slug' => $slug,
             'table_name' => $tableName,
@@ -82,7 +86,12 @@ class RecordController extends Controller
             'linked_variation_ids' => !empty($validated['linked_variation_ids'])
                 ? array_slice($validated['linked_variation_ids'], 0, 1)
                 : null,
-        ]);
+        ];
+        if ($this->isStockContext()) {
+            $payload['expiry_days'] = $validated['expiry_days'] ?? null;
+        }
+
+        $product = $modelClass::create($payload);
 
         return response()->json([
             'product' => $product,
@@ -654,6 +663,12 @@ class RecordController extends Controller
         if ($this->isStockContext() && !Schema::hasColumn($tableName, 'stock_account_note')) {
             Schema::table($tableName, function (Blueprint $table): void {
                 $table->string('stock_account_note')->nullable()->after('linked_variation_ids');
+            });
+        }
+
+        if ($this->isStockContext() && !Schema::hasColumn($tableName, 'expiry_days')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->integer('expiry_days')->nullable()->after('stock_account_note');
             });
         }
     }

@@ -15,6 +15,7 @@ class StockProduct extends Model
         'name',
         'slug',
         'table_name',
+        'expiry_days',
         'linked_product_id',
         'linked_variation_ids',
         'stock_account_note',
@@ -22,5 +23,6 @@ class StockProduct extends Model
 
     protected $casts = [
         'linked_variation_ids' => 'array',
+        'expiry_days' => 'integer',
     ];
 }

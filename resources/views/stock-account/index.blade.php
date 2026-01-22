@@ -305,8 +305,12 @@
             gap: 0.5rem;
         }
 
-        .add-product-inline input {
+        .add-product-inline .add-product-name {
             min-width: 220px;
+        }
+
+        .add-product-inline .add-product-expiry {
+            min-width: 120px;
         }
 
         .records-header-content {
@@ -403,7 +407,11 @@
                         <div class="add-product-inline">
                             <label for="record-new-product" style="margin:0;">
                                 <span class="muted" style="display:block;">Product name</span>
-                                <input type="text" id="record-new-product" placeholder="New product name">
+                                <input type="text" id="record-new-product" class="add-product-name" placeholder="New product name">
+                            </label>
+                            <label for="record-new-expiry" style="margin:0;">
+                                <span class="muted" style="display:block;">Expiry (days)</span>
+                                <input type="number" id="record-new-expiry" class="add-product-expiry" min="0" step="1" placeholder="0">
                             </label>
                             <button type="button" id="records-create-product" class="primary">Create</button>
                         </div>
@@ -699,6 +707,7 @@
             const toggleColumnsButton = document.getElementById('toggle-column-controls');
             const createProductButton = document.getElementById('records-create-product');
             const newProductInput = document.getElementById('record-new-product');
+            const newProductExpiryInput = document.getElementById('record-new-expiry');
             const importFileInput = document.getElementById('records-import-file');
             const importTrigger = document.getElementById('records-import-trigger');
             const exportTrigger = document.getElementById('records-export-trigger');
@@ -868,6 +877,12 @@
             };
 
             const getSelectedProductName = () => productInput?.value ?? '';
+            const getSelectedProductExpiryDays = () => {
+                if (!state.selectedProductId) return '';
+                const product = state.products.find((entry) => Number(entry.id) === Number(state.selectedProductId));
+                const value = Number(product?.expiry_days);
+                return Number.isFinite(value) ? value : '';
+            };
 
             const setStatus = (message, highlight = false) => {
                 if (!statusLabel) return;
@@ -1105,6 +1120,8 @@
                     if (newProductInput) newProductInput.focus();
                     return;
                 }
+                const expiryRaw = newProductExpiryInput?.value ?? '';
+                const expiryDays = expiryRaw === '' ? null : Number(expiryRaw);
                 setStatus('Adding product...');
                 try {
                     const response = await fetch(routes.createProduct, {
@@ -1114,7 +1131,10 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
                         },
-                        body: JSON.stringify({ name }),
+                        body: JSON.stringify({
+                            name,
+                            expiry_days: Number.isFinite(expiryDays) ? expiryDays : null,
+                        }),
                     });
                     if (!response.ok) {
                         const payload = await response.json().catch(() => null);
@@ -1131,6 +1151,7 @@
                             stock_account_note: product.stock_account_note || '',
                         };
                         if (newProductInput) newProductInput.value = '';
+                        if (newProductExpiryInput) newProductExpiryInput.value = '';
                         selectProduct(product);
                         syncLinkProductOptions();
                         applyLinkFormValues(product.id);
@@ -1815,7 +1836,7 @@
                     password: '',
                     phone: '',
                     sales_amount: '',
-                    expiry: '',
+                    expiry: getSelectedProductExpiryDays(),
                     remaining_days: '',
                     remarks: '',
                     two_factor: '',
@@ -2058,6 +2079,12 @@
             });
             createProductButton?.addEventListener('click', () => createProduct());
             newProductInput?.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    createProduct();
+                }
+            });
+            newProductExpiryInput?.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     createProduct();
