@@ -58,19 +58,34 @@
                                 <tbody>
                                     @foreach ($logs as $log)
                                         @php
-                                            $orderId = $log->sale?->serial_number ?? 'Unknown';
-                                            $actor = $log->actor?->name ?? 'Unknown';
+                                            $context = $log->context ?? null;
+                                            $orderId = $log->order_id ?? null;
+                                            $actor = $log->actor_name ?? 'Unknown';
                                             $changeText = trim((string) $log->message);
                                             $timestamp = $log->created_at
-                                                ? $log->created_at->copy()->timezone($timezone ?? 'Asia/Kathmandu')->format('Y-m-d g:i A')
+                                                ? \Illuminate\Support\Carbon::parse($log->created_at)->timezone($timezone ?? 'Asia/Kathmandu')->format('Y-m-d g:i A')
                                                 : '—';
-                                            $orderLink = route('orders.index', ['search' => $orderId]);
+                                            $orderLink = !empty($orderId)
+                                                ? route('orders.index', ['search' => $orderId])
+                                                : null;
+                                            $contextLabel = match ($context) {
+                                                'sheet' => 'Sheet',
+                                                'family-sheet' => 'Family Sheet',
+                                                'stock-account' => 'Stock Account',
+                                                default => 'Record Log',
+                                            };
                                         @endphp
                                         <tr>
                                             <td>{{ $timestamp }}</td>
-                                            <td><a href="{{ $orderLink }}">{{ $orderId }}</a></td>
+                                            <td>
+                                                @if ($orderLink)
+                                                    <a href="{{ $orderLink }}">{{ $orderId }}</a>
+                                                @else
+                                                    {{ $contextLabel }}
+                                                @endif
+                                            </td>
                                             <td>{{ $actor }}</td>
-                                            <td>{{ $changeText }}</td>
+                                            <td>{!! nl2br(e($changeText)) !!}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

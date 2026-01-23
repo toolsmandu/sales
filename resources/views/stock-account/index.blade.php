@@ -517,6 +517,10 @@
                             <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                                 <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
                             </label>
+                            <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+                                <input type="checkbox" id="records-filter-empty-accounts">
+                                <span>Show Empty Accounts</span>
+                            </label>
                         </div>
                     </div>
                     <div class="records-actions">
@@ -603,6 +607,10 @@
                 createProduct: @json(route('stock-account.products.store')),
                 updateProduct: (productId) => @json(route('stock-account.products.update', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 linkProduct: @json(route('stock-account.products.link')),
+                preferences: (productId) => @json(route('stock-account.preferences.show', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                updatePreferences: (productId) => @json(route('stock-account.preferences.update', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                lastProduct: @json(route('stock-account.preferences.last.show')),
+                updateLastProduct: @json(route('stock-account.preferences.last.update')),
                 entries: (productId) => @json(route('stock-account.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 storeEntry: (productId) => @json(route('stock-account.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 updateEntry: (productId, entryId) => @json(route('stock-account.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
@@ -644,21 +652,7 @@
                 { id: 'actions', label: 'Action', type: 'actions' },
             ];
 
-            const storageKey = 'records_table_prefs';
-            const storageVersion = 'v3';
-            const lastProductKey = `${storageKey}_${storageVersion}_last_product`;
             const baseOrder = columns.map((c) => c.id);
-
-            const loadPreferences = (key) => {
-                try {
-                    const raw = localStorage.getItem(key);
-                    if (!raw) return null;
-                    return JSON.parse(raw);
-                } catch (error) {
-                    console.warn('Unable to load table prefs', error);
-                    return null;
-                }
-            };
 
             const sanitizeOrder = (order = []) => {
                 const valid = columns.map((c) => c.id);
@@ -678,8 +672,6 @@
                 return result;
             };
 
-            const saveKeyForProduct = (productId) => `${storageKey}_${storageVersion}_${productId ?? 'global'}`;
-
             const state = {
                 products: @json($products),
                 productLinks: initialProductLinks,
@@ -694,6 +686,8 @@
                 showColumnControls: false,
                 phoneFilter: '',
                 emailFilter: '',
+                showEmptyAccounts: false,
+                lastSelectedProductId: null,
                 sort: {
                     column: null,
                     direction: 'asc',
@@ -717,6 +711,7 @@
             const showMoreButton = document.getElementById('records-show-more');
             const filterPhoneInput = document.getElementById('records-filter-phone');
             const filterEmailInput = document.getElementById('records-filter-email');
+            const filterEmptyAccountsInput = document.getElementById('records-filter-empty-accounts');
             const colgroup = document.getElementById('records-colgroup');
             const tableHead = document.getElementById('records-head');
             const columnControls = document.getElementById('column-controls');
@@ -855,6 +850,12 @@
 
             handleFilterInput(filterPhoneInput, 'phoneFilter', true);
             handleFilterInput(filterEmailInput, 'emailFilter');
+            if (filterEmptyAccountsInput) {
+                filterEmptyAccountsInput.addEventListener('change', (event) => {
+                    state.showEmptyAccounts = !!event.target.checked;
+                    renderRecords();
+                });
+            }
 
             if (showMoreButton) {
                 showMoreButton.addEventListener('click', () => {
@@ -974,16 +975,81 @@
             const getVisibleColumns = () => getColumns()
                 .filter((col) => !state.hiddenColumns.includes(col.id));
 
-            const persistPreferences = () => {
-                const key = saveKeyForProduct(state.selectedProductId ?? 'global');
+            const applyPreferences = (prefs = {}) => {
+                state.columnOrder = sanitizeOrder(prefs.columnOrder ?? baseOrder);
+                state.hiddenColumns = (prefs.hiddenColumns ?? []).filter((id) => baseOrder.includes(id));
+                state.columnWidths = prefs.columnWidths ?? {};
+            };
+
+            const fetchPreferences = async (productId) => {
+                if (!productId) return null;
                 try {
-                    localStorage.setItem(key, JSON.stringify({
-                        columnOrder: state.columnOrder,
-                        hiddenColumns: state.hiddenColumns,
-                        columnWidths: state.columnWidths,
-                    }));
+                    const response = await fetch(routes.preferences(productId), {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Unable to load table prefs.');
+                    }
+                    const payload = await response.json();
+                    return payload?.preferences ?? payload?.global ?? null;
+                } catch (error) {
+                    console.warn(error.message ?? 'Unable to load table prefs');
+                    return null;
+                }
+            };
+
+            const persistPreferences = async () => {
+                if (!state.selectedProductId) return;
+                try {
+                    await fetch(routes.updatePreferences(state.selectedProductId), {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            columnOrder: state.columnOrder,
+                            hiddenColumns: state.hiddenColumns,
+                            columnWidths: state.columnWidths,
+                        }),
+                    });
                 } catch (error) {
                     console.warn('Unable to save table prefs', error);
+                }
+            };
+
+            const persistLastProduct = async (productId) => {
+                try {
+                    await fetch(routes.updateLastProduct, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            last_product_id: productId ?? null,
+                        }),
+                    });
+                } catch (error) {
+                    console.warn('Unable to save last product', error);
+                }
+            };
+
+            const fetchLastProduct = async () => {
+                try {
+                    const response = await fetch(routes.lastProduct, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Unable to load last product.');
+                    }
+                    const payload = await response.json();
+                    return payload?.last_product_id ?? null;
+                } catch (error) {
+                    console.warn('Unable to load last product', error);
+                    return null;
                 }
             };
 
@@ -1091,15 +1157,13 @@
                 }
             };
 
-            const syncDropdown = () => {
+            const syncDropdown = async () => {
                 const selectedValue = productSelect?.value;
                 if (!selectedValue) {
                     state.selectedProductId = null;
                     state.records = [];
                     state.visibleLimit = 50;
-                    state.columnOrder = baseOrder;
-                    state.hiddenColumns = [];
-                    state.columnWidths = {};
+                    applyPreferences({});
                     state.showColumnControls = false;
                     state.sort = { column: null, direction: 'asc' };
                     toggleColumnsButton.textContent = 'Edit fields';
@@ -1113,24 +1177,22 @@
 
                 state.selectedProductId = Number(selectedValue);
                 state.visibleLimit = 50;
-                try {
-                    localStorage.setItem(lastProductKey, String(state.selectedProductId));
-                } catch (error) {
-                    console.warn('Unable to persist last product', error);
-                }
+                persistLastProduct(state.selectedProductId);
 
-                const productPrefs = loadPreferences(saveKeyForProduct(state.selectedProductId))
-                    || loadPreferences(saveKeyForProduct('global'))
-                    || {};
-                state.columnOrder = sanitizeOrder(productPrefs.columnOrder ?? baseOrder);
-                state.hiddenColumns = (productPrefs.hiddenColumns ?? []).filter((id) => baseOrder.includes(id));
-                state.columnWidths = productPrefs.columnWidths ?? {};
+                applyPreferences({});
                 state.showColumnControls = false;
                 state.sort = { column: null, direction: 'asc' };
                 toggleColumnsButton.textContent = 'Edit fields';
                 renderColumnControls();
                 renderTableStructure();
                 renderRecords();
+                const prefs = await fetchPreferences(state.selectedProductId);
+                if (prefs) {
+                    applyPreferences(prefs);
+                    renderColumnControls();
+                    renderTableStructure();
+                    renderRecords();
+                }
                 fetchRecords();
                 if (linkRecordProductSelect && state.selectedProductId) {
                     linkRecordProductSelect.value = String(state.selectedProductId);
@@ -1426,18 +1488,28 @@
                     const phoneMatch = state.phoneFilter === '' || phone.includes(state.phoneFilter);
                     const emailTarget = `${emailPrimary} ${emailSecondary}`.trim();
                     const emailMatch = state.emailFilter === '' || emailPrimary.includes(state.emailFilter) || emailSecondary.includes(state.emailFilter) || emailTarget.includes(state.emailFilter);
-                    return phoneMatch && emailMatch;
+                    let emptyAccountMatch = true;
+                    if (state.showEmptyAccounts) {
+                        const phoneBlank = phone.trim() === '';
+                        const remainingRaw = computeRemainingDays(record);
+                        const remainingNum = Number(remainingRaw);
+                        const remainingNegative = !Number.isNaN(remainingNum) && remainingNum < 0;
+                        emptyAccountMatch = phoneBlank || remainingNegative;
+                    }
+                    return phoneMatch && emailMatch && emptyAccountMatch;
                 });
 
                 const recordsForDisplay = state.sort.column ? getSortedRecords(filteredRecords) : filteredRecords;
-                const limitedRecords = recordsForDisplay.slice(0, state.visibleLimit);
+                const hasActiveFilters = state.phoneFilter !== '' || state.emailFilter !== '' || state.showEmptyAccounts;
+                const limit = hasActiveFilters ? recordsForDisplay.length : state.visibleLimit;
+                const limitedRecords = recordsForDisplay.slice(0, limit);
                 limitedRecords.forEach((record, index) => {
                     renderRowCells(record, record.id, index + 1, false);
                 });
 
                 recordsCount.textContent = `${limitedRecords.length} of ${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
                 if (showMoreButton) {
-                    showMoreButton.style.display = recordsForDisplay.length > state.visibleLimit ? '' : 'none';
+                    showMoreButton.style.display = !hasActiveFilters && recordsForDisplay.length > state.visibleLimit ? '' : 'none';
                 }
                 applyColumnWidths();
                 focusHighlightedRow();
@@ -1632,24 +1704,23 @@
                             </svg>
                         `;
                         wrapper.appendChild(save);
-                        if (!canDeleteRecords) {
-                            return wrapper;
+                        if (canDeleteRecords) {
+                            const del = document.createElement('button');
+                            del.type = 'button';
+                            del.className = 'icon-button';
+                            del.setAttribute('aria-label', 'Delete row');
+                            del.dataset.action = 'delete';
+                            del.innerHTML = `
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                    <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                </svg>
+                            `;
+                            wrapper.appendChild(del);
                         }
-                        const del = document.createElement('button');
-                        del.type = 'button';
-                        del.className = 'icon-button';
-                        del.setAttribute('aria-label', 'Delete row');
-                        del.dataset.action = 'delete';
-                        del.innerHTML = `
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                            </svg>
-                        `;
-                        wrapper.appendChild(del);
                     }
                     return wrapper;
                 }
@@ -1915,7 +1986,6 @@
                     renderRecords();
                     return;
                 }
-                updateCell(recordId, field, value);
                 const localIndex = state.records.findIndex((r) => String(r.id) === String(recordId));
                 if (localIndex !== -1) {
                     state.records[localIndex] = {
@@ -1945,7 +2015,6 @@
                     renderRecords();
                     return;
                 }
-                updateCell(recordId, field, value);
             };
 
             const startNewRow = () => {
@@ -2007,7 +2076,8 @@
                     }
                     const result = await response.json();
                     if (result?.record) {
-                        state.records.unshift(formatRecord(result.record));
+                        const created = formatRecord(result.record);
+                        state.records.unshift(created);
                     }
                     state.newRow = null;
                     renderRecords();
@@ -2162,13 +2232,13 @@
                                 'X-CSRF-TOKEN': csrfToken,
                             },
                         });
-                        if (!response.ok) {
-                            const payload = await response.json().catch(() => null);
-                            const message = payload?.message ?? 'Unable to delete row.';
-                            throw new Error(message);
-                        }
-                        state.records = state.records.filter((record) => String(record.id) !== String(recordId));
-                        renderRecords();
+                    if (!response.ok) {
+                        const payload = await response.json().catch(() => null);
+                        const message = payload?.message ?? 'Unable to delete row.';
+                        throw new Error(message);
+                    }
+                    state.records = state.records.filter((record) => String(record.id) !== String(recordId));
+                    renderRecords();
                         setStatus('Row deleted', true);
                     } catch (error) {
                         setStatus(error.message ?? 'Unable to delete row');
@@ -2355,29 +2425,27 @@
             renderRecords();
 
             if (state.products.length) {
-                const preferredProduct = resolveHighlightProduct()
-                    ?? (() => {
-                        try {
-                            const stored = localStorage.getItem(lastProductKey);
+                (async () => {
+                    state.lastSelectedProductId = await fetchLastProduct();
+                    const preferredProduct = resolveHighlightProduct()
+                        ?? (() => {
+                            const stored = state.lastSelectedProductId;
                             if (!stored) return null;
                             const id = Number(stored);
                             if (Number.isNaN(id)) return null;
                             return state.products.find((p) => Number(p.id) === id) ?? null;
-                        } catch (error) {
-                            console.warn('Unable to read last product', error);
-                            return null;
+                        })();
+                    if (preferredProduct) {
+                        selectProduct(preferredProduct);
+                    } else if (!productSelect.value) {
+                        productSelect.value = state.products[0].id;
+                        if (productInput && !productInput.value) {
+                            productInput.value = state.products[0].name ?? '';
+                            productInput.dataset.selectedName = productInput.value;
                         }
-                    })();
-                if (preferredProduct) {
-                    selectProduct(preferredProduct);
-                } else if (!productSelect.value) {
-                    productSelect.value = state.products[0].id;
-                    if (productInput && !productInput.value) {
-                        productInput.value = state.products[0].name ?? '';
-                        productInput.dataset.selectedName = productInput.value;
                     }
-                }
-                syncDropdown();
+                    syncDropdown();
+                })();
             }
             syncLinkProductOptions();
             if (state.selectedProductId) {

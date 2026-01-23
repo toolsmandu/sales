@@ -196,6 +196,10 @@ class SaleController extends Controller
         $mode = $request->query('remaining_filter', 'today');
         $mode = in_array($mode, ['today', 'all'], true) ? $mode : 'today';
         $search = trim((string) $request->query('search', ''));
+        $searchDigits = preg_replace('/\D+/', '', $search);
+        $searchLast4 = strlen($searchDigits) >= 4 ? substr($searchDigits, -4) : null;
+        $searchDigits = preg_replace('/\D+/', '', $search);
+        $searchLast4 = strlen($searchDigits) >= 4 ? substr($searchDigits, -4) : null;
         $normalizedSearch = $search !== '' ? mb_strtolower($search) : null;
         $digitsSearch = $search !== '' ? preg_replace('/\D+/', '', $search) : '';
         $startsWithTm = $normalizedSearch !== null && Str::startsWith($normalizedSearch, 'tm');
@@ -733,25 +737,83 @@ class SaleController extends Controller
         abort_unless($user && $user->role === 'admin', 403);
 
         $pageSize = 50;
-        $hasTable = Schema::hasTable('sale_edit_notifications');
+        $hasSaleTable = Schema::hasTable('sale_edit_notifications');
+        $hasStockTable = Schema::hasTable('stock_account_edit_logs');
+        $hasTable = $hasSaleTable || $hasStockTable;
         $search = trim((string) $request->query('search', ''));
+        $searchDigits = preg_replace('/\D+/', '', $search);
+        $searchLast4 = strlen($searchDigits) >= 4 ? substr($searchDigits, -4) : null;
 
         $logs = collect();
 
         if ($hasTable) {
-            $logsQuery = SaleEditNotification::query()
-                ->with(['sale:id,serial_number', 'actor:id,name'])
-                ->latest();
+            $saleLogsQuery = null;
+            if ($hasSaleTable) {
+                $saleLogsQuery = DB::table('sale_edit_notifications')
+                    ->leftJoin('sales', 'sale_edit_notifications.sale_id', '=', 'sales.id')
+                    ->leftJoin('users', 'sale_edit_notifications.actor_id', '=', 'users.id')
+                    ->select([
+                        'sale_edit_notifications.id as id',
+                        'sale_edit_notifications.created_at as created_at',
+                        'sale_edit_notifications.message as message',
+                        DB::raw('sales.serial_number as order_id'),
+                        DB::raw('users.name as actor_name'),
+                        DB::raw("'orders' as context"),
+                    ]);
 
-            if ($search !== '') {
-                $logsQuery->whereHas('sale', function ($query) use ($search) {
-                    $query->where('serial_number', 'like', '%' . $search . '%');
-                });
+                if ($search !== '') {
+                    $saleLogsQuery->where(function ($query) use ($search, $searchLast4) {
+                        $query->where('sales.serial_number', 'like', '%' . $search . '%')
+                            ->orWhere('sales.email', 'like', '%' . $search . '%');
+                        if ($searchLast4) {
+                            $query->orWhereRaw("RIGHT(REGEXP_REPLACE(sales.phone, '[^0-9]+', ''), 4) = ?", [$searchLast4]);
+                        } else {
+                            $query->orWhere('sales.phone', 'like', '%' . $search . '%');
+                        }
+                    });
+                }
             }
 
-            $logs = $logsQuery
-                ->paginate($pageSize)
-                ->appends($request->query());
+            $stockLogsQuery = null;
+            if ($hasStockTable) {
+                $stockLogsQuery = DB::table('stock_account_edit_logs')
+                    ->leftJoin('users', 'stock_account_edit_logs.actor_id', '=', 'users.id')
+                    ->select([
+                        'stock_account_edit_logs.id as id',
+                        'stock_account_edit_logs.created_at as created_at',
+                        'stock_account_edit_logs.message as message',
+                        DB::raw('NULL as order_id'),
+                        DB::raw('users.name as actor_name'),
+                        DB::raw("COALESCE(stock_account_edit_logs.context, 'stock-account') as context"),
+                    ]);
+                if ($search !== '') {
+                    $stockLogsQuery->where('stock_account_edit_logs.message', 'like', '%' . $search . '%');
+                }
+            }
+
+            $logsQuery = null;
+            if ($saleLogsQuery && $stockLogsQuery) {
+                $logsQuery = DB::query()->fromSub($saleLogsQuery->unionAll($stockLogsQuery), 'logs');
+            } elseif ($saleLogsQuery) {
+                $logsQuery = $saleLogsQuery;
+            } elseif ($stockLogsQuery) {
+                $logsQuery = $stockLogsQuery;
+            }
+
+            if ($logsQuery) {
+                $logs = $logsQuery
+                    ->orderByDesc('created_at')
+                    ->paginate($pageSize)
+                    ->appends($request->query());
+            } else {
+                $logs = new LengthAwarePaginator(
+                    [],
+                    0,
+                    $pageSize,
+                    1,
+                    ['path' => $request->url(), 'query' => $request->query()]
+                );
+            }
         }
 
         $timezone = 'Asia/Kathmandu';

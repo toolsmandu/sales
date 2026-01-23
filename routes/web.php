@@ -74,6 +74,10 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/products', [RecordController::class, 'storeProduct'])->name('products.store');
         Route::put('/products/{recordProduct}', [RecordController::class, 'updateProduct'])->name('products.update');
         Route::post('/products/link', [RecordController::class, 'linkProduct'])->name('products.link');
+        Route::get('/preferences/last', [RecordController::class, 'lastSelectedProduct'])->name('preferences.last.show');
+        Route::put('/preferences/last', [RecordController::class, 'updateLastSelectedProduct'])->name('preferences.last.update');
+        Route::get('/products/{recordProduct}/preferences', [RecordController::class, 'tablePreferences'])->name('preferences.show');
+        Route::put('/products/{recordProduct}/preferences', [RecordController::class, 'updateTablePreferences'])->name('preferences.update');
         Route::get('/products/{recordProduct}/entries', [RecordController::class, 'listEntries'])->name('entries.index');
         Route::post('/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('entries.store');
         Route::put('/products/{recordProduct}/entries/{entryId}', [RecordController::class, 'updateEntry'])->name('entries.update');
@@ -95,6 +99,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/sheet', [RecordController::class, 'index'])->name('sheet.index');
     Route::get('/sheet/products', [RecordController::class, 'products'])->name('sheet.products');
     Route::post('/sheet/products', [RecordController::class, 'storeProduct'])->name('sheet.products.store');
+    Route::get('/sheet/preferences/last', [RecordController::class, 'lastSelectedProduct'])->name('sheet.preferences.last.show');
+    Route::put('/sheet/preferences/last', [RecordController::class, 'updateLastSelectedProduct'])->name('sheet.preferences.last.update');
+    Route::get('/sheet/products/{recordProduct}/preferences', [RecordController::class, 'tablePreferences'])->name('sheet.preferences.show');
+    Route::put('/sheet/products/{recordProduct}/preferences', [RecordController::class, 'updateTablePreferences'])->name('sheet.preferences.update');
     Route::post('/sheet/products/link', [RecordController::class, 'linkProduct'])->name('sheet.products.link');
     Route::get('/sheet/products/{recordProduct}/entries', [RecordController::class, 'listEntries'])->name('sheet.entries.index');
     Route::post('/sheet/products/{recordProduct}/entries', [RecordController::class, 'storeEntry'])->name('sheet.entries.store');

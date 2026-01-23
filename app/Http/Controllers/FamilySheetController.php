@@ -726,9 +726,19 @@ class FamilySheetController extends Controller
             $payload['period'] = $data['period'] ?? null;
         }
 
+        $changesForLog = $this->buildFamilyChanges($account, $payload);
+
         DB::table('family_accounts')
             ->where('id', $accountId)
             ->update($payload);
+
+        $this->logFamilySheetChanges(
+            $request,
+            'family-sheet',
+            $account->family_product_name ?? 'Family Sheet',
+            null,
+            $changesForLog
+        );
 
         return redirect()
             ->route('family-sheet.index', ['product_id' => $account->family_product_id ?? null])
@@ -847,6 +857,7 @@ class FamilySheetController extends Controller
         if (!$member) {
             return redirect()->back()->withErrors(['member' => 'Member not found.']);
         }
+        $member = $this->decryptSensitiveFields($member);
 
         $data = array_merge([
             'email' => null,
@@ -883,7 +894,7 @@ class FamilySheetController extends Controller
         $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
         $hasMemberAccountName = Schema::hasColumn('family_members', 'account_name');
 
-        $payload = $this->encryptSensitiveFields([
+        $comparePayload = [
             'family_name' => $this->resolveFamilyName($account, $data),
             'email' => $data['email'] ?? null,
             'password' => $data['password'] ?? null,
@@ -896,6 +907,11 @@ class FamilySheetController extends Controller
             'remaining_days' => $this->computeRemainingDays($data['purchase_date'] ?? null, $resolvedExpiry),
             'remarks' => $data['remarks'] ?? null,
             'two_factor' => $data['two_factor'] ?? null,
+        ];
+
+        $changesForLog = $this->buildFamilyChanges($member, $comparePayload);
+
+        $payload = $this->encryptSensitiveFields($comparePayload + [
             'updated_at' => now(),
         ]);
 
@@ -914,9 +930,76 @@ class FamilySheetController extends Controller
 
         DB::table('family_members')->where('id', $memberId)->update($payload);
 
+        $orderId = $comparePayload['order_id'] ?? ($member->order_id ?? null);
+        $this->logFamilySheetChanges(
+            $request,
+            'family-sheet',
+            $account->family_product_name ?? 'Family Sheet',
+            $orderId,
+            $changesForLog
+        );
+
         return redirect()
             ->route('family-sheet.index', ['product_id' => $account->family_product_id])
             ->with('status', 'Member updated.');
+    }
+
+    private function buildFamilyChanges(object $existing, array $payload): array
+    {
+        $changes = [];
+        foreach ($payload as $field => $newValue) {
+            if ($field === 'updated_at') {
+                continue;
+            }
+            $oldValue = $existing->{$field} ?? null;
+            $oldValue = is_scalar($oldValue) ? (string) $oldValue : ($oldValue ?? '');
+            $newValue = is_scalar($newValue) ? (string) $newValue : ($newValue ?? '');
+            if ((string) $oldValue !== (string) $newValue) {
+                $changes[] = [
+                    'field' => $field,
+                    'old' => (string) $oldValue,
+                    'new' => (string) $newValue,
+                ];
+            }
+        }
+        return $changes;
+    }
+
+    private function logFamilySheetChanges(
+        Request $request,
+        string $context,
+        string $stockName,
+        $indexValue,
+        array $changes
+    ): void {
+        if (!Schema::hasTable('stock_account_edit_logs')) {
+            return;
+        }
+        if (empty($changes)) {
+            return;
+        }
+
+        $actor = $request->user();
+        $actorName = $actor?->name ?? 'User';
+        $actorId = $actor?->id;
+        $indexLabel = $indexValue === null || $indexValue === '' ? 'N/A' : $indexValue;
+        $indexTitle = $context === 'family-sheet' ? 'Order ID' : 'Index Value';
+
+        foreach ($changes as $change) {
+            $oldValue = trim((string) ($change['old'] ?? ''));
+            $newValue = trim((string) ($change['new'] ?? ''));
+            $message = $actorName . " changed following information.\n\n"
+                . "Stock Name: {$stockName}\n"
+                . "{$indexTitle}: {$indexLabel}\n"
+                . "Old Data: " . ($oldValue !== '' ? $oldValue : 'N/A') . "\n"
+                . "New Data: " . ($newValue !== '' ? $newValue : 'N/A');
+
+            \App\Models\StockAccountEditLog::create([
+                'actor_id' => $actorId,
+                'context' => $context,
+                'message' => $message,
+            ]);
+        }
     }
 
     public function destroyMember(int $memberId)

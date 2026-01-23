@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\RecordProduct;
+use App\Models\RecordTablePreference;
+use App\Models\StockAccountEditLog;
 use App\Models\StockProduct;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
@@ -144,6 +146,96 @@ class RecordController extends Controller
         ]);
     }
 
+    public function tablePreferences(string $recordProduct): JsonResponse
+    {
+        $this->ensurePreferencesTable();
+        $product = $this->findProduct($recordProduct);
+        $context = $this->preferencesContext();
+
+        $specific = RecordTablePreference::query()
+            ->where('context', $context)
+            ->where('record_product_id', $product->id)
+            ->first();
+
+        $global = RecordTablePreference::query()
+            ->where('context', $context)
+            ->whereNull('record_product_id')
+            ->first();
+
+        return response()->json([
+            'preferences' => $specific?->preferences,
+            'global' => $global?->preferences,
+        ]);
+    }
+
+    public function updateTablePreferences(Request $request, string $recordProduct): JsonResponse
+    {
+        $this->ensurePreferencesTable();
+        $product = $this->findProduct($recordProduct);
+        $context = $this->preferencesContext();
+
+        $validated = $request->validate([
+            'columnOrder' => ['present', 'array'],
+            'hiddenColumns' => ['present', 'array'],
+            'columnWidths' => ['present', 'array'],
+        ]);
+
+        $preference = RecordTablePreference::query()->updateOrCreate(
+            [
+                'context' => $context,
+                'record_product_id' => $product->id,
+            ],
+            [
+                'preferences' => [
+                    'columnOrder' => array_values($validated['columnOrder']),
+                    'hiddenColumns' => array_values($validated['hiddenColumns']),
+                    'columnWidths' => $validated['columnWidths'],
+                ],
+            ]
+        );
+
+        return response()->json([
+            'preferences' => $preference->preferences,
+        ]);
+    }
+
+    public function lastSelectedProduct(): JsonResponse
+    {
+        $this->ensurePreferencesTable();
+        $context = $this->preferencesContext();
+        $global = RecordTablePreference::query()
+            ->where('context', $context)
+            ->whereNull('record_product_id')
+            ->first();
+
+        return response()->json([
+            'last_product_id' => $global?->preferences['last_product_id'] ?? null,
+        ]);
+    }
+
+    public function updateLastSelectedProduct(Request $request): JsonResponse
+    {
+        $this->ensurePreferencesTable();
+        $context = $this->preferencesContext();
+        $validated = $request->validate([
+            'last_product_id' => ['nullable', 'integer'],
+        ]);
+
+        $preference = RecordTablePreference::query()->firstOrNew([
+            'context' => $context,
+            'record_product_id' => null,
+        ]);
+
+        $preferences = $preference->preferences ?? [];
+        $preferences['last_product_id'] = $validated['last_product_id'] ?? null;
+        $preference->preferences = $preferences;
+        $preference->save();
+
+        return response()->json([
+            'last_product_id' => $preference->preferences['last_product_id'] ?? null,
+        ]);
+    }
+
     public function exportEntries(string $recordProduct)
     {
         $product = $this->findProduct($recordProduct);
@@ -173,7 +265,7 @@ class RecordController extends Controller
             'password2',
         ];
 
-        $filename = sprintf('sheet-%s-%s.csv', $recordProduct->id, Carbon::now()->format('Ymd_His'));
+        $filename = sprintf('sheet-%s-%s.csv', $product->id, Carbon::now()->format('Ymd_His'));
 
         return response()->streamDownload(function () use ($headers, $records) {
             $handle = fopen('php://output', 'w');
@@ -292,6 +384,7 @@ class RecordController extends Controller
                 'message' => 'Record not found for this product.',
             ], Response::HTTP_NOT_FOUND);
         }
+        $existing = $this->decryptSensitiveFields($existing);
 
         $validated = $this->validateEntry($request, true);
         if (empty($validated)) {
@@ -301,6 +394,25 @@ class RecordController extends Controller
         }
 
         $payload = $this->normalizePayload($validated, $product->name, true);
+        $context = $this->preferencesContext();
+        $trackedFields = $this->isStockContext()
+            ? ['purchase_date', 'email', 'password', 'phone']
+            : array_keys($payload);
+        $changesForLog = [];
+        foreach ($trackedFields as $field) {
+            if (!array_key_exists($field, $payload)) {
+                continue;
+            }
+            $oldValue = (string) ($existing->{$field} ?? '');
+            $newValue = (string) ($payload[$field] ?? '');
+            if ($oldValue !== $newValue) {
+                $changesForLog[] = [
+                    'field' => $field,
+                    'old' => $oldValue,
+                    'new' => $newValue,
+                ];
+            }
+        }
         $payload['updated_at'] = Carbon::now();
 
         DB::table($tableName)
@@ -309,6 +421,13 @@ class RecordController extends Controller
 
         $record = $this->decryptSensitiveFields(DB::table($tableName)->find($entryId));
         $this->markSheetSynced($record->serial_number ?? null);
+        $this->logRecordChanges(
+            $request,
+            $context,
+            $product->name ?? 'Unknown',
+            $record->stock_index ?? $existing->stock_index ?? $record->serial_number ?? null,
+            $changesForLog
+        );
 
         return response()->json([
             'record' => $record,
@@ -470,7 +589,7 @@ class RecordController extends Controller
     private function validateEntry(Request $request, bool $partial = false): array
     {
         $rules = [
-            'serial_number' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:190'],
+            'serial_number' => [$partial ? 'sometimes' : 'nullable', 'nullable', 'max:190'],
             'email' => [$partial ? 'sometimes' : 'required', 'nullable', 'string', 'max:255'],
             'password' => [$partial ? 'sometimes' : 'nullable', 'string', 'max:255'],
             'phone' => [$partial ? 'sometimes' : 'nullable', 'nullable', 'string', 'max:60'],
@@ -557,9 +676,68 @@ class RecordController extends Controller
         return $record;
     }
 
+    private function logRecordChanges(
+        Request $request,
+        string $context,
+        string $stockName,
+        $stockIndex,
+        array $changes
+    ): void {
+        if (!Schema::hasTable('stock_account_edit_logs')) {
+            return;
+        }
+        if (empty($changes)) {
+            return;
+        }
+
+        $actor = $request->user();
+        $actorName = $actor?->name ?? 'User';
+        $actorId = $actor?->id;
+        $indexLabel = $stockIndex === null || $stockIndex === '' ? 'N/A' : $stockIndex;
+        $indexTitle = $context === 'stock-account' ? 'Index Value' : 'Order ID';
+
+        foreach ($changes as $change) {
+            $oldValue = trim((string) ($change['old'] ?? ''));
+            $newValue = trim((string) ($change['new'] ?? ''));
+            $message = $actorName . " changed following information.\n\n"
+                . "Stock Name: {$stockName}\n"
+                . "{$indexTitle}: {$indexLabel}\n"
+                . "Old Data: " . ($oldValue !== '' ? $oldValue : 'N/A') . "\n"
+                . "New Data: " . ($newValue !== '' ? $newValue : 'N/A');
+
+            StockAccountEditLog::create([
+                'actor_id' => $actorId,
+                'context' => $context,
+                'message' => $message,
+            ]);
+        }
+    }
+
     private function isStockContext(): bool
     {
         return request()->routeIs('stock-account.*');
+    }
+
+    private function preferencesContext(): string
+    {
+        return $this->isStockContext() ? 'stock-account' : 'sheet';
+    }
+
+    private function ensurePreferencesTable(): void
+    {
+        if (Schema::hasTable('record_table_preferences')) {
+            return;
+        }
+
+        Schema::create('record_table_preferences', function (Blueprint $table) {
+            $table->id();
+            $table->string('context', 32);
+            $table->unsignedBigInteger('record_product_id')->nullable();
+            $table->json('preferences');
+            $table->timestamps();
+
+            $table->unique(['context', 'record_product_id'], 'record_table_prefs_context_product_unique');
+        });
     }
 
     private function productModelClass(): string

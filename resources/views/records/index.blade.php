@@ -574,6 +574,10 @@
                 products: @json(route('sheet.products')),
                 createProduct: @json(route('sheet.products.store')),
                 linkProduct: @json(route('sheet.products.link')),
+                preferences: (productId) => @json(route('sheet.preferences.show', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                updatePreferences: (productId) => @json(route('sheet.preferences.update', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
+                lastProduct: @json(route('sheet.preferences.last.show')),
+                updateLastProduct: @json(route('sheet.preferences.last.update')),
                 entries: (productId) => @json(route('sheet.entries.index', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 storeEntry: (productId) => @json(route('sheet.entries.store', ['recordProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', productId),
                 updateEntry: (productId, entryId) => @json(route('sheet.entries.update', ['recordProduct' => 'PRODUCT_ID', 'entryId' => 'ENTRY_ID'])).replace('PRODUCT_ID', productId).replace('ENTRY_ID', entryId),
@@ -614,21 +618,7 @@
                 { id: 'actions', label: 'Action', type: 'actions' },
             ];
 
-            const storageKey = 'records_table_prefs';
-            const storageVersion = 'v2';
-            const lastProductKey = `${storageKey}_${storageVersion}_last_product`;
             const baseOrder = columns.map((c) => c.id);
-
-            const loadPreferences = (key) => {
-                try {
-                    const raw = localStorage.getItem(key);
-                    if (!raw) return null;
-                    return JSON.parse(raw);
-                } catch (error) {
-                    console.warn('Unable to load table prefs', error);
-                    return null;
-                }
-            };
 
             const sanitizeOrder = (order = []) => {
                 const valid = columns.map((c) => c.id);
@@ -648,8 +638,6 @@
                 return result;
             };
 
-            const saveKeyForProduct = (productId) => `${storageKey}_${storageVersion}_${productId ?? 'global'}`;
-
             const state = {
                 products: @json($products),
                 productLinks: initialProductLinks,
@@ -662,6 +650,7 @@
                 columnWidths: {},
                 newRow: null,
                 showColumnControls: false,
+                lastSelectedProductId: null,
                 phoneFilter: '',
                 emailFilter: '',
                 sort: {
@@ -901,16 +890,81 @@
             const getVisibleColumns = () => getColumns()
                 .filter((col) => !state.hiddenColumns.includes(col.id));
 
-            const persistPreferences = () => {
-                const key = saveKeyForProduct(state.selectedProductId ?? 'global');
+            const applyPreferences = (prefs = {}) => {
+                state.columnOrder = sanitizeOrder(prefs.columnOrder ?? baseOrder);
+                state.hiddenColumns = (prefs.hiddenColumns ?? []).filter((id) => baseOrder.includes(id));
+                state.columnWidths = prefs.columnWidths ?? {};
+            };
+
+            const fetchPreferences = async (productId) => {
+                if (!productId) return null;
                 try {
-                    localStorage.setItem(key, JSON.stringify({
-                        columnOrder: state.columnOrder,
-                        hiddenColumns: state.hiddenColumns,
-                        columnWidths: state.columnWidths,
-                    }));
+                    const response = await fetch(routes.preferences(productId), {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Unable to load table prefs.');
+                    }
+                    const payload = await response.json();
+                    return payload?.preferences ?? payload?.global ?? null;
+                } catch (error) {
+                    console.warn(error.message ?? 'Unable to load table prefs');
+                    return null;
+                }
+            };
+
+            const persistPreferences = async () => {
+                if (!state.selectedProductId) return;
+                try {
+                    await fetch(routes.updatePreferences(state.selectedProductId), {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            columnOrder: state.columnOrder,
+                            hiddenColumns: state.hiddenColumns,
+                            columnWidths: state.columnWidths,
+                        }),
+                    });
                 } catch (error) {
                     console.warn('Unable to save table prefs', error);
+                }
+            };
+
+            const persistLastProduct = async (productId) => {
+                try {
+                    await fetch(routes.updateLastProduct, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            last_product_id: productId ?? null,
+                        }),
+                    });
+                } catch (error) {
+                    console.warn('Unable to save last product', error);
+                }
+            };
+
+            const fetchLastProduct = async () => {
+                try {
+                    const response = await fetch(routes.lastProduct, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (!response.ok) {
+                        throw new Error('Unable to load last product.');
+                    }
+                    const payload = await response.json();
+                    return payload?.last_product_id ?? null;
+                } catch (error) {
+                    console.warn('Unable to load last product', error);
+                    return null;
                 }
             };
 
@@ -1017,15 +1071,13 @@
                 }
             };
 
-            const syncDropdown = () => {
+            const syncDropdown = async () => {
                 const selectedValue = productSelect?.value;
                 if (!selectedValue) {
                     state.selectedProductId = null;
                     state.records = [];
                     state.visibleLimit = 50;
-                    state.columnOrder = baseOrder;
-                    state.hiddenColumns = [];
-                    state.columnWidths = {};
+                    applyPreferences({});
                     state.showColumnControls = false;
                     state.sort = { column: null, direction: 'asc' };
                     toggleColumnsButton.textContent = 'Edit fields';
@@ -1038,24 +1090,22 @@
 
                 state.selectedProductId = Number(selectedValue);
                 state.visibleLimit = 50;
-                try {
-                    localStorage.setItem(lastProductKey, String(state.selectedProductId));
-                } catch (error) {
-                    console.warn('Unable to persist last product', error);
-                }
+                persistLastProduct(state.selectedProductId);
 
-                const productPrefs = loadPreferences(saveKeyForProduct(state.selectedProductId))
-                    || loadPreferences(saveKeyForProduct('global'))
-                    || {};
-                state.columnOrder = sanitizeOrder(productPrefs.columnOrder ?? baseOrder);
-                state.hiddenColumns = (productPrefs.hiddenColumns ?? []).filter((id) => baseOrder.includes(id));
-                state.columnWidths = productPrefs.columnWidths ?? {};
+                applyPreferences({});
                 state.showColumnControls = false;
                 state.sort = { column: null, direction: 'asc' };
                 toggleColumnsButton.textContent = 'Edit fields';
                 renderColumnControls();
                 renderTableStructure();
                 renderRecords();
+                const prefs = await fetchPreferences(state.selectedProductId);
+                if (prefs) {
+                    applyPreferences(prefs);
+                    renderColumnControls();
+                    renderTableStructure();
+                    renderRecords();
+                }
                 fetchRecords();
                 if (linkRecordProductSelect && state.selectedProductId) {
                     linkRecordProductSelect.value = String(state.selectedProductId);
@@ -1732,7 +1782,6 @@
                     return;
                 }
                 dirtyRecords.add(String(recordId));
-                updateCell(recordId, field, value);
                 const localIndex = state.records.findIndex((r) => String(r.id) === String(recordId));
                 if (localIndex !== -1) {
                     state.records[localIndex] = {
@@ -1763,7 +1812,6 @@
                     return;
                 }
                 dirtyRecords.add(String(recordId));
-                updateCell(recordId, field, value);
             };
 
             const startNewRow = () => {
@@ -2152,29 +2200,27 @@
             renderRecords();
 
             if (state.products.length) {
-                const preferredProduct = resolveHighlightProduct()
-                    ?? (() => {
-                        try {
-                            const stored = localStorage.getItem(lastProductKey);
+                (async () => {
+                    state.lastSelectedProductId = await fetchLastProduct();
+                    const preferredProduct = resolveHighlightProduct()
+                        ?? (() => {
+                            const stored = state.lastSelectedProductId;
                             if (!stored) return null;
                             const id = Number(stored);
                             if (Number.isNaN(id)) return null;
                             return state.products.find((p) => Number(p.id) === id) ?? null;
-                        } catch (error) {
-                            console.warn('Unable to read last product', error);
-                            return null;
+                        })();
+                    if (preferredProduct) {
+                        selectProduct(preferredProduct);
+                    } else if (!productSelect.value) {
+                        productSelect.value = state.products[0].id;
+                        if (productInput && !productInput.value) {
+                            productInput.value = state.products[0].name ?? '';
+                            productInput.dataset.selectedName = productInput.value;
                         }
-                    })();
-                if (preferredProduct) {
-                    selectProduct(preferredProduct);
-                } else if (!productSelect.value) {
-                    productSelect.value = state.products[0].id;
-                    if (productInput && !productInput.value) {
-                        productInput.value = state.products[0].name ?? '';
-                        productInput.dataset.selectedName = productInput.value;
                     }
-                }
-                syncDropdown();
+                    syncDropdown();
+                })();
             }
             syncLinkProductOptions();
             if (state.selectedProductId) {
