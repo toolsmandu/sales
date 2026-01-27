@@ -923,6 +923,7 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
                         },
+                        keepalive: true,
                         body: JSON.stringify({
                             columnOrder: state.columnOrder,
                             hiddenColumns: state.hiddenColumns,
@@ -1942,6 +1943,9 @@
             productSelect.addEventListener('change', syncDropdown);
             tableBody.addEventListener('change', handleTableChange);
             tableBody.addEventListener('blur', handleTableBlur, true);
+            window.addEventListener('beforeunload', () => {
+                persistPreferences();
+            });
             tableBody.addEventListener('click', async (event) => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) {

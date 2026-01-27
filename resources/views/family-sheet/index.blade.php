@@ -345,6 +345,11 @@
             table.family-table {
                 min-width: 100%;
             }
+            table.family-table th,
+            table.family-table td {
+                padding: 0.45rem 0.5rem;
+                font-size: 0.92rem;
+            }
         }
 
         @media (max-width: 900px) {
@@ -373,6 +378,9 @@
             .family-admin-form button[type="submit"] {
                 width: auto;
             }
+            table.family-table {
+                min-width: 720px;
+            }
         }
 
         @media (max-width: 640px) {
@@ -384,6 +392,11 @@
             }
             .family-actions__main > * {
                 margin-right: 0.25rem;
+            }
+            table.family-table th,
+            table.family-table td {
+                padding: 0.4rem 0.45rem;
+                font-size: 0.88rem;
             }
         }
 
@@ -423,7 +436,7 @@
 <br>
             <div class="family-card family-card--full">
                 <div class="family-inline-row" style="align-items: center; justify-content: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
-                    <strong>Add/Edit Family Account:</strong>
+                    <strong>Add/Link Family Products:</strong>
                     <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                         <input type="checkbox" id="toggle-create-sections">
                     </label>
@@ -1153,7 +1166,10 @@
             const prefs = serverTablePreferences || {};
             const state = {
                 order: sanitizeOrder(prefs.columnOrder ?? prefs.order),
-                hidden: Array.isArray(prefs.hiddenColumns ?? prefs.hidden) ? (prefs.hiddenColumns ?? prefs.hidden).filter((id) => defaultOrder.includes(id)) : [],
+                hidden: Array.isArray(prefs.hiddenColumns ?? prefs.hidden)
+                    ? (prefs.hiddenColumns ?? prefs.hidden)
+                        .filter((id) => defaultOrder.includes(id) && id !== 'remarks')
+                    : [],
                 widths: prefs.columnWidths && typeof prefs.columnWidths === 'object' ? prefs.columnWidths : {},
             };
 
@@ -1168,6 +1184,7 @@
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json',
                         },
+                        keepalive: true,
                         body: JSON.stringify({
                             columnOrder: state.order,
                             hiddenColumns: state.hidden,
@@ -1178,12 +1195,12 @@
                     console.warn('Unable to save family prefs', error);
                 }
             };
-            const schedulePersistTablePreferences = () => {
-                if (tablePrefTimeout) {
-                    clearTimeout(tablePrefTimeout);
-                }
-                tablePrefTimeout = setTimeout(persistTablePreferences, 400);
-            };
+                const schedulePersistTablePreferences = () => {
+                    if (tablePrefTimeout) {
+                        clearTimeout(tablePrefTimeout);
+                    }
+                    tablePrefTimeout = setTimeout(persistTablePreferences, 400);
+                };
 
             const getVisible = () => state.order.filter((id) => !state.hidden.includes(id));
 
@@ -1307,7 +1324,7 @@
                 const onUp = () => {
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
-                    schedulePersistTablePreferences();
+                    persistTablePreferences();
                 };
 
                 document.addEventListener('mousemove', onMove);
@@ -1339,6 +1356,7 @@
             };
 
             const toggleColumn = (columnId, visible) => {
+                if (columnId === 'remarks') return;
                 if (visible) {
                     state.hidden = state.hidden.filter((id) => id !== columnId);
                 } else if (!state.hidden.includes(columnId)) {
@@ -1357,11 +1375,16 @@
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.checked = !state.hidden.includes(col.id);
+                    if (col.id === 'remarks') {
+                        checkbox.disabled = true;
+                    }
                     checkbox.addEventListener('change', () => {
                         toggleColumn(col.id, checkbox.checked);
                     });
                     const labelEl = document.createElement('span');
-                    labelEl.textContent = col.label || col.id;
+                    labelEl.textContent = col.id === 'remarks'
+                        ? 'Remarks / Actions'
+                        : (col.label || col.id);
                     control.appendChild(checkbox);
                     control.appendChild(labelEl);
                     columnControls.appendChild(control);
@@ -1463,6 +1486,9 @@
             };
 
             bindFilterInput(filterSearchInput);
+            window.addEventListener('beforeunload', () => {
+                persistTablePreferences();
+            });
 
             if (memberToggleFields && memberForm && memberFieldControls) {
                 const memberFields = Array.from(memberForm.querySelectorAll('[data-member-field]'));
@@ -1473,17 +1499,18 @@
                 const persistMemberPreferences = async () => {
                     if (!productId) return;
                     try {
-                        await fetch(preferenceRoutes.member, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                hiddenFields,
-                            }),
-                        });
+                    await fetch(preferenceRoutes.member, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        keepalive: true,
+                        body: JSON.stringify({
+                            hiddenFields,
+                        }),
+                    });
                     } catch (error) {
                         console.warn('Unable to save family member prefs', error);
                     }
