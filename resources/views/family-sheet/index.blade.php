@@ -38,6 +38,8 @@
             border-radius: 0.8rem;
             padding: 1rem;
             background: #fff;
+            width: 100%;
+            box-sizing: border-box;
         }
 
 
@@ -51,7 +53,8 @@
         table.family-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 960px;
+            min-width: 100%;
+            table-layout: fixed;
         }
         table.family-table th,
         table.family-table td {
@@ -334,6 +337,56 @@
             width: 100%;
         }
 
+        @media (max-width: 1200px) {
+            .family-form-inline label,
+            .family-admin-form label {
+                min-width: 160px;
+            }
+            table.family-table {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .family-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .family-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .family-inline-filters {
+                width: 100%;
+            }
+            .family-inline-filters form,
+            .family-inline-filters label {
+                width: 100%;
+            }
+            .family-inline-filters input[type="search"] {
+                width: 100%;
+                min-width: 0;
+            }
+            .family-admin-form {
+                flex-wrap: wrap;
+            }
+            .family-admin-form button[type="submit"] {
+                width: auto;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .family-form-inline label {
+                min-width: 100%;
+            }
+            .family-actions__main {
+                flex-wrap: wrap;
+            }
+            .family-actions__main > * {
+                margin-right: 0.25rem;
+            }
+        }
+
         .family-admin-card .family-admin-form button[type="submit"] {
             width: auto;
         }
@@ -534,30 +587,7 @@
             </div>
 <br>
 
-            <div class="family-card family-card--full">
-                <script>
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const toggle = document.getElementById('toggle-create-sections');
-                        const wrapper = document.getElementById('create-sections-wrapper');
-                        const linkCard = document.getElementById('family-link-card');
-                        const adminCard = document.getElementById('family-admin-card');
-                        if (!toggle || !wrapper) return;
-                        const apply = () => {
-                            const visible = toggle.checked;
-                            wrapper.style.display = visible ? '' : 'none';
-                            if (linkCard) {
-                                linkCard.style.display = visible ? '' : 'none';
-                            }
-                            if (adminCard) {
-                                adminCard.style.display = visible ? 'none' : '';
-                            }
-                        };
-                        toggle.addEventListener('change', apply);
-                        apply();
-                    });
-                </script>
-
-            </div>
+          
 
 @if ($selectedProduct)
                 <div class="family-toolbar" style="margin-top: 1rem;">
@@ -900,7 +930,10 @@
             const colgroup = document.getElementById('family-colgroup');
             const headerRow = table?.querySelector('thead tr');
             const tbody = table?.querySelector('tbody');
+            const tableWrapper = table?.closest('.family-table-wrapper');
             const filterSearchInput = document.getElementById('family-filter-search');
+            const columnControls = document.getElementById('family-column-controls');
+            const toggleColumnsButton = document.getElementById('family-toggle-column-controls');
             const memberToggleFields = document.getElementById('family-member-toggle-fields');
             const memberFieldControls = document.getElementById('family-member-field-controls');
             const memberForm = document.getElementById('family-add-member-form');
@@ -908,6 +941,7 @@
             const createSectionsWrapper = document.getElementById('create-sections-wrapper');
             const showAllAccountsToggle = document.getElementById('family-show-all-accounts');
             const accountsTableWrapper = document.getElementById('family-accounts-table-wrapper');
+            const adminCard = document.getElementById('family-admin-card');
             const linkCard = document.getElementById('family-link-card');
             const linkSiteProduct = document.getElementById('family-link-site-product');
             const linkVariations = document.getElementById('family-link-variations');
@@ -916,6 +950,14 @@
             const linkEditToggle = document.getElementById('family-link-edit-toggle');
             const hasTable = table && colgroup && headerRow && tbody;
             const memberShowMore = document.getElementById('family-show-more');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const productId = Number(table?.dataset.productId || 0);
+            const preferenceRoutes = {
+                table: @json(route('family-sheet.preferences.table.update', ['familyProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', String(productId || 0)),
+                member: @json(route('family-sheet.preferences.member.update', ['familyProduct' => 'PRODUCT_ID'])).replace('PRODUCT_ID', String(productId || 0)),
+            };
+            const serverTablePreferences = @json($familyTablePreferences ?? null);
+            const serverMemberPreferences = @json($familyMemberPreferences ?? null);
 
             if (createSectionsToggle) {
                 const applyCreateVisibility = () => {
@@ -925,6 +967,9 @@
                     }
                     if (linkCard) {
                         linkCard.style.display = visible ? '' : 'none';
+                    }
+                    if (adminCard) {
+                        adminCard.style.display = visible ? 'none' : '';
                     }
                 };
                 createSectionsToggle.addEventListener('change', applyCreateVisibility);
@@ -1064,83 +1109,6 @@
                 apply();
             }
 
-            if (memberToggleFields && memberForm && memberFieldControls) {
-                const memberFields = Array.from(memberForm.querySelectorAll('[data-member-field]'));
-                const hiddenKey = 'family_member_hidden_fields';
-                let controlsOpen = false;
-
-                const loadHidden = () => {
-                    try {
-                        const raw = localStorage.getItem(hiddenKey);
-                        if (!raw) return [];
-                        const parsed = JSON.parse(raw);
-                        return Array.isArray(parsed) ? parsed : [];
-                    } catch {
-                        return [];
-                    }
-                };
-
-                const saveHidden = (list) => {
-                    try {
-                        localStorage.setItem(hiddenKey, JSON.stringify(list));
-                    } catch {
-                        /* ignore */
-                    }
-                };
-
-                let hiddenFields = loadHidden();
-
-                const applyHidden = () => {
-                    memberFields.forEach((label) => {
-                        const id = label.dataset.memberField;
-                        label.style.display = hiddenFields.includes(id) ? 'none' : '';
-                    });
-                    const submit = memberForm.querySelector('button[type="submit"]');
-                    if (submit) {
-                        submit.style.display = hiddenFields.length === memberFields.length ? 'none' : '';
-                    }
-                };
-
-                const renderMemberControls = () => {
-                    memberFieldControls.innerHTML = '';
-                    memberFields.forEach((label) => {
-                        const id = label.dataset.memberField;
-                        if (!id) return;
-                        const control = document.createElement('div');
-                        control.className = 'family-column-control';
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.checked = !hiddenFields.includes(id);
-                        checkbox.addEventListener('change', () => {
-                            if (checkbox.checked) {
-                                hiddenFields = hiddenFields.filter((val) => val !== id);
-                            } else if (!hiddenFields.includes(id)) {
-                                hiddenFields.push(id);
-                            }
-                            saveHidden(hiddenFields);
-                            applyHidden();
-                        });
-                        const labelEl = document.createElement('span');
-                        const text = label.querySelector('input, select, textarea')?.closest('label')?.childNodes?.[0]?.textContent?.trim() || label.textContent?.trim() || id;
-                        labelEl.textContent = text || id;
-                        control.appendChild(checkbox);
-                        control.appendChild(labelEl);
-                        memberFieldControls.appendChild(control);
-                    });
-                };
-
-                memberToggleFields.addEventListener('click', () => {
-                    controlsOpen = !controlsOpen;
-                    memberFieldControls.style.display = controlsOpen ? 'flex' : 'none';
-                    memberToggleFields.textContent = controlsOpen ? 'Done' : 'Edit fields';
-                    if (controlsOpen && !memberFieldControls.childElementCount) {
-                        renderMemberControls();
-                    }
-                });
-
-                applyHidden();
-            }
-
             if (!hasTable) return;
 
             const memberRows = Array.from(document.querySelectorAll('.family-member-row'));
@@ -1175,34 +1143,6 @@
             ];
 
             const defaultOrder = columns.map((c) => c.id);
-            const productId = table?.dataset.productId || 'default';
-            const prefsVersion = 'v2';
-            const prefsKey = `family_table_prefs_${prefsVersion}_${productId}`;
-            const widthKey = `family_table_widths_${prefsVersion}_${productId}`;
-
-            const loadPrefs = () => {
-                try {
-                    const raw = localStorage.getItem(prefsKey);
-                    if (!raw) return {};
-                    const parsed = JSON.parse(raw);
-                    return parsed && typeof parsed === 'object' ? parsed : {};
-                } catch (error) {
-                    console.warn('Unable to read family prefs', error);
-                    return {};
-                }
-            };
-
-            const loadWidths = () => {
-                try {
-                    const raw = localStorage.getItem(widthKey);
-                    if (!raw) return {};
-                    const parsed = JSON.parse(raw);
-                    return parsed && typeof parsed === 'object' ? parsed : {};
-                } catch (error) {
-                    console.warn('Unable to read family column widths', error);
-                    return {};
-                }
-            };
 
             const sanitizeOrder = (order) => {
                 const base = Array.isArray(order) ? order.filter((id) => defaultOrder.includes(id)) : [];
@@ -1210,30 +1150,39 @@
                 return [...base, ...missing];
             };
 
-            const prefs = loadPrefs();
+            const prefs = serverTablePreferences || {};
             const state = {
-                order: sanitizeOrder(prefs.order),
-                hidden: Array.isArray(prefs.hidden) ? prefs.hidden.filter((id) => defaultOrder.includes(id)) : [],
-                widths: loadWidths(),
+                order: sanitizeOrder(prefs.columnOrder ?? prefs.order),
+                hidden: Array.isArray(prefs.hiddenColumns ?? prefs.hidden) ? (prefs.hiddenColumns ?? prefs.hidden).filter((id) => defaultOrder.includes(id)) : [],
+                widths: prefs.columnWidths && typeof prefs.columnWidths === 'object' ? prefs.columnWidths : {},
             };
 
-            const persistPrefs = () => {
+            let tablePrefTimeout = null;
+            const persistTablePreferences = async () => {
+                if (!productId) return;
                 try {
-                    localStorage.setItem(prefsKey, JSON.stringify({
-                        order: state.order,
-                        hidden: state.hidden,
-                    }));
+                    await fetch(preferenceRoutes.table, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            columnOrder: state.order,
+                            hiddenColumns: state.hidden,
+                            columnWidths: state.widths,
+                        }),
+                    });
                 } catch (error) {
                     console.warn('Unable to save family prefs', error);
                 }
             };
-
-            const persistWidths = () => {
-                try {
-                    localStorage.setItem(widthKey, JSON.stringify(state.widths));
-                } catch (error) {
-                    console.warn('Unable to save family widths', error);
+            const schedulePersistTablePreferences = () => {
+                if (tablePrefTimeout) {
+                    clearTimeout(tablePrefTimeout);
                 }
+                tablePrefTimeout = setTimeout(persistTablePreferences, 400);
             };
 
             const getVisible = () => state.order.filter((id) => !state.hidden.includes(id));
@@ -1308,6 +1257,33 @@
                         header.style.width = width && visible ? `${width}px` : '';
                     }
                 });
+
+                const visibleIds = getVisible();
+                if (!tableWrapper || !visibleIds.length) return;
+                const wrapperWidth = tableWrapper.clientWidth;
+                if (!wrapperWidth) return;
+
+                let totalWidth = 0;
+                visibleIds.forEach((id) => {
+                    const header = headerRow.querySelector(`th[data-col-id="${id}"]`);
+                    const width = state.widths[id] ?? header?.getBoundingClientRect().width ?? 140;
+                    totalWidth += width;
+                });
+
+                const extra = wrapperWidth - totalWidth;
+                if (extra > 0) {
+                    const lastId = visibleIds[visibleIds.length - 1];
+                    const lastHeader = headerRow.querySelector(`th[data-col-id="${lastId}"]`);
+                    const lastCol = colgroup.querySelector(`col[data-col-id="${lastId}"]`);
+                    const baseWidth = state.widths[lastId] ?? lastHeader?.getBoundingClientRect().width ?? 140;
+                    const nextWidth = baseWidth + extra;
+                    if (lastCol) {
+                        lastCol.style.width = `${nextWidth}px`;
+                    }
+                    if (lastHeader) {
+                        lastHeader.style.width = `${nextWidth}px`;
+                    }
+                }
             };
 
             const startResize = (event, colId) => {
@@ -1331,7 +1307,7 @@
                 const onUp = () => {
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
-                    persistWidths();
+                    schedulePersistTablePreferences();
                 };
 
                 document.addEventListener('mousemove', onMove);
@@ -1359,7 +1335,7 @@
                 [order[idx], order[target]] = [order[target], order[idx]];
                 state.order = order;
                 render();
-                persistPrefs();
+                schedulePersistTablePreferences();
             };
 
             const toggleColumn = (columnId, visible) => {
@@ -1369,8 +1345,39 @@
                     state.hidden.push(columnId);
                 }
                 render();
-                persistPrefs();
+                schedulePersistTablePreferences();
             };
+
+            const renderColumnControls = () => {
+                if (!columnControls) return;
+                columnControls.innerHTML = '';
+                columns.forEach((col) => {
+                    const control = document.createElement('div');
+                    control.className = 'family-column-control';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = !state.hidden.includes(col.id);
+                    checkbox.addEventListener('change', () => {
+                        toggleColumn(col.id, checkbox.checked);
+                    });
+                    const labelEl = document.createElement('span');
+                    labelEl.textContent = col.label || col.id;
+                    control.appendChild(checkbox);
+                    control.appendChild(labelEl);
+                    columnControls.appendChild(control);
+                });
+            };
+
+            if (toggleColumnsButton && columnControls) {
+                toggleColumnsButton.addEventListener('click', () => {
+                    const isOpen = columnControls.style.display === 'flex';
+                    columnControls.style.display = isOpen ? 'none' : 'flex';
+                    toggleColumnsButton.setAttribute('aria-label', isOpen ? 'Edit fields' : 'Done');
+                    if (!isOpen) {
+                        renderColumnControls();
+                    }
+                });
+            }
 
             const placeAccountNotes = () => {
                 const visible = getVisible();
@@ -1459,28 +1466,34 @@
 
             if (memberToggleFields && memberForm && memberFieldControls) {
                 const memberFields = Array.from(memberForm.querySelectorAll('[data-member-field]'));
-                const hiddenKey = 'family_member_hidden_fields';
-
-                const loadHidden = () => {
+                let hiddenFields = Array.isArray(serverMemberPreferences?.hiddenFields)
+                    ? serverMemberPreferences.hiddenFields
+                    : [];
+                let memberPrefTimeout = null;
+                const persistMemberPreferences = async () => {
+                    if (!productId) return;
                     try {
-                        const raw = localStorage.getItem(hiddenKey);
-                        if (!raw) return [];
-                        const parsed = JSON.parse(raw);
-                        return Array.isArray(parsed) ? parsed : [];
-                    } catch {
-                        return [];
+                        await fetch(preferenceRoutes.member, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                hiddenFields,
+                            }),
+                        });
+                    } catch (error) {
+                        console.warn('Unable to save family member prefs', error);
                     }
                 };
-
-                const saveHidden = (list) => {
-                    try {
-                        localStorage.setItem(hiddenKey, JSON.stringify(list));
-                    } catch {
-                        /* ignore */
+                const schedulePersistMemberPreferences = () => {
+                    if (memberPrefTimeout) {
+                        clearTimeout(memberPrefTimeout);
                     }
+                    memberPrefTimeout = setTimeout(persistMemberPreferences, 400);
                 };
-
-                let hiddenFields = loadHidden();
 
                 const applyHidden = () => {
                     memberFields.forEach((label) => {
@@ -1509,7 +1522,7 @@
                             } else if (!hiddenFields.includes(id)) {
                                 hiddenFields.push(id);
                             }
-                            saveHidden(hiddenFields);
+                            schedulePersistMemberPreferences();
                             applyHidden();
                         });
                         const labelEl = document.createElement('span');
