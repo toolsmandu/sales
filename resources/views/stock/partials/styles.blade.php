@@ -186,6 +186,11 @@
         color: rgba(15, 23, 42, 0.95);
     }
 
+    .stock-item__variation {
+        font-size: 0.88rem;
+        color: rgba(71, 85, 105, 0.9);
+    }
+
     .stock-item__value-row {
         display: inline-flex;
         align-items: center;

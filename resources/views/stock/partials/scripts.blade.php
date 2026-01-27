@@ -96,7 +96,7 @@
                 let visibleCount = 0;
 
                 list.querySelectorAll('[data-stock-item]').forEach((item) => {
-                    const haystack = `${item.dataset.product ?? ''} ${item.dataset.key ?? ''} ${item.dataset.activation ?? ''} ${item.dataset.viewer ?? ''} ${item.dataset.remarks ?? ''}`.toLowerCase();
+                    const haystack = `${item.dataset.product ?? ''} ${item.dataset.variation ?? ''} ${item.dataset.key ?? ''} ${item.dataset.activation ?? ''} ${item.dataset.viewer ?? ''} ${item.dataset.remarks ?? ''}`.toLowerCase();
                     const matches = query.length === 0 || haystack.includes(query);
                     item.hidden = !matches;
                     if (matches) {

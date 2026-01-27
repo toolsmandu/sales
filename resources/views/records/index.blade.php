@@ -450,7 +450,7 @@
             <section class="card stack">
                 <header class="records-toolbar" style="justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
                     <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
-                        <h2 style="margin: 12px;">Data Records</h2>
+                        <h2 style="margin: 12px;"></h2>
                         <div class="product-combobox" data-product-combobox style="min-width: 320px;">
                             <input
                                 type="text"
@@ -484,23 +484,27 @@
                         </div>
                         <div class="records-inline-filters" style="margin: 0;">
                             <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                                <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
-                            </label>
-                            <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                                <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
+                                <input type="search" id="records-filter-search" placeholder="Search phone or email" style="min-width: 220px;">
                             </label>
                         </div>
                     </div>
                     <div class="records-actions">
                         <div class="records-actions__main">
-                            <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
-                            <div class="pill" id="records-count">0 Data</div>
                             <div class="pill" id="records-status" style="min-width: 160px; text-align: center;">Ready</div>
-                            <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
-                            <button type="button" id="records-export-trigger" class="secondary outline">Export CSV</button>
+                            <button type="button" id="records-add-row" class="secondary outline" aria-label="Add row">
+                                <i class="fa-solid fa-plus" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                            <button type="button" id="records-import-trigger" class="secondary outline" aria-label="Import CSV">
+                                <i class="fa-solid fa-file-import" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                            <button type="button" id="records-export-trigger" class="secondary outline" aria-label="Export CSV">
+                                <i class="fa-solid fa-download" aria-hidden="true" style="color: #000;"></i>
+                            </button>
                             <input type="file" id="records-import-file" accept=".csv" style="display: none;">
                         </div>
-                        <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
+                        <button type="button" id="toggle-column-controls" class="secondary" aria-label="Edit fields" style="background: transparent;">
+                            <i class="fa-solid fa-pen-to-square" aria-hidden="true" style="color: #000;"></i>
+                        </button>
                     </div>
                 </header>
                 <div class="modal is-hidden" id="records-import-modal" role="dialog" aria-modal="true" aria-labelledby="records-import-title">
@@ -651,8 +655,7 @@
                 newRow: null,
                 showColumnControls: false,
                 lastSelectedProductId: null,
-                phoneFilter: '',
-                emailFilter: '',
+                searchFilter: '',
                 sort: {
                     column: null,
                     direction: 'asc',
@@ -670,13 +673,11 @@
             const productSelect = document.getElementById('record-product-select');
             const productInput = document.getElementById('record-product-input');
             const statusLabel = document.getElementById('records-status');
-            const recordsCount = document.getElementById('records-count');
             const tableBody = document.getElementById('records-table-body');
             const emptyRow = document.getElementById('records-empty');
             const addRowButton = document.getElementById('records-add-row');
             const showMoreButton = document.getElementById('records-show-more');
-            const filterPhoneInput = document.getElementById('records-filter-phone');
-            const filterEmailInput = document.getElementById('records-filter-email');
+            const filterSearchInput = document.getElementById('records-filter-search');
             const colgroup = document.getElementById('records-colgroup');
             const tableHead = document.getElementById('records-head');
             const columnControls = document.getElementById('column-controls');
@@ -699,18 +700,11 @@
             const linkCardBody = document.getElementById('link-card-body');
 
             const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
-            const handleFilterInput = (input, key, sanitize = false) => {
+            const handleFilterInput = (input, key) => {
                 if (!input) return;
                 input.addEventListener('input', (event) => {
-                    let next = event.target.value || '';
-                    if (sanitize) {
-                        const cleaned = sanitizePhoneSearch(next);
-                        if (cleaned !== next) {
-                            event.target.value = cleaned;
-                            next = cleaned;
-                        }
-                    }
-                    state[key] = next.toLowerCase();
+                    const next = (event.target.value || '').toLowerCase();
+                    state[key] = next;
                     renderRecords();
                 });
             };
@@ -719,6 +713,13 @@
                 if (!linkStatus) return;
                 linkStatus.textContent = text;
                 linkStatus.style.color = success ? '#15803d' : '#0f172a';
+            };
+
+            const setColumnControlsLabel = (isOpen) => {
+                if (!toggleColumnsButton) return;
+                const label = isOpen ? 'Close fields' : 'Edit fields';
+                toggleColumnsButton.setAttribute('aria-label', label);
+                toggleColumnsButton.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true" style="color: #000;"></i>';
             };
 
             const syncLinkCardVisibility = () => {
@@ -803,8 +804,7 @@
                 .filter(Boolean)
                 .map(parseCsvLine);
 
-            handleFilterInput(filterPhoneInput, 'phoneFilter', true);
-            handleFilterInput(filterEmailInput, 'emailFilter');
+            handleFilterInput(filterSearchInput, 'searchFilter');
 
             if (showMoreButton) {
                 showMoreButton.addEventListener('click', () => {
@@ -1080,7 +1080,7 @@
                     applyPreferences({});
                     state.showColumnControls = false;
                     state.sort = { column: null, direction: 'asc' };
-                    toggleColumnsButton.textContent = 'Edit fields';
+                    setColumnControlsLabel(false);
                     renderColumnControls();
                     renderTableStructure();
                     renderRecords();
@@ -1095,7 +1095,7 @@
                 applyPreferences({});
                 state.showColumnControls = false;
                 state.sort = { column: null, direction: 'asc' };
-                toggleColumnsButton.textContent = 'Edit fields';
+                setColumnControlsLabel(false);
                 renderColumnControls();
                 renderTableStructure();
                 renderRecords();
@@ -1264,7 +1264,6 @@
                     cell.textContent = state.selectedProductId ? 'No rows yet. Add one above.' : 'Pick a product and add the first row.';
                     row.appendChild(cell);
                     tableBody.appendChild(row);
-                    recordsCount.textContent = '0 Data';
                     return;
                 }
 
@@ -1307,12 +1306,18 @@
 
                 const filteredRecords = state.records.filter((record) => {
                     const phone = (record.phone ?? '').toLowerCase();
+                    const phoneSanitized = sanitizePhoneSearch(phone);
                     const emailPrimary = (record.email ?? '').toLowerCase();
                     const emailSecondary = (record.email2 ?? '').toLowerCase();
-                    const phoneMatch = state.phoneFilter === '' || phone.includes(state.phoneFilter);
                     const emailTarget = `${emailPrimary} ${emailSecondary}`.trim();
-                    const emailMatch = state.emailFilter === '' || emailPrimary.includes(state.emailFilter) || emailSecondary.includes(state.emailFilter) || emailTarget.includes(state.emailFilter);
-                    return phoneMatch && emailMatch;
+                    const term = (state.searchFilter ?? '').trim();
+                    if (term === '') {
+                        return true;
+                    }
+                    const sanitizedTerm = sanitizePhoneSearch(term);
+                    const phoneMatch = sanitizedTerm !== '' && phoneSanitized.includes(sanitizedTerm);
+                    const emailMatch = emailPrimary.includes(term) || emailSecondary.includes(term) || emailTarget.includes(term);
+                    return phoneMatch || emailMatch;
                 });
 
                 const recordsForDisplay = state.sort.column ? getSortedRecords(filteredRecords) : filteredRecords;
@@ -1321,7 +1326,6 @@
                     renderRowCells(record, record.id, index + 1, false);
                 });
 
-                recordsCount.textContent = `${limitedRecords.length} of ${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
                 if (showMoreButton) {
                     showMoreButton.style.display = recordsForDisplay.length > state.visibleLimit ? '' : 'none';
                 }
@@ -2059,7 +2063,7 @@
             addRowButton.addEventListener('click', startNewRow);
             toggleColumnsButton.addEventListener('click', () => {
                 state.showColumnControls = !state.showColumnControls;
-                toggleColumnsButton.textContent = state.showColumnControls ? 'Close fields' : 'Edit fields';
+                setColumnControlsLabel(state.showColumnControls);
                 renderColumnControls();
             });
             linkCardToggle?.addEventListener('change', syncLinkCardVisibility);

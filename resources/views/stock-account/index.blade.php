@@ -478,7 +478,7 @@
             <section class="card stack">
                 <header class="records-toolbar" style="justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
                     <div style="display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
-                        <h2 style="margin: 12px;">Data Records</h2>
+                        <h2 style="margin: 12px;"></h2>
                         <div class="product-combobox" data-product-combobox style="min-width: 320px;">
                             <input
                                 type="text"
@@ -512,10 +512,7 @@
                         </div>
                         <div class="records-inline-filters" style="margin: 0;">
                             <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                                <input type="search" id="records-filter-phone" placeholder="Search phone" style="min-width: 140px;">
-                            </label>
-                            <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
-                                <input type="search" id="records-filter-email" placeholder="Search email" style="min-width: 180px;">
+                                <input type="search" id="records-filter-search" placeholder="Search phone or email" style="min-width: 220px;">
                             </label>
                             <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
                                 <input type="checkbox" id="records-filter-empty-accounts">
@@ -525,14 +522,21 @@
                     </div>
                     <div class="records-actions">
                         <div class="records-actions__main">
-                            <button type="button" id="records-add-row" class="secondary outline">+ Add row</button>
-                            <div class="pill" id="records-count">0 Data</div>
                             <div class="pill" id="records-status" style="min-width: 160px; text-align: center;">Ready</div>
-                            <button type="button" id="records-import-trigger" class="secondary outline">Import CSV</button>
-                            <button type="button" id="records-export-trigger" class="secondary outline">Export CSV</button>
+                            <button type="button" id="records-add-row" class="secondary outline" aria-label="Add row">
+                                <i class="fa-solid fa-plus" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                            <button type="button" id="records-import-trigger" class="secondary outline" aria-label="Import CSV">
+                                <i class="fa-solid fa-file-import" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                            <button type="button" id="records-export-trigger" class="secondary outline" aria-label="Export CSV">
+                                <i class="fa-solid fa-download" aria-hidden="true" style="color: #000;"></i>
+                            </button>
                             <input type="file" id="records-import-file" accept=".csv" style="display: none;">
                         </div>
-                        <button type="button" id="toggle-column-controls" class="secondary">Edit fields</button>
+                        <button type="button" id="toggle-column-controls" class="secondary" aria-label="Edit fields" style="background: transparent;">
+                            <i class="fa-solid fa-pen-to-square" aria-hidden="true" style="color: #000;"></i>
+                        </button>
                     </div>
                 </header>
                 <div class="modal is-hidden" id="records-import-modal" role="dialog" aria-modal="true" aria-labelledby="records-import-title">
@@ -684,8 +688,7 @@
                 columnWidths: {},
                 newRow: null,
                 showColumnControls: false,
-                phoneFilter: '',
-                emailFilter: '',
+                searchFilter: '',
                 showEmptyAccounts: false,
                 lastSelectedProductId: null,
                 sort: {
@@ -704,13 +707,11 @@
             const productSelect = document.getElementById('record-product-select');
             const productInput = document.getElementById('record-product-input');
             const statusLabel = document.getElementById('records-status');
-            const recordsCount = document.getElementById('records-count');
             const tableBody = document.getElementById('records-table-body');
             const emptyRow = document.getElementById('records-empty');
             const addRowButton = document.getElementById('records-add-row');
             const showMoreButton = document.getElementById('records-show-more');
-            const filterPhoneInput = document.getElementById('records-filter-phone');
-            const filterEmailInput = document.getElementById('records-filter-email');
+            const filterSearchInput = document.getElementById('records-filter-search');
             const filterEmptyAccountsInput = document.getElementById('records-filter-empty-accounts');
             const colgroup = document.getElementById('records-colgroup');
             const tableHead = document.getElementById('records-head');
@@ -739,18 +740,11 @@
             const editProductSaveButton = document.getElementById('records-edit-product-save');
 
             const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
-            const handleFilterInput = (input, key, sanitize = false) => {
+            const handleFilterInput = (input, key) => {
                 if (!input) return;
                 input.addEventListener('input', (event) => {
-                    let next = event.target.value || '';
-                    if (sanitize) {
-                        const cleaned = sanitizePhoneSearch(next);
-                        if (cleaned !== next) {
-                            event.target.value = cleaned;
-                            next = cleaned;
-                        }
-                    }
-                    state[key] = next.toLowerCase();
+                    const next = (event.target.value || '').toLowerCase();
+                    state[key] = next;
                     renderRecords();
                 });
             };
@@ -759,6 +753,13 @@
                 if (!linkStatus) return;
                 linkStatus.textContent = text;
                 linkStatus.style.color = success ? '#15803d' : '#0f172a';
+            };
+
+            const setColumnControlsLabel = (isOpen) => {
+                if (!toggleColumnsButton) return;
+                const label = isOpen ? 'Close fields' : 'Edit fields';
+                toggleColumnsButton.setAttribute('aria-label', label);
+                toggleColumnsButton.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true" style="color: #000;"></i>';
             };
 
             const syncLinkCardVisibility = () => {
@@ -848,8 +849,7 @@
                 .filter(Boolean)
                 .map(parseCsvLine);
 
-            handleFilterInput(filterPhoneInput, 'phoneFilter', true);
-            handleFilterInput(filterEmailInput, 'emailFilter');
+            handleFilterInput(filterSearchInput, 'searchFilter');
             if (filterEmptyAccountsInput) {
                 filterEmptyAccountsInput.addEventListener('change', (event) => {
                     state.showEmptyAccounts = !!event.target.checked;
@@ -1166,7 +1166,7 @@
                     applyPreferences({});
                     state.showColumnControls = false;
                     state.sort = { column: null, direction: 'asc' };
-                    toggleColumnsButton.textContent = 'Edit fields';
+                    setColumnControlsLabel(false);
                     renderColumnControls();
                     renderTableStructure();
                     renderRecords();
@@ -1182,7 +1182,7 @@
                 applyPreferences({});
                 state.showColumnControls = false;
                 state.sort = { column: null, direction: 'asc' };
-                toggleColumnsButton.textContent = 'Edit fields';
+                setColumnControlsLabel(false);
                 renderColumnControls();
                 renderTableStructure();
                 renderRecords();
@@ -1318,6 +1318,7 @@
                 }
                 const expiryRaw = editProductExpiryInput?.value ?? '';
                 const expiryDays = expiryRaw === '' ? null : Number(expiryRaw);
+                const stockAccountNote = linkNoteInput?.value?.trim() || null;
 
                 setStatus('Updating product...');
                 try {
@@ -1331,6 +1332,7 @@
                         body: JSON.stringify({
                             name,
                             expiry_days: Number.isFinite(expiryDays) ? expiryDays : null,
+                            stock_account_note: stockAccountNote,
                         }),
                     });
                     if (!response.ok) {
@@ -1344,6 +1346,18 @@
                         state.products = state.products.map((entry) => (
                             Number(entry.id) === Number(updated.id) ? updated : entry
                         ));
+                        if (linkNoteInput && typeof updated.stock_account_note !== 'undefined') {
+                            const existingLink = state.productLinks?.[updated.id] ?? {};
+                            state.productLinks[updated.id] = {
+                                linked_product_id: updated.linked_product_id ?? existingLink.linked_product_id ?? null,
+                                linked_variation_ids: updated.linked_variation_ids
+                                    ? (Array.isArray(updated.linked_variation_ids)
+                                        ? updated.linked_variation_ids
+                                        : JSON.parse(updated.linked_variation_ids || '[]'))
+                                    : (existingLink.linked_variation_ids ?? []),
+                                stock_account_note: updated.stock_account_note || '',
+                            };
+                        }
                         updateProductDisplay(updated);
                         applyEditProductValues(updated.id);
                         setStatus('Product updated', true);
@@ -1440,7 +1454,6 @@
                     cell.textContent = state.selectedProductId ? 'No rows yet. Add one above.' : 'Pick a product and add the first row.';
                     row.appendChild(cell);
                     tableBody.appendChild(row);
-                    recordsCount.textContent = '0 Data';
                     return;
                 }
 
@@ -1483,11 +1496,14 @@
 
                 const filteredRecords = state.records.filter((record) => {
                     const phone = (record.phone ?? '').toLowerCase();
+                    const phoneSanitized = sanitizePhoneSearch(phone);
                     const emailPrimary = (record.email ?? '').toLowerCase();
                     const emailSecondary = (record.email2 ?? '').toLowerCase();
-                    const phoneMatch = state.phoneFilter === '' || phone.includes(state.phoneFilter);
                     const emailTarget = `${emailPrimary} ${emailSecondary}`.trim();
-                    const emailMatch = state.emailFilter === '' || emailPrimary.includes(state.emailFilter) || emailSecondary.includes(state.emailFilter) || emailTarget.includes(state.emailFilter);
+                    const term = (state.searchFilter ?? '').trim();
+                    const sanitizedTerm = sanitizePhoneSearch(term);
+                    const phoneMatch = term === '' ? true : (sanitizedTerm !== '' && phoneSanitized.includes(sanitizedTerm));
+                    const emailMatch = term === '' ? true : (emailPrimary.includes(term) || emailSecondary.includes(term) || emailTarget.includes(term));
                     let emptyAccountMatch = true;
                     if (state.showEmptyAccounts) {
                         const phoneBlank = phone.trim() === '';
@@ -1496,18 +1512,17 @@
                         const remainingNegative = !Number.isNaN(remainingNum) && remainingNum < 0;
                         emptyAccountMatch = phoneBlank || remainingNegative;
                     }
-                    return phoneMatch && emailMatch && emptyAccountMatch;
+                    return (phoneMatch || emailMatch) && emptyAccountMatch;
                 });
 
                 const recordsForDisplay = state.sort.column ? getSortedRecords(filteredRecords) : filteredRecords;
-                const hasActiveFilters = state.phoneFilter !== '' || state.emailFilter !== '' || state.showEmptyAccounts;
+                const hasActiveFilters = state.searchFilter !== '' || state.showEmptyAccounts;
                 const limit = hasActiveFilters ? recordsForDisplay.length : state.visibleLimit;
                 const limitedRecords = recordsForDisplay.slice(0, limit);
                 limitedRecords.forEach((record, index) => {
                     renderRowCells(record, record.id, index + 1, false);
                 });
 
-                recordsCount.textContent = `${limitedRecords.length} of ${recordsForDisplay.length} row${recordsForDisplay.length === 1 ? '' : 's'}`;
                 if (showMoreButton) {
                     showMoreButton.style.display = !hasActiveFilters && recordsForDisplay.length > state.visibleLimit ? '' : 'none';
                 }
@@ -2264,7 +2279,7 @@
             addRowButton.addEventListener('click', startNewRow);
             toggleColumnsButton.addEventListener('click', () => {
                 state.showColumnControls = !state.showColumnControls;
-                toggleColumnsButton.textContent = state.showColumnControls ? 'Close fields' : 'Edit fields';
+                setColumnControlsLabel(state.showColumnControls);
                 renderColumnControls();
             });
             linkCardToggle?.addEventListener('change', syncLinkCardVisibility);

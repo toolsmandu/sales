@@ -124,6 +124,7 @@
                                             data-stock-item
                                             data-panel="fresh"
                                             data-product="{{ $key->product->name }}"
+                                            data-variation="{{ $key->variation?->name }}"
                                             data-variation-id="{{ $key->variation_id }}"
                                             data-key="{{ $key->masked_activation_key }}"
                                             data-activation="{{ $key->original_activation_key }}"
@@ -136,7 +137,9 @@
                                             data-view-count="{{ $key->view_count ?? 0 }}"
                                         >
                                             <div class="stock-item__details">
-                                                <span class="stock-item__product">{{ $key->product->name }}</span>
+                                                <span class="stock-item__product">
+                                                    {{ $key->product->name }}@if ($key->variation?->name) - {{ $key->variation->name }}@endif
+                                                </span>
                                                 <div class="stock-item__value-row">
                                                     <span class="stock-item__value">{{ $key->masked_activation_key }}</span>
                                                     <button
@@ -234,6 +237,7 @@
                                             data-stock-item
                                             data-panel="viewed"
                                             data-product="{{ $key->product->name }}"
+                                            data-variation="{{ $key->variation?->name }}"
                                             data-variation-id="{{ $key->variation_id }}"
                                             data-key="{{ $key->activation_key }}"
                                             data-activation="{{ $key->activation_key }}"
@@ -246,7 +250,9 @@
                                             data-view-count="{{ $key->view_count ?? 0 }}"
                                         >
                                             <div class="stock-item__details">
-                                                <span class="stock-item__product">{{ $key->product->name }}</span>
+                                                <span class="stock-item__product">
+                                                    {{ $key->product->name }}@if ($key->variation?->name) - {{ $key->variation->name }}@endif
+                                                </span>
                                                 <div class="stock-item__value-row">
                                                     <span class="stock-item__value">{{ $key->activation_key }}</span>
                                                     <button

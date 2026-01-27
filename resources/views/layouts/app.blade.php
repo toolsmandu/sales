@@ -13,6 +13,7 @@
         @else
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
         @endif
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
         @php
             $authUser = \Illuminate\Support\Facades\Auth::user();

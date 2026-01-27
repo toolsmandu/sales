@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Database\Schema\Blueprint;
+use App\Models\FamilySheetPreference;
 use Symfony\Component\HttpFoundation\Response;
 
 class FamilySheetController extends Controller
@@ -36,13 +37,18 @@ class FamilySheetController extends Controller
         $nextAccountIndex = 1;
 
         $accounts = collect();
+        $dataAccounts = collect();
         $membersByAccount = collect();
         $accountsById = collect();
+        $dataAccountsById = collect();
         $hasFamilyProductId = Schema::hasColumn('family_accounts', 'family_product_id');
         $hasFamilyProductName = Schema::hasColumn('family_accounts', 'family_product_name');
         $hasMemberAccountId = Schema::hasColumn('family_members', 'family_account_id');
         $hasMemberProductId = Schema::hasColumn('family_members', 'family_product_id');
         $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
+        $perPage = 5;
+        $accountPage = max(1, (int) $request->query('account_page', 1));
+        $dataAccountsHasMore = false;
 
         if ($selectedProduct) {
             if ($hasMemberProductName && $hasFamilyProductName) {
@@ -52,26 +58,54 @@ class FamilySheetController extends Controller
             $accountQuery = DB::table('family_accounts')
                 ->orderByDesc('family_accounts.account_index')
                 ->orderBy('family_accounts.name');
+            $accountSelect = ['family_accounts.*'];
 
             if ($hasFamilyProductId) {
                 $accountQuery->join('family_products', 'family_accounts.family_product_id', '=', 'family_products.id')
                     ->where('family_accounts.family_product_id', $selectedProduct->id)
-                    ->select([
-                        'family_accounts.*',
+                    ->addSelect([
                         'family_products.name as product_name',
                         'family_accounts.family_product_name',
                     ]);
+                $accountSelect = [
+                    'family_accounts.*',
+                    'family_products.name as product_name',
+                    'family_accounts.family_product_name',
+                ];
             } elseif ($hasFamilyProductName) {
                 $accountQuery->where('family_accounts.family_product_name', $selectedProduct->name)
-                    ->select([
-                        'family_accounts.*',
+                    ->addSelect([
                         'family_accounts.family_product_name',
                     ]);
-            } else {
-                $accountQuery->select(['family_accounts.*']);
+                $accountSelect = [
+                    'family_accounts.*',
+                    'family_accounts.family_product_name',
+                ];
             }
 
-            $accounts = $accountQuery
+            $accounts = (clone $accountQuery)
+                ->select($accountSelect)
+                ->get()
+                ->map(function ($account) use ($hasMemberAccountId) {
+                    if ($hasMemberAccountId) {
+                        $account->member_count = DB::table('family_members')
+                            ->where('family_account_id', $account->id)
+                            ->count();
+                    } else {
+                        $account->member_count = 0;
+                    }
+                    $account->remaining = max(0, ($account->capacity ?? 0) - $account->member_count);
+                    return $account;
+                });
+
+            $totalAccounts = (clone $accountQuery)
+                ->distinct()
+                ->count('family_accounts.id');
+            $dataAccountsHasMore = ($accountPage * $perPage) < $totalAccounts;
+
+            $dataAccounts = (clone $accountQuery)
+                ->select($accountSelect)
+                ->forPage($accountPage, $perPage)
                 ->get()
                 ->map(function ($account) use ($hasMemberAccountId) {
                     if ($hasMemberAccountId) {
@@ -86,7 +120,8 @@ class FamilySheetController extends Controller
                 });
 
             $accountsById = $accounts->keyBy('id');
-            $accountIds = $accounts->pluck('id')->filter()->values();
+            $dataAccountsById = $dataAccounts->keyBy('id');
+            $accountIds = $dataAccounts->pluck('id')->filter()->values();
 
             $maxIndexQuery = DB::table('family_accounts');
             if ($hasFamilyProductId) {
@@ -149,24 +184,55 @@ class FamilySheetController extends Controller
 
             $membersByAccount = $membersQuery
                 ->get()
-                ->map(function ($member) use ($accountsById) {
+                ->map(function ($member) use ($dataAccountsById) {
                     $member = $this->decryptSensitiveFields($member);
                     $member->remaining_days = $this->computeRemainingDays($member->purchase_date ?? null, $member->expiry ?? null);
-                    $account = $accountsById->get($member->family_account_id);
+                    $account = $dataAccountsById->get($member->family_account_id);
                     $member->family_name = $this->resolveFamilyName($account ?? null, [], $member);
                     return $member;
                 })
                 ->groupBy('family_account_id');
         }
 
+        if ($request->boolean('accounts_partial')) {
+            $familyColumns = [
+                ['id' => 'account', 'label' => 'Main Account'],
+                ['id' => 'family_name', 'label' => 'Family Name'],
+                ['id' => 'order', 'label' => 'Order ID'],
+                ['id' => 'email', 'label' => 'Email'],
+                ['id' => 'phone', 'label' => 'Phone'],
+                ['id' => 'product', 'label' => 'Product'],
+                ['id' => 'amount', 'label' => 'Amount'],
+                ['id' => 'purchase', 'label' => 'Purchase Date'],
+                ['id' => 'period', 'label' => 'Period'],
+                ['id' => 'remaining', 'label' => 'Remaining Days'],
+                ['id' => 'remarks', 'label' => 'Remarks'],
+            ];
+
+            return response()->json([
+                'html' => view('family-sheet.partials.data-rows', [
+                    'dataAccounts' => $dataAccounts,
+                    'membersByAccount' => $membersByAccount,
+                    'familyColumns' => $familyColumns,
+                ])->render(),
+                'has_more' => $dataAccountsHasMore,
+                'next_page' => $dataAccountsHasMore ? $accountPage + 1 : null,
+            ]);
+        }
+
         return view('family-sheet.index', [
             'products' => $products,
             'selectedProduct' => $selectedProduct,
             'accounts' => $accounts,
+            'dataAccounts' => $dataAccounts,
             'membersByAccount' => $membersByAccount,
             'nextAccountIndex' => $nextAccountIndex,
             'siteProducts' => $siteProducts,
             'variations' => $variations,
+            'dataAccountsHasMore' => $dataAccountsHasMore,
+            'dataAccountsPage' => $accountPage,
+            'familyTablePreferences' => $this->loadFamilyPreferences($selectedProductId ?: null, 'table_columns'),
+            'familyMemberPreferences' => $this->loadFamilyPreferences($selectedProductId ?: null, 'member_fields'),
         ]);
     }
 
@@ -201,6 +267,58 @@ class FamilySheetController extends Controller
         ]);
 
         return redirect()->route('family-sheet.index')->with('status', 'Family product created.');
+    }
+
+    public function updateTablePreferences(Request $request, $familyProduct): Response
+    {
+        $productId = (int) $familyProduct;
+        $validated = $request->validate([
+            'columnOrder' => ['present', 'array'],
+            'hiddenColumns' => ['present', 'array'],
+            'columnWidths' => ['present', 'array'],
+        ]);
+
+        $preference = FamilySheetPreference::query()->updateOrCreate(
+            [
+                'context' => 'table_columns',
+                'family_product_id' => $productId ?: null,
+            ],
+            [
+                'preferences' => [
+                    'columnOrder' => array_values($validated['columnOrder']),
+                    'hiddenColumns' => array_values($validated['hiddenColumns']),
+                    'columnWidths' => $validated['columnWidths'],
+                ],
+            ]
+        );
+
+        return response()->json([
+            'preferences' => $preference->preferences,
+        ]);
+    }
+
+    public function updateMemberPreferences(Request $request, $familyProduct): Response
+    {
+        $productId = (int) $familyProduct;
+        $validated = $request->validate([
+            'hiddenFields' => ['present', 'array'],
+        ]);
+
+        $preference = FamilySheetPreference::query()->updateOrCreate(
+            [
+                'context' => 'member_fields',
+                'family_product_id' => $productId ?: null,
+            ],
+            [
+                'preferences' => [
+                    'hiddenFields' => array_values($validated['hiddenFields']),
+                ],
+            ]
+        );
+
+        return response()->json([
+            'preferences' => $preference->preferences,
+        ]);
     }
 
     public function importCsv(Request $request)
@@ -1391,6 +1509,25 @@ class FamilySheetController extends Controller
         }
 
         return $payload;
+    }
+
+    private function loadFamilyPreferences(?int $productId, string $context): ?array
+    {
+        $specific = FamilySheetPreference::query()
+            ->where('context', $context)
+            ->where('family_product_id', $productId)
+            ->first();
+
+        if ($specific?->preferences) {
+            return $specific->preferences;
+        }
+
+        $global = FamilySheetPreference::query()
+            ->where('context', $context)
+            ->whereNull('family_product_id')
+            ->first();
+
+        return $global?->preferences;
     }
 
     private function decryptSensitiveFields(object $record): object

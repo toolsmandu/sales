@@ -21,7 +21,7 @@ class StockController extends Controller
     public function index(Request $request): View
     {
         $freshKeys = StockKey::query()
-            ->with(['product:id,name', 'variation:id,notes'])
+            ->with(['product:id,name', 'variation:id,name,notes'])
             ->fresh()
             ->latest('created_at')
             ->paginate(25, ['id', 'product_id', 'variation_id', 'activation_key', 'view_limit', 'view_count', 'created_at'], 'fresh_page')
@@ -39,7 +39,7 @@ class StockController extends Controller
         $viewedKeys = StockKey::query()
             ->with([
                 'product:id,name',
-                'variation:id,notes',
+                'variation:id,name,notes',
                 'viewedBy:id,name',
                 'viewLogs' => fn ($q) => $q->with(['viewer:id,name'])->orderByDesc('viewed_at'),
             ])
@@ -51,7 +51,7 @@ class StockController extends Controller
             ->with(['variations' => fn ($query) => $query->orderBy('name')])
             ->orderBy('name')
             ->get(['id', 'name']);
-        $productOptions = $this->buildProductOptions($products);
+        $productOptions = $this->buildProductOptions($products, variationsOnly: true);
 
         return view('stock.index', [
             'freshKeys' => $freshKeys,
@@ -348,14 +348,14 @@ class StockController extends Controller
     /**
      * Build a flattened list of products with variation labels for selectors.
      */
-    private function buildProductOptions($products): array
+    private function buildProductOptions($products, bool $variationsOnly = false): array
     {
         return $products
-            ->flatMap(function (Product $product) {
+            ->flatMap(function (Product $product) use ($variationsOnly) {
                 $options = [];
                 $baseName = trim((string) $product->name);
 
-                if ($baseName !== '') {
+                if (!$variationsOnly && $baseName !== '') {
                     $options[] = [
                         'id' => $product->id,
                         'label' => $baseName,

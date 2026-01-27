@@ -116,6 +116,29 @@
             flex-wrap: wrap;
         }
 
+        .family-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .family-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .family-actions__main {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
         .family-form-inline {
             display: flex;
             flex-wrap: wrap;
@@ -160,6 +183,52 @@
             width: auto;
             min-width: 120px;
             flex-shrink: 0;
+        }
+
+        .family-admin-form {
+            flex-wrap: nowrap;
+            align-items: flex-end;
+        }
+
+        .family-admin-form label {
+            min-width: 180px;
+        }
+
+        .family-admin-form button[type="submit"] {
+            height: 2.6rem;
+            align-self: flex-end;
+            min-width: 80px;
+            flex-shrink: 0;
+            width: auto;
+            max-width: max-content;
+            padding: 0.55rem 1rem;
+        }
+
+        .family-add-member-button {
+            background: #16a34a;
+            border-color: #15803d;
+            color: #fff;
+        }
+
+        .family-add-member-button:hover,
+        .family-add-member-button:focus-visible {
+            background: #15803d;
+            border-color: #166534;
+            color: #fff;
+        }
+
+        .family-modal__content {
+            width: min(1200px, calc(100vw - 2.5rem));
+            max-height: 90vh;
+        }
+
+        .modal.modal--center {
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.modal--center .modal__content {
+            margin: auto;
         }
 
         .family-import-export {
@@ -216,6 +285,20 @@
             padding-right: 1rem;
         }
 
+        table.family-table .ghost-button--compact {
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        table.family-table .ghost-button--compact svg {
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+
         .family-card--full {
             grid-column: 1 / -1;
         }
@@ -237,20 +320,22 @@
         }
 
         .create-sections-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
-
-        .create-column {
             display: flex;
             flex-direction: column;
             gap: 1rem;
+            align-items: stretch;
+        }
+
+        .create-column {
+            width: 100%;
         }
 
         .create-card form:not(.family-form-inline--inline-action) button[type="submit"] {
             width: 100%;
+        }
+
+        .family-admin-card .family-admin-form button[type="submit"] {
+            width: auto;
         }
     </style>
 @endpush
@@ -290,6 +375,43 @@
                         <input type="checkbox" id="toggle-create-sections">
                     </label>
                 </div>
+                <div class="family-card create-card family-admin-card" id="family-admin-card" style="margin-bottom: 1rem;">
+                    <h3>Add Admin Account</h3>
+                    <form method="POST" action="{{ route('family-sheet.accounts.store') }}" class="family-form-inline family-admin-form">
+                        @csrf
+                        <label>
+                            Product
+                            <select name="family_product_id" required>
+                                @forelse ($products as $product)
+                                    <option value="{{ $product->id }}" @selected(optional($selectedProduct)->id === $product->id)>{{ $product->name }}</option>
+                                @empty
+                                    <option value="">Create a product first</option>
+                                @endforelse
+                            </select>
+                        </label>
+                        <label>
+                            Admin Account's Email
+                            <input type="text" name="name" required placeholder="Login Email Here">
+                        </label>
+                        <label>
+                            Account index
+                            <input type="number" name="account_index" min="1" placeholder="Auto" value="{{ old('account_index', $nextAccountIndex ?? '') }}">
+                        </label>
+                        <label>
+                            Max members
+                            <input type="number" name="capacity" min="1" placeholder="e.g. 5" required>
+                        </label>
+                        <label>
+                            Period (days)
+                            <input type="number" name="period" min="0" placeholder="e.g. 30">
+                        </label>
+                        <label>
+                            Remarks
+                            <input type="text" name="remarks" placeholder="Remarks">
+                        </label>
+                        <button type="submit">Create</button>
+                    </form>
+                </div>
                 <div class="create-sections-grid" id="create-sections-wrapper" style="margin: 0; display: none;">
                     <div class="create-column">
                         <div class="family-card create-card">
@@ -303,43 +425,6 @@
                                 <button type="submit">Create</button>
                             </form>
                         </div>
-                        <div class="family-card create-card">
-                            <h3>Add Admin Account</h3>
-                            <form method="POST" action="{{ route('family-sheet.accounts.store') }}">
-                                @csrf
-                                <label>
-                                    Product
-                                    <select name="family_product_id" required>
-                                        @forelse ($products as $product)
-                                            <option value="{{ $product->id }}" @selected(optional($selectedProduct)->id === $product->id)>{{ $product->name }}</option>
-                                        @empty
-                                            <option value="">Create a product first</option>
-                                        @endforelse
-                                    </select>
-                                </label>
-                                <label>
-                                    Admin Account's Email
-                                    <input type="text" name="name" required placeholder="Login Email Here">
-                                </label>
-                                <label>
-                                    Account index
-                                    <input type="number" name="account_index" min="1" placeholder="Auto" value="{{ old('account_index', $nextAccountIndex ?? '') }}">
-                                </label>
-                            <label>
-                                Max members
-                                <input type="number" name="capacity" min="1" placeholder="e.g. 5" required>
-                            </label>
-                            <label>
-                                Period (days)
-                                <input type="number" name="period" min="0" placeholder="e.g. 30">
-                            </label>
-                            <label>
-                                Remarks
-                                <input type="text" name="remarks" placeholder="Remarks">
-                            </label>
-                            <button type="submit">Create</button>
-                        </form>
-                    </div>
                     </div>
                     <div class="family-card create-card" id="family-link-card" style="display: none;">
                         <h3 style="margin-top: 0;">Link Family Product to Website Product</h3>
@@ -375,77 +460,76 @@
                             </label>
                             <button type="submit">Link</button>
                         </form>
-
-                        @if ($products->count())
-                            <div class="family-card family-link-overview" id="family-link-overview" style="margin-top: 1rem;">
-                                <div class="family-inline-row" style="align-items: center; justify-content: space-between;">
-                                    <h4 style="margin: 0;">Linked Products Overview</h4>
-                                    <button type="button" id="family-link-edit-toggle" class="ghost-button">Edit linkage</button>
-                                </div>
-                                <div class="table-wrapper" style="overflow:auto;">
-                                    <table class="records-table" style="min-width: 640px;">
-                                        <thead>
-                                            <tr>
-                                                <th style="text-align:left;">Family Product</th>
-                                                <th style="text-align:left;">Linked Product</th>
-                                                <th style="text-align:left;">Linked Variations</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($products as $familyProduct)
-                                                @php
-                                                    $linkedProduct = $siteProducts->firstWhere('id', $familyProduct->linked_product_id);
-                                                    $linkedIds = $familyProduct->linked_variation_ids ? json_decode($familyProduct->linked_variation_ids, true) : [];
-                                                    $variationNames = collect($linkedIds)
-                                                        ->map(function ($id) use ($variations) {
-                                                            foreach ($variations as $list) {
-                                                                $found = $list->firstWhere('id', $id);
-                                                                if ($found) {
-                                                                    return $found->name;
-                                                                }
-                                                            }
-                                                            return null;
-                                                        })
-                                                        ->filter()
-                                                        ->values();
-                                                @endphp
-                                                <tr class="family-link-row">
-                                                    <td style="text-align:left; white-space: nowrap;">{{ $familyProduct->name }}</td>
-                                                    <td style="text-align:left; min-width: 220px;">
-                                                        <span class="family-link-display">{{ $linkedProduct->name ?? '—' }}</span>
-                                                        <select name="linked_product_id" class="family-link-site-product family-link-input" form="family-link-form-{{ $familyProduct->id }}">
-                                                            <option value="">-- Optional: Link to website product --</option>
-                                                            @foreach ($siteProducts as $siteProduct)
-                                                                <option value="{{ $siteProduct->id }}" @selected($siteProduct->id == $familyProduct->linked_product_id)>{{ $siteProduct->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </td>
-                                                    <td style="text-align:left; min-width: 280px;">
-                                                    <span class="family-link-display">{{ $variationNames->isEmpty() ? '—' : $variationNames->implode(', ') }}</span>
-                                                        <select name="linked_variation_ids[]" class="family-link-variations family-link-input" multiple size="3" form="family-link-form-{{ $familyProduct->id }}">
-                                                            @foreach ($siteProducts as $siteProduct)
-                                                                @foreach (($variations[$siteProduct->id] ?? collect()) as $variation)
-                                                                    <option value="{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}" @selected(in_array($variation->id, $linkedIds))>{{ $siteProduct->name }} - {{ $variation->name }}</option>
-                                                                @endforeach
-                                                            @endforeach
-                                                        </select>
-                                                    </td>
-                                    <td style="text-align:left; width: 80px;">
-                                        <button type="submit" form="family-link-form-{{ $familyProduct->id }}" class="ghost-button ghost-button--compact family-link-input">Save</button>
-                                    </td>
-                                </tr>
-                                <form id="family-link-form-{{ $familyProduct->id }}" method="POST" action="{{ route('family-sheet.products.link') }}">
-                                    @csrf
-                                                    <input type="hidden" name="family_product_id" value="{{ $familyProduct->id }}">
-                                                </form>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        @endif
                     </div>
+                    @if ($products->count())
+                        <div class="family-card family-link-overview" id="family-link-overview" style="margin-top: 1rem;">
+                            <div class="family-inline-row" style="align-items: center; justify-content: space-between;">
+                                <h4 style="margin: 0;">Linked Products Overview</h4>
+                                <button type="button" id="family-link-edit-toggle" class="ghost-button">Edit linkage</button>
+                            </div>
+                            <div class="table-wrapper" style="overflow:auto;">
+                                <table class="records-table" style="min-width: 640px;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left;">Family Product</th>
+                                            <th style="text-align:left;">Linked Product</th>
+                                            <th style="text-align:left;">Linked Variations</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($products as $familyProduct)
+                                            @php
+                                                $linkedProduct = $siteProducts->firstWhere('id', $familyProduct->linked_product_id);
+                                                $linkedIds = $familyProduct->linked_variation_ids ? json_decode($familyProduct->linked_variation_ids, true) : [];
+                                                $variationNames = collect($linkedIds)
+                                                    ->map(function ($id) use ($variations) {
+                                                        foreach ($variations as $list) {
+                                                            $found = $list->firstWhere('id', $id);
+                                                            if ($found) {
+                                                                return $found->name;
+                                                            }
+                                                        }
+                                                        return null;
+                                                    })
+                                                    ->filter()
+                                                    ->values();
+                                            @endphp
+                                            <tr class="family-link-row">
+                                                <td style="text-align:left; white-space: nowrap;">{{ $familyProduct->name }}</td>
+                                                <td style="text-align:left; min-width: 220px;">
+                                                    <span class="family-link-display">{{ $linkedProduct->name ?? '—' }}</span>
+                                                    <select name="linked_product_id" class="family-link-site-product family-link-input" form="family-link-form-{{ $familyProduct->id }}">
+                                                        <option value="">-- Optional: Link to website product --</option>
+                                                        @foreach ($siteProducts as $siteProduct)
+                                                            <option value="{{ $siteProduct->id }}" @selected($siteProduct->id == $familyProduct->linked_product_id)>{{ $siteProduct->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </td>
+                                                <td style="text-align:left; min-width: 280px;">
+                                                    <span class="family-link-display">{{ $variationNames->isEmpty() ? '—' : $variationNames->implode(', ') }}</span>
+                                                    <select name="linked_variation_ids[]" class="family-link-variations family-link-input" multiple size="3" form="family-link-form-{{ $familyProduct->id }}">
+                                                        @foreach ($siteProducts as $siteProduct)
+                                                            @foreach (($variations[$siteProduct->id] ?? collect()) as $variation)
+                                                                <option value="{{ $variation->id }}" data-product-id="{{ $siteProduct->id }}" @selected(in_array($variation->id, $linkedIds))>{{ $siteProduct->name }} - {{ $variation->name }}</option>
+                                                            @endforeach
+                                                        @endforeach
+                                                    </select>
+                                                </td>
+                                                <td style="text-align:left; width: 80px;">
+                                                    <button type="submit" form="family-link-form-{{ $familyProduct->id }}" class="ghost-button ghost-button--compact family-link-input">Save</button>
+                                                </td>
+                                            </tr>
+                                            <form id="family-link-form-{{ $familyProduct->id }}" method="POST" action="{{ route('family-sheet.products.link') }}">
+                                                @csrf
+                                                <input type="hidden" name="family_product_id" value="{{ $familyProduct->id }}">
+                                            </form>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 <br>
@@ -456,6 +540,7 @@
                         const toggle = document.getElementById('toggle-create-sections');
                         const wrapper = document.getElementById('create-sections-wrapper');
                         const linkCard = document.getElementById('family-link-card');
+                        const adminCard = document.getElementById('family-admin-card');
                         if (!toggle || !wrapper) return;
                         const apply = () => {
                             const visible = toggle.checked;
@@ -463,98 +548,68 @@
                             if (linkCard) {
                                 linkCard.style.display = visible ? '' : 'none';
                             }
+                            if (adminCard) {
+                                adminCard.style.display = visible ? 'none' : '';
+                            }
                         };
                         toggle.addEventListener('change', apply);
                         apply();
                     });
                 </script>
-                @if ($products->count())
-                    <div class="family-inline-row" style="align-items: center; justify-content: flex-start; margin-bottom: 0.5rem;">
-                        <form method="GET" action="{{ route('family-sheet.index') }}" style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                            <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
-                                <span class="helper-text">Select product</span>
-                                <select name="product_id" onchange="this.form.submit()">
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}" @selected(optional($selectedProduct)->id === $product->id)>{{ $product->name }}</option>
-                                    @endforeach
-                                </select>
-                            </label>
-                        </form>
-                    </div>
-                @endif
 
-                <div class="family-inline-row" style="align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <h3 style="margin: 0;">Add Member</h3>
-                    <div class="family-inline-row" style="gap: 0.75rem; align-items: center;">
+            </div>
+
+@if ($selectedProduct)
+                <div class="family-toolbar" style="margin-top: 1rem;">
+                    <div class="family-inline-filters">
+                        @if ($products->count())
+                            <form method="GET" action="{{ route('family-sheet.index') }}" style="display: inline-flex; gap: 0.5rem; align-items: center;">
+                                <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
+                                    <span class="helper-text">Select product</span>
+                                    <select name="product_id" onchange="this.form.submit()">
+                                        @foreach ($products as $product)
+                                            <option value="{{ $product->id }}" @selected(optional($selectedProduct)->id === $product->id)>{{ $product->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                            </form>
+                        @endif
+                        <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
+                            <input type="search" id="family-filter-search" placeholder="Search phone or email">
+                        </label>
+                        <button type="button" id="family-open-add-member" class="secondary outline family-add-member-button">Add Member Manually</button>
                         <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
                             <input type="checkbox" id="family-show-all-accounts">
                             <span>Show all accounts</span>
                         </label>
-                        <button type="button" id="family-member-toggle-fields" class="ghost-button">Edit fields</button>
+                    </div>
+                    <div class="family-actions">
+                        <div class="family-actions__main">
+                            <form method="POST" action="{{ route('family-sheet.import') }}" enctype="multipart/form-data">
+                                @csrf
+                                <input type="hidden" name="family_product_id" value="{{ $selectedProduct->id }}">
+                                <input type="file" name="csv_file" id="family-import-file" class="family-file-input" accept=".csv,text/csv" required>
+                                <button type="button" id="family-import-trigger" class="secondary outline" aria-label="Import CSV">
+                                    <i class="fa-solid fa-file-import" aria-hidden="true" style="color: #000;"></i>
+                                </button>
+                            </form>
+                            <button
+                                type="button"
+                                id="family-export-trigger"
+                                class="secondary"
+                                style="background: transparent;"
+                                data-export-url="{{ route('family-sheet.export', ['product_id' => $selectedProduct->id]) }}"
+                                aria-label="Export CSV"
+                            >
+                                <i class="fa-solid fa-download" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                            <button type="button" id="family-toggle-column-controls" class="secondary" aria-label="Edit fields" style="background: transparent;">
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true" style="color: #000;"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div id="family-member-field-controls" class="family-column-controls" style="display: none; margin-top: 0; margin-bottom: 0.75rem;"></div>
-                <form method="POST" action="{{ route('family-sheet.members.store') }}" class="family-form-inline" id="family-add-member-form">
-                    @csrf
-                    <label data-member-field="family_account_id">
-                        Main Account
-                        <select name="family_account_id" required>
-                            @forelse ($accounts as $account)
-                                <option value="{{ $account->id }}" data-period="{{ $account->period ?? '' }}">
-                                    {{ $account->name }} @if(!empty($account->account_index))(Index: {{ $account->account_index }})@endif ({{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used)
-                                </option>
-                            @empty
-                                <option value="">Create a main account first</option>
-                            @endforelse
-                        </select>
-                        @error('family_account_id')
-                            <p class="helper-text" style="color: #b91c1c;">{{ $message }}</p>
-                        @enderror
-                    </label>
-                    <label data-member-field="purchase_date">
-                        Purchase Date
-                        <input type="date" name="purchase_date" value="{{ old('purchase_date', now()->format('Y-m-d')) }}">
-                    </label>
-                    <label data-member-field="order_id">
-                        Order ID
-                        <input type="text" name="order_id" placeholder="Order/serial">
-                    </label>
-                    <label data-member-field="email">
-                        Email
-                        <input type="email" name="email" placeholder="email">
-                    </label>
-                    <label data-member-field="phone">
-                        Phone
-                        <input type="text" name="phone" placeholder="phone">
-                    </label>
-                    <label data-member-field="product">
-                        Product (member)
-                        <input type="text" name="product" placeholder="Product name">
-                    </label>
-                    <label data-member-field="sales_amount">
-                        Sales Amount
-                        <input type="number" name="sales_amount" min="0" step="1">
-                    </label>
-                    <label data-member-field="expiry">
-                        Expiry (days)
-                        <input type="number" name="expiry" min="0" step="1">
-                    </label>
-                    <label data-member-field="remaining_days">
-                        Remaining Days
-                        <input type="number" name="remaining_days" step="1">
-                    </label>
-                    <label data-member-field="remarks">
-                        Remarks
-                        <textarea name="remarks" rows="2"></textarea>
-                    </label>
-                    <label data-member-field="two_factor">
-                        Two Factor
-                        <input type="text" name="two_factor">
-                    </label>
-                    <button type="submit">Add Member</button>
-                </form>
-
-                <div class="family-table-wrapper" id="family-accounts-table-wrapper" data-default-open="{{ old('account_edit') ? 'true' : 'false' }}" style="margin-top: 1rem; display: none;">
+                <div class="family-table-wrapper" id="family-accounts-table-wrapper" data-default-open="{{ old('account_edit') ? 'true' : 'false' }}" style="margin-top: 0.75rem; display: none;">
                     @if ($accounts->count())
                         <table class="family-table" style="min-width: 820px;">
                             <thead>
@@ -629,34 +684,81 @@
                         <p class="helper-text" style="padding: 0.75rem;">No main accounts yet.</p>
                     @endif
                 </div>
-            </div>
+                <div id="family-column-controls" class="family-column-controls" style="display: none; margin-top: 0; margin-bottom: 0.75rem;"></div>
 
-@if ($selectedProduct)
-                <div class="family-inline-row" style="margin-top: 1rem;">
-                    <h3 style="margin: 0;">Data Records of: {{ $selectedProduct->name }}</h3>
-                    <div class="family-inline-filters">
-                        <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
-                            <input type="search" id="family-filter-phone" placeholder="Search phone">
-                        </label>
-                        <label style="display: inline-flex; gap: 0.35rem; align-items: center; margin: 0;">
-                            <input type="search" id="family-filter-email" placeholder="Search email">
-                        </label>
-                    </div>
-                    <div class="family-inline-row__spacer">
-                        <div class="family-import-export">
-                            <form method="POST" action="{{ route('family-sheet.import') }}" enctype="multipart/form-data">
-                                @csrf
-                                <input type="hidden" name="family_product_id" value="{{ $selectedProduct->id }}">
-                                <input type="file" name="csv_file" id="family-import-file" class="family-file-input" accept=".csv,text/csv" required>
-                                <label for="family-import-file" class="family-file-label">Choose File</label>
-                                <span class="family-file-name" id="family-import-file-name">No file chosen</span>
-                                <button type="submit" class="secondary outline">Import CSV</button>
-                            </form>
-                            <a class="secondary outline family-export-button" href="{{ route('family-sheet.export', ['product_id' => $selectedProduct->id]) }}">Export CSV</a>
+                <div class="modal is-hidden modal--center" id="family-add-member-modal" role="dialog" aria-modal="true" aria-labelledby="family-add-member-title">
+                    <div class="modal__content family-modal__content">
+                        <div class="modal__header">
+                            <h3 id="family-add-member-title" style="margin: 0;">Add Member Manually</h3>
+                            <button type="button" class="ghost-button" id="family-add-member-close" aria-label="Close add member">Close</button>
                         </div>
+                        <div class="family-inline-row" style="align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <h3 style="margin: 0;">Add Member</h3>
+                            <div class="family-inline-row" style="gap: 0.75rem; align-items: center;">
+                                <button type="button" id="family-member-toggle-fields" class="ghost-button">Edit fields</button>
+                            </div>
+                        </div>
+                        <div id="family-member-field-controls" class="family-column-controls" style="display: none; margin-top: 0; margin-bottom: 0.75rem;"></div>
+                        <form method="POST" action="{{ route('family-sheet.members.store') }}" class="family-form-inline" id="family-add-member-form">
+                            @csrf
+                            <label data-member-field="family_account_id">
+                                Main Account
+                                <select name="family_account_id" required>
+                                    @forelse ($accounts as $account)
+                                        <option value="{{ $account->id }}" data-period="{{ $account->period ?? '' }}">
+                                            {{ $account->name }} @if(!empty($account->account_index))(Index: {{ $account->account_index }})@endif ({{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used)
+                                        </option>
+                                    @empty
+                                        <option value="">Create a main account first</option>
+                                    @endforelse
+                                </select>
+                                @error('family_account_id')
+                                    <p class="helper-text" style="color: #b91c1c;">{{ $message }}</p>
+                                @enderror
+                            </label>
+                            <label data-member-field="purchase_date">
+                                Purchase Date
+                                <input type="date" name="purchase_date" value="{{ old('purchase_date', now()->format('Y-m-d')) }}">
+                            </label>
+                            <label data-member-field="order_id">
+                                Order ID
+                                <input type="text" name="order_id" placeholder="Order/serial">
+                            </label>
+                            <label data-member-field="email">
+                                Email
+                                <input type="email" name="email" placeholder="email">
+                            </label>
+                            <label data-member-field="phone">
+                                Phone
+                                <input type="text" name="phone" placeholder="phone">
+                            </label>
+                            <label data-member-field="product">
+                                Product (member)
+                                <input type="text" name="product" placeholder="Product name">
+                            </label>
+                            <label data-member-field="sales_amount">
+                                Sales Amount
+                                <input type="number" name="sales_amount" min="0" step="1">
+                            </label>
+                            <label data-member-field="expiry">
+                                Expiry (days)
+                                <input type="number" name="expiry" min="0" step="1">
+                            </label>
+                            <label data-member-field="remaining_days">
+                                Remaining Days
+                                <input type="number" name="remaining_days" step="1">
+                            </label>
+                            <label data-member-field="remarks">
+                                Remarks
+                                <textarea name="remarks" rows="2"></textarea>
+                            </label>
+                            <label data-member-field="two_factor">
+                                Two Factor
+                                <input type="text" name="two_factor">
+                            </label>
+                            <button type="submit">Add Member</button>
+                        </form>
                     </div>
-                </div>
-                <div style="margin-bottom: 0.5rem;">
                 </div>
                 <div class="family-table-wrapper">
                     <table class="family-table" id="family-table" data-product-id="{{ $selectedProduct->id }}">
@@ -798,8 +900,7 @@
             const colgroup = document.getElementById('family-colgroup');
             const headerRow = table?.querySelector('thead tr');
             const tbody = table?.querySelector('tbody');
-            const filterPhoneInput = document.getElementById('family-filter-phone');
-            const filterEmailInput = document.getElementById('family-filter-email');
+            const filterSearchInput = document.getElementById('family-filter-search');
             const memberToggleFields = document.getElementById('family-member-toggle-fields');
             const memberFieldControls = document.getElementById('family-member-field-controls');
             const memberForm = document.getElementById('family-add-member-form');
@@ -860,13 +961,54 @@
             }
 
             const importFile = document.getElementById('family-import-file');
-            const importFileName = document.getElementById('family-import-file-name');
-            if (importFile && importFileName) {
+            const importTrigger = document.getElementById('family-import-trigger');
+            const importForm = importFile?.closest('form');
+            if (importFile && importTrigger && importForm) {
+                importTrigger.addEventListener('click', () => {
+                    importFile.click();
+                });
                 importFile.addEventListener('change', () => {
-                    const file = importFile.files?.[0];
-                    importFileName.textContent = file ? file.name : 'No file chosen';
+                    if (importFile.files?.length) {
+                        importForm.submit();
+                    }
                 });
             }
+
+            const exportTrigger = document.getElementById('family-export-trigger');
+            if (exportTrigger) {
+                exportTrigger.addEventListener('click', () => {
+                    const url = exportTrigger.dataset.exportUrl;
+                    if (url) {
+                        window.location.href = url;
+                    }
+                });
+            }
+
+            const addMemberOpen = document.getElementById('family-open-add-member');
+            const addMemberModal = document.getElementById('family-add-member-modal');
+            const addMemberClose = document.getElementById('family-add-member-close');
+            const openAddMemberModal = () => {
+                if (addMemberModal) {
+                    addMemberModal.classList.remove('is-hidden');
+                }
+            };
+            const closeAddMemberModal = () => {
+                if (addMemberModal) {
+                    addMemberModal.classList.add('is-hidden');
+                }
+            };
+            addMemberOpen?.addEventListener('click', openAddMemberModal);
+            addMemberClose?.addEventListener('click', closeAddMemberModal);
+            addMemberModal?.addEventListener('click', (event) => {
+                if (event.target === addMemberModal) {
+                    closeAddMemberModal();
+                }
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeAddMemberModal();
+                }
+            });
 
             if (linkSiteProduct && linkVariations) {
                 const filterVariations = () => {
@@ -1247,11 +1389,10 @@
             };
 
             const applyRowFilters = () => {
-                const phoneTerm = (filterPhoneInput?.value || '').trim().toLowerCase();
-                const emailTerm = (filterEmailInput?.value || '').trim().toLowerCase();
-                const hasPhoneTerm = phoneTerm.length > 0;
-                const hasEmailTerm = emailTerm.length > 0;
-                const filtersActive = hasPhoneTerm || hasEmailTerm;
+                const term = (filterSearchInput?.value || '').trim().toLowerCase();
+                const hasTerm = term.length > 0;
+                const phoneTerm = term.replace(/[()\s-]+/g, '');
+                const filtersActive = hasTerm;
                 const rows = Array.from(tbody.querySelectorAll('tr'));
 
                 if (!filtersActive) {
@@ -1283,8 +1424,9 @@
                     const emailInput = row.querySelector('td[data-col-id="email"] input[name="email"], td[data-col-id="email"] input[type="email"]');
                     const phoneValue = phoneInput?.value?.toLowerCase() ?? '';
                     const emailValue = emailInput?.value?.toLowerCase() ?? '';
-                    const phoneMatch = hasPhoneTerm && phoneValue.includes(phoneTerm);
-                    const emailMatch = hasEmailTerm && emailValue.includes(emailTerm);
+                    const phoneValueClean = phoneValue.replace(/[()\s-]+/g, '');
+                    const phoneMatch = phoneTerm && phoneValueClean.includes(phoneTerm);
+                    const emailMatch = term && emailValue.includes(term);
                     const isMatch = phoneMatch || emailMatch;
                     row.style.display = isMatch ? '' : 'none';
                     if (isMatch) {
@@ -1306,23 +1448,14 @@
                 applyRowFilters();
             };
 
-            const sanitizePhoneSearch = (value) => (value || '').replace(/[()\s-]+/g, '');
-            const bindFilterInput = (input, sanitize = false) => {
+            const bindFilterInput = (input) => {
                 if (!input) return;
                 input.addEventListener('input', () => {
-                    if (sanitize) {
-                        const value = input.value || '';
-                        const cleaned = sanitizePhoneSearch(value);
-                        if (cleaned !== value) {
-                            input.value = cleaned;
-                        }
-                    }
                     applyRowFilters();
                 });
             };
 
-            bindFilterInput(filterPhoneInput, true);
-            bindFilterInput(filterEmailInput);
+            bindFilterInput(filterSearchInput);
 
             if (memberToggleFields && memberForm && memberFieldControls) {
                 const memberFields = Array.from(memberForm.querySelectorAll('[data-member-field]'));

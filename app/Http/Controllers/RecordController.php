@@ -114,12 +114,32 @@ class RecordController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:190'],
             'expiry_days' => ['nullable', 'integer', 'min:0'],
+            'stock_account_note' => ['nullable', 'string', 'max:5000'],
         ]);
+        $note = array_key_exists('stock_account_note', $validated)
+            ? trim((string) $validated['stock_account_note'])
+            : null;
+        if ($note === '') {
+            $note = null;
+        }
+        if ($note !== null) {
+            $wordCount = str_word_count(strip_tags($note));
+            if ($wordCount > 500) {
+                return response()->json([
+                    'message' => 'Stock Account Note must be 500 words or fewer.',
+                    'errors' => ['stock_account_note' => ['Stock Account Note must be 500 words or fewer.']],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        }
 
-        $product->update([
+        $payload = [
             'name' => trim($validated['name']),
             'expiry_days' => $validated['expiry_days'] ?? null,
-        ]);
+        ];
+        if ($this->isStockContext() && array_key_exists('stock_account_note', $validated)) {
+            $payload['stock_account_note'] = $note;
+        }
+        $product->update($payload);
 
         return response()->json([
             'product' => $product->fresh(),

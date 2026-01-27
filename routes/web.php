@@ -113,6 +113,10 @@ Route::middleware('auth')->group(function (): void {
 Route::get('/family-sheet', [\App\Http\Controllers\FamilySheetController::class, 'index'])->name('family-sheet.index');
 Route::post('/family-sheet/import', [\App\Http\Controllers\FamilySheetController::class, 'importCsv'])->name('family-sheet.import');
 Route::get('/family-sheet/export', [\App\Http\Controllers\FamilySheetController::class, 'exportCsv'])->name('family-sheet.export');
+Route::put('/family-sheet/preferences/{familyProduct}/table', [\App\Http\Controllers\FamilySheetController::class, 'updateTablePreferences'])
+    ->name('family-sheet.preferences.table.update');
+Route::put('/family-sheet/preferences/{familyProduct}/member-fields', [\App\Http\Controllers\FamilySheetController::class, 'updateMemberPreferences'])
+    ->name('family-sheet.preferences.member.update');
 Route::post('/family-sheet/products', [\App\Http\Controllers\FamilySheetController::class, 'storeProduct'])->name('family-sheet.products.store');
     Route::post('/family-sheet/products/link', [\App\Http\Controllers\FamilySheetController::class, 'linkProduct'])->name('family-sheet.products.link');
     Route::post('/family-sheet/accounts', [\App\Http\Controllers\FamilySheetController::class, 'storeAccount'])->name('family-sheet.accounts.store');
