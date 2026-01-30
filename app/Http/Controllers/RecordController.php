@@ -296,10 +296,13 @@ class RecordController extends Controller
             fputcsv($handle, $headers);
 
             foreach ($records as $record) {
-                $remaining = $record->remaining_days ?? $this->computeRemainingDays(
+                $remaining = $this->computeRemainingDays(
                     $record->purchase_date ?? null,
                     $record->expiry ?? null
                 );
+                if ($remaining === null) {
+                    $remaining = $record->remaining_days ?? null;
+                }
 
                 fputcsv($handle, [
                     $record->serial_number ?? null,
