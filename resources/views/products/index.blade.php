@@ -273,6 +273,7 @@
                                 'name' => $variation->name,
                                 'expiry_days' => $variation->expiry_days,
                                 'is_in_stock' => $variation->is_in_stock,
+                                'is_dynamic' => $variation->is_dynamic,
                             ])->toArray()),
                         ])
 

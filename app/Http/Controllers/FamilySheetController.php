@@ -46,7 +46,8 @@ class FamilySheetController extends Controller
         $hasMemberAccountId = Schema::hasColumn('family_members', 'family_account_id');
         $hasMemberProductId = Schema::hasColumn('family_members', 'family_product_id');
         $hasMemberProductName = Schema::hasColumn('family_members', 'family_product_name');
-        $perPage = 5;
+        $initialPageSize = 7;
+        $pageSize = 5;
         $accountPage = max(1, (int) $request->query('account_page', 1));
         $dataAccountsHasMore = false;
 
@@ -101,11 +102,16 @@ class FamilySheetController extends Controller
             $totalAccounts = (clone $accountQuery)
                 ->distinct()
                 ->count('family_accounts.id');
-            $dataAccountsHasMore = ($accountPage * $perPage) < $totalAccounts;
+            $offset = $accountPage === 1
+                ? 0
+                : $initialPageSize + (($accountPage - 2) * $pageSize);
+            $limit = $accountPage === 1 ? $initialPageSize : $pageSize;
+            $dataAccountsHasMore = ($offset + $limit) < $totalAccounts;
 
             $dataAccounts = (clone $accountQuery)
                 ->select($accountSelect)
-                ->forPage($accountPage, $perPage)
+                ->offset($offset)
+                ->limit($limit)
                 ->get()
                 ->map(function ($account) use ($hasMemberAccountId) {
                     if ($hasMemberAccountId) {
@@ -179,7 +185,9 @@ class FamilySheetController extends Controller
                 $membersQuery->where('family_product_id', $selectedProduct->id);
             }
             if ($allowedProductNames->isNotEmpty()) {
-                $membersQuery->whereIn('product', $allowedProductNames);
+                $membersQuery->whereIn('product', $allowedProductNames)
+                    ->orWhereNull('product')
+                    ->orWhere('product', '');
             }
 
             $membersByAccount = $membersQuery
@@ -201,8 +209,6 @@ class FamilySheetController extends Controller
                 ['id' => 'order', 'label' => 'Order ID'],
                 ['id' => 'email', 'label' => 'Email'],
                 ['id' => 'phone', 'label' => 'Phone'],
-                ['id' => 'product', 'label' => 'Product'],
-                ['id' => 'amount', 'label' => 'Amount'],
                 ['id' => 'purchase', 'label' => 'Purchase Date'],
                 ['id' => 'period', 'label' => 'Period'],
                 ['id' => 'remaining', 'label' => 'Remaining Days'],

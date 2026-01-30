@@ -126,6 +126,13 @@
                 .variation-stock__options {
                     justify-content: flex-start;
                 }
+
+                .variation-dynamic {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    font-size: 0.9rem;
+                }
             }
 
             .variation-field input[type="text"] {
@@ -222,12 +229,18 @@
                             }
                         }
 
-                        const stockInputs = field.querySelectorAll('[data-variation-stock-input]');
-                        const desiredStockValue = normalizeStockValue(value?.is_in_stock);
-                        stockInputs.forEach((stockInput) => {
-                            stockInput.name = `variations[${index}][is_in_stock]`;
-                            stockInput.checked = stockInput.value === desiredStockValue;
-                        });
+                    const stockInputs = field.querySelectorAll('[data-variation-stock-input]');
+                    const desiredStockValue = normalizeStockValue(value?.is_in_stock);
+                    stockInputs.forEach((stockInput) => {
+                        stockInput.name = `variations[${index}][is_in_stock]`;
+                        stockInput.checked = stockInput.value === desiredStockValue;
+                    });
+
+                    const dynamicInput = field.querySelector('[data-variation-dynamic-input]');
+                    if (dynamicInput) {
+                        dynamicInput.name = `variations[${index}][is_dynamic]`;
+                        dynamicInput.checked = !!value?.is_dynamic;
+                    }
 
                         attachRemoveHandler(field);
 
@@ -335,6 +348,17 @@
                         </label>
                     </div>
                 </div>
+                @php
+                    $variationDynamic = $normalizeBoolean($value['is_dynamic'] ?? null, false);
+                @endphp
+                <label class="variation-dynamic">
+                    <input
+                        type="checkbox"
+                        name="variations[{{ $index }}][is_dynamic]"
+                        value="1"
+                        @checked($variationDynamic)>
+                    Dynamic Product
+                </label>
                 <button type="button" class="ghost-button" data-remove-variation>Remove</button>
             </div>
         @endforeach
@@ -385,6 +409,13 @@
                     </label>
                 </div>
             </div>
+            <label class="variation-dynamic">
+                <input
+                    type="checkbox"
+                    data-variation-dynamic-input
+                    value="1">
+                Dynamic Product
+            </label>
             <button type="button" class="ghost-button" data-remove-variation>Remove</button>
         </div>
     </template>

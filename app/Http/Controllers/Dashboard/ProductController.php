@@ -169,7 +169,7 @@ class ProductController extends Controller
     }
 
     /**
-     * @return array{name: string, is_in_stock: bool, variations: array<int, array{name: string, expiry_days: ?int, is_in_stock: bool}>}
+     * @return array{name: string, is_in_stock: bool, variations: array<int, array{name: string, expiry_days: ?int, is_in_stock: bool, is_dynamic: bool}>}
      */
     private function validatePayload(Request $request, ?Product $product = null): array
     {
@@ -191,6 +191,7 @@ class ProductController extends Controller
             'variations.*.name' => ['nullable', 'string', 'max:255'],
             'variations.*.expiry_days' => ['nullable', 'integer', 'min:0'],
             'variations.*.is_in_stock' => ['nullable', 'boolean'],
+            'variations.*.is_dynamic' => ['nullable', 'boolean'],
             'product_variations' => ['nullable', 'array'],
             'product_variations.*' => ['nullable', 'string', 'max:255'],
         ]);
@@ -212,6 +213,7 @@ class ProductController extends Controller
                     'name' => trim((string) $name),
                     'expiry_days' => isset($expiry) && $expiry !== '' ? max(0, (int) $expiry) : null,
                     'is_in_stock' => $this->normalizeBoolean(is_array($value) ? ($value['is_in_stock'] ?? null) : null),
+                    'is_dynamic' => $this->normalizeBoolean(is_array($value) ? ($value['is_dynamic'] ?? null) : null, false),
                 ];
             })
             ->filter(fn (array $value) => $value['name'] !== '')
@@ -223,6 +225,7 @@ class ProductController extends Controller
                     'name' => trim(is_string($value) ? $value : ''),
                     'expiry_days' => null,
                     'is_in_stock' => true,
+                    'is_dynamic' => false,
                 ])
                 ->filter(fn (array $value) => $value['name'] !== '')
                 ->values();
@@ -264,6 +267,7 @@ class ProductController extends Controller
                 'name' => $variation['name'],
                 'expiry_days' => $variation['expiry_days'],
                 'is_in_stock' => $variation['is_in_stock'] ?? true,
+                'is_dynamic' => $variation['is_dynamic'] ?? false,
             ];
 
             $variationId = $variation['id'] ?? null;

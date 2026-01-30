@@ -16,11 +16,13 @@ class ProductVariation extends Model
         'notes',
         'expiry_days',
         'is_in_stock',
+        'is_dynamic',
     ];
 
     protected $casts = [
         'expiry_days' => 'integer',
         'is_in_stock' => 'boolean',
+        'is_dynamic' => 'boolean',
     ];
 
     /**

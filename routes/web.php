@@ -138,6 +138,7 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::get('/login/customize', [SiteSettingController::class, 'editLogin'])->name('login.customize');
     Route::post('/login/customize', [SiteSettingController::class, 'updateLogin'])->name('login.customize.update');
     Route::get('/login/preview', [AuthenticatedSessionController::class, 'preview'])->name('login.preview');
+    Route::get('/products', fn () => redirect()->route('products.index'))->name('products.redirect');
 
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update');

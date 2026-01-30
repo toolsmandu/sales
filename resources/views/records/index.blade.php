@@ -530,15 +530,12 @@
                                 <th style="text-align: left;">purchase_date (YYYY-MM-DD)</th>
                                 <th style="text-align: left;">period</th>
                                 <th style="text-align: left;">password</th>
-                                <th style="text-align: left;">two_factor</th>
-                                <th style="text-align: left;">email2</th>
-                                <th style="text-align: left;">password2</th>
                                 <th style="text-align: left;">remarks</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="11" class="records-empty" style="text-align: center;">(Your CSV will contain headers only; add rows below them.)</td>
+                                <td colspan="8" class="records-empty" style="text-align: center;">(Your CSV will contain headers only; add rows below them.)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -555,7 +552,7 @@
                         <thead id="records-head"></thead>
                         <tbody id="records-table-body">
                             <tr id="records-empty">
-                                <td colspan="13" class="records-empty">Pick a product and add the first row.</td>
+                                <td colspan="11" class="records-empty">Pick a product and add the first row.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -608,17 +605,12 @@
             const columns = [
                 { id: 'serial_number', label: 'Order ID', type: 'text-editable' },
                 { id: 'purchase_date', label: 'Purchase', type: 'date' },
-                { id: 'product', label: 'Product', type: 'text-editable' },
                 { id: 'email', label: 'Email', type: 'text-editable' },
                 { id: 'password', label: 'Password', type: 'text-editable' },
                 { id: 'phone', label: 'Phone', type: 'text-editable' },
-                { id: 'sales_amount', label: 'Price', type: 'text-editable' },
                 { id: 'expiry', label: 'Period', type: 'number' },
                 { id: 'remaining', label: 'Remaining', type: 'computed' },
                 { id: 'remarks', label: 'Remarks', type: 'textarea' },
-                { id: 'two_factor', label: '2FA', type: 'text-editable' },
-                { id: 'email2', label: 'Email2', type: 'text-editable' },
-                { id: 'password2', label: 'Password2', type: 'text-editable' },
                 { id: 'actions', label: 'Action', type: 'actions' },
             ];
 
@@ -657,7 +649,7 @@
                 lastSelectedProductId: null,
                 searchFilter: '',
                 sort: {
-                    column: null,
+                    column: 'remaining',
                     direction: 'asc',
                 },
                 highlight: {
@@ -1080,7 +1072,7 @@
                     state.visibleLimit = 50;
                     applyPreferences({});
                     state.showColumnControls = false;
-                    state.sort = { column: null, direction: 'asc' };
+                    state.sort = { column: 'remaining', direction: 'asc' };
                     setColumnControlsLabel(false);
                     renderColumnControls();
                     renderTableStructure();
@@ -1095,7 +1087,7 @@
 
                 applyPreferences({});
                 state.showColumnControls = false;
-                state.sort = { column: null, direction: 'asc' };
+                state.sort = { column: 'remaining', direction: 'asc' };
                 setColumnControlsLabel(false);
                 renderColumnControls();
                 renderTableStructure();
@@ -1197,9 +1189,6 @@
                     expiry: record.expiry ?? '',
                     remaining_days: record.remaining_days ?? '',
                     remarks: record.remarks ?? '',
-                    two_factor: record.two_factor ?? '',
-                    email2: record.email2 ?? '',
-                    password2: record.password2 ?? '',
                 };
             };
 
@@ -1309,15 +1298,14 @@
                     const phone = (record.phone ?? '').toLowerCase();
                     const phoneSanitized = sanitizePhoneSearch(phone);
                     const emailPrimary = (record.email ?? '').toLowerCase();
-                    const emailSecondary = (record.email2 ?? '').toLowerCase();
-                    const emailTarget = `${emailPrimary} ${emailSecondary}`.trim();
+                    const emailTarget = `${emailPrimary}`.trim();
                     const term = (state.searchFilter ?? '').trim();
                     if (term === '') {
                         return true;
                     }
                     const sanitizedTerm = sanitizePhoneSearch(term);
                     const phoneMatch = sanitizedTerm !== '' && phoneSanitized.includes(sanitizedTerm);
-                    const emailMatch = emailPrimary.includes(term) || emailSecondary.includes(term) || emailTarget.includes(term);
+                    const emailMatch = emailPrimary.includes(term) || emailTarget.includes(term);
                     return phoneMatch || emailMatch;
                 });
 
@@ -1462,7 +1450,7 @@
                     editable.dataset.field = col.id;
                     editable.innerHTML = escapeHtml(value ?? '');
 
-                    if (['email', 'password', 'email2', 'password2'].includes(col.id)) {
+                    if (['email', 'password'].includes(col.id)) {
                         const wrapper = document.createElement('div');
                         wrapper.className = 'records-copy';
                         wrapper.appendChild(editable);
@@ -1840,9 +1828,6 @@
                     expiry: '',
                     remaining_days: '',
                     remarks: '',
-                    two_factor: '',
-                    email2: '',
-                    password2: '',
                 };
                 renderRecords();
             };
@@ -2105,7 +2090,7 @@
             });
 
             importDownload?.addEventListener('click', () => {
-                const headers = ['product_name','email','phone','price','purchase_date','period','password','two_factor','email2','password2','remarks'];
+                const headers = ['product_name','email','phone','price','purchase_date','period','password','remarks'];
                 const csv = headers.join(',');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -2141,7 +2126,7 @@
                         return;
                     }
 
-                    const expectedHeaders = ['product_name', 'email', 'phone', 'sales_amount', 'purchase_date', 'period', 'password', 'two_factor', 'email2', 'password2', 'remarks'];
+                    const expectedHeaders = ['product_name', 'email', 'phone', 'sales_amount', 'purchase_date', 'period', 'password', 'remarks'];
                     const headerRow = rows.shift().map((h) => h.trim().toLowerCase());
 
                     const indexMap = {};

@@ -49,12 +49,16 @@
             border: 1px solid rgba(15, 23, 42, 0.1);
             border-radius: 0.75rem;
             width: 100%;
+            max-width: 100%;
+            display: flex;
         }
         table.family-table {
             width: 100%;
             border-collapse: collapse;
             min-width: 100%;
             table-layout: fixed;
+            background: linear-gradient(180deg, #fff, #f8fafc 18%, #fff 100%);
+            flex: 1 1 auto;
         }
         table.family-table th,
         table.family-table td {
@@ -62,15 +66,28 @@
             padding: 0.55rem 0.65rem;
             text-align: center;
             background: #fff;
+            word-break: break-word;
+            white-space: normal;
         }
         table.family-table th {
             position: relative;
         }
         table.family-table thead th {
             background: linear-gradient(180deg, rgba(226, 232, 240, 0.9), rgba(241, 245, 249, 0.9));
-            text-transform: uppercase;
-            font-size: 0.85rem;
+            font-weight: 800;
             letter-spacing: 0.02em;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        table.family-table tbody tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+        table.family-table tbody tr:hover td {
+            background: #eef2ff;
+            border-color: rgba(79, 70, 229, 0.35);
+            transition: background 0.2s ease, border-color 0.2s ease;
         }
         .family-col-resizer {
             position: absolute;
@@ -654,7 +671,7 @@
                 </div>
                 <div class="family-table-wrapper" id="family-accounts-table-wrapper" data-default-open="{{ old('account_edit') ? 'true' : 'false' }}" style="margin-top: 0.75rem; display: none;">
                     @if ($accounts->count())
-                        <table class="family-table" style="min-width: 820px;">
+                        <table class="family-table">
                             <thead>
                                 <tr>
                                     <th>Main Account</th>
@@ -795,10 +812,6 @@
                                 Remarks
                                 <textarea name="remarks" rows="2"></textarea>
                             </label>
-                            <label data-member-field="two_factor">
-                                Two Factor
-                                <input type="text" name="two_factor">
-                            </label>
                             <button type="submit">Add Member</button>
                         </form>
                     </div>
@@ -821,113 +834,24 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse ($accounts as $account)
-                                @php
-                                    $members = $membersByAccount->get($account->id) ?? collect();
-                                @endphp
-                                <tr style="background: #f8fafc; font-weight: 700;" class="family-account-row">
-                                    <td colspan="{{ count($familyColumns) }}" style="text-align: left; padding: 0.75rem 1rem;">
-                                        <strong>{{ $account->name }}</strong>
-                                        @if(!empty($account->account_index))
-                                            <strong>(Index: {{ $account->account_index }})</strong>
-                                        @endif
-                                        <strong>({{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used)</strong>
-                                        @if(!empty($account->remarks))
-                                            — <strong>{{ $account->remarks }}</strong>
-                                        @endif
-                                    </td>
-                                </tr>
-                                @forelse ($members as $member)
-                                    @php
-                                        $purchaseAt = $member->purchase_date ? \Illuminate\Support\Carbon::parse($member->purchase_date) : null;
-                                    @endphp
-                                    <tr class="family-member-row">
-                                        <td data-col-id="account" style="text-align: left;">
-                                            @if ($loop->first)
-                                                <strong>{{ $account->name }}</strong>
-                                                @if(!empty($account->account_index))
-                                                    <strong>(Index: {{ $account->account_index }})</strong>
-                                                @endif
-                                                <strong>({{ $account->member_count }}/{{ $account->capacity ?? '∞' }} used)</strong>
-                                                @if(!empty($account->remarks))
-                                                    — <strong>{{ $account->remarks }}</strong>
-                                                @endif
-                                            @endif
-                                        </td>
-                                        <td data-col-id="family_name">
-                                            <input type="text" name="family_name" form="family-member-{{ $member->id }}" value="{{ $member->family_name ?? $account->name }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="order">
-                                            <input type="text" name="order_id" form="family-member-{{ $member->id }}" value="{{ $member->order_id }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="email">
-                                            <form method="POST" action="{{ route('family-sheet.members.update', $member->id) }}" id="family-member-{{ $member->id }}">
-                                                @csrf
-                                                @method('PUT')
-                                                <input type="hidden" name="family_account_id" value="{{ $member->family_account_id }}">
-                                                <input type="email" name="email" value="{{ $member->email }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="phone">
-                                            <input type="text" name="phone" form="family-member-{{ $member->id }}" value="{{ $member->phone }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="product">
-                                            <input type="text" name="product" form="family-member-{{ $member->id }}" value="{{ $member->product }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="amount">
-                                            <input type="number" name="sales_amount" form="family-member-{{ $member->id }}" value="{{ $member->sales_amount }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="purchase">
-                                            <input type="date" name="purchase_date" form="family-member-{{ $member->id }}" value="{{ $purchaseAt ? $purchaseAt->format('Y-m-d') : '' }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="period">
-                                            <input type="number" name="expiry" form="family-member-{{ $member->id }}" value="{{ $member->expiry }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="remaining">
-                                            <input type="number" name="remaining_days" form="family-member-{{ $member->id }}" value="{{ $member->remaining_days }}" style="width: 100%;">
-                                        </td>
-                                        <td data-col-id="remarks">
-                                            <div style="display: flex; gap: 0.35rem; align-items: center;">
-                                                <input type="text" name="remarks" form="family-member-{{ $member->id }}" value="{{ $member->remarks }}" style="width: 100%;">
-                                                <button type="submit" form="family-member-{{ $member->id }}" class="ghost-button ghost-button--compact" aria-label="Save">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                                        <path d="M7 4v6h10V4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                                        <path d="M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                                    </svg>
-                                                </button>
-                                                <button type="submit" form="family-member-delete-{{ $member->id }}" class="ghost-button ghost-button--compact" style="color: #b91c1c;" aria-label="Delete" onclick="return confirm('Delete this member?');">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path d="M6 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                                        <path d="M10 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                                        <path d="M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                                        <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                                        <path d="M19 7l-.6 10.2A2 2 0 0116.41 19H7.59a2 2 0 01-1.99-1.8L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            </form>
-                                            <form id="family-member-delete-{{ $member->id }}" method="POST" action="{{ route('family-sheet.members.destroy', $member->id) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td data-col-id="account"></td>
-                                        <td data-col-id="email" colspan="{{ count($familyColumns) - 1 }}"><p class="helper-text">No members in this main account.</p></td>
-                                    </tr>
-                                @endforelse
-                            @empty
-                                <tr>
-                                    <td colspan="{{ count($familyColumns) }}"><p class="helper-text">No main accounts yet.</p></td>
-                                </tr>
-                            @endforelse
+                            @include('family-sheet.partials.data-rows', [
+                                'dataAccounts' => $dataAccounts,
+                                'membersByAccount' => $membersByAccount,
+                                'familyColumns' => $familyColumns,
+                            ])
                         </tbody>
                     </table>
                 </div>
                 <div style="display:flex; justify-content:center; margin-top:0.75rem;">
-                    <button type="button" id="family-show-more" class="ghost-button" style="display:none;">Show more</button>
+                    <button
+                        type="button"
+                        id="family-show-more"
+                        class="ghost-button"
+                        data-next-page="{{ $dataAccountsHasMore ? $dataAccountsPage + 1 : '' }}"
+                        style="{{ $dataAccountsHasMore ? '' : 'display:none;' }}"
+                    >
+                        Load more
+                    </button>
                 </div>
             @else
                 <p class="helper-text">Create a family product to start.</p>
@@ -1124,31 +1048,44 @@
 
             if (!hasTable) return;
 
-            const memberRows = Array.from(document.querySelectorAll('.family-member-row'));
-            let memberVisibleLimit = 50;
-            const applyMemberVisibility = () => {
-                memberRows.forEach((row, index) => {
-                    row.style.display = index < memberVisibleLimit ? '' : 'none';
-                });
-                if (memberShowMore) {
-                    memberShowMore.style.display = memberRows.length > memberVisibleLimit ? '' : 'none';
-                }
-            };
             if (memberShowMore) {
                 memberShowMore.addEventListener('click', () => {
-                    memberVisibleLimit += 50;
-                    applyMemberVisibility();
+                    const nextPage = Number(memberShowMore.dataset.nextPage || 0);
+                    if (!nextPage || !productId) return;
+                    memberShowMore.disabled = true;
+                    memberShowMore.textContent = 'Loading...';
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('accounts_partial', '1');
+                    url.searchParams.set('account_page', String(nextPage));
+                    url.searchParams.set('product_id', String(productId));
+                    fetch(url.toString(), {
+                        headers: { 'Accept': 'application/json' },
+                    })
+                        .then((response) => response.json())
+                        .then((payload) => {
+                            if (payload?.html && tbody) {
+                                tbody.insertAdjacentHTML('beforeend', payload.html);
+                            }
+                            if (payload?.has_more) {
+                                memberShowMore.dataset.nextPage = payload.next_page;
+                                memberShowMore.disabled = false;
+                                memberShowMore.textContent = 'Load more';
+                            } else {
+                                memberShowMore.remove();
+                            }
+                        })
+                        .catch(() => {
+                            memberShowMore.disabled = false;
+                            memberShowMore.textContent = 'Load more';
+                        });
                 });
             }
-            applyMemberVisibility();
 
             const columns = [
                 { id: 'account', label: 'Main Account' },
                 { id: 'order', label: 'Order ID' },
                 { id: 'email', label: 'Email' },
                 { id: 'phone', label: 'Phone' },
-                { id: 'product', label: 'Product' },
-                { id: 'amount', label: 'Amount' },
                 { id: 'purchase', label: 'Purchase Date' },
                 { id: 'period', label: 'Period' },
                 { id: 'remaining', label: 'Remaining Days' },
@@ -1262,45 +1199,26 @@
             };
 
             const applyWidths = () => {
-                state.order.forEach((id) => {
-                    const width = state.widths[id];
-                    const col = colgroup.querySelector(`col[data-col-id="${id}"]`);
-                    const header = headerRow.querySelector(`th[data-col-id="${id}"]`);
-                    const visible = !state.hidden.includes(id);
-                    if (col) {
-                        col.style.width = width && visible ? `${width}px` : '';
-                    }
-                    if (header) {
-                        header.style.width = width && visible ? `${width}px` : '';
-                    }
-                });
-
                 const visibleIds = getVisible();
                 if (!tableWrapper || !visibleIds.length) return;
                 const wrapperWidth = tableWrapper.clientWidth;
                 if (!wrapperWidth) return;
 
-                let totalWidth = 0;
-                visibleIds.forEach((id) => {
-                    const header = headerRow.querySelector(`th[data-col-id="${id}"]`);
-                    const width = state.widths[id] ?? header?.getBoundingClientRect().width ?? 140;
-                    totalWidth += width;
-                });
+                // Force equal-width columns to eliminate right-side gaps.
+                const equalWidth = Math.floor(wrapperWidth / visibleIds.length);
+                table.style.width = `${wrapperWidth}px`;
+                table.style.minWidth = `${wrapperWidth}px`;
 
-                const extra = wrapperWidth - totalWidth;
-                if (extra > 0) {
-                    const lastId = visibleIds[visibleIds.length - 1];
-                    const lastHeader = headerRow.querySelector(`th[data-col-id="${lastId}"]`);
-                    const lastCol = colgroup.querySelector(`col[data-col-id="${lastId}"]`);
-                    const baseWidth = state.widths[lastId] ?? lastHeader?.getBoundingClientRect().width ?? 140;
-                    const nextWidth = baseWidth + extra;
-                    if (lastCol) {
-                        lastCol.style.width = `${nextWidth}px`;
+                visibleIds.forEach((id) => {
+                    const col = colgroup.querySelector(`col[data-col-id="${id}"]`);
+                    const header = headerRow.querySelector(`th[data-col-id="${id}"]`);
+                    if (col) {
+                        col.style.width = `${equalWidth}px`;
                     }
-                    if (lastHeader) {
-                        lastHeader.style.width = `${nextWidth}px`;
+                    if (header) {
+                        header.style.width = `${equalWidth}px`;
                     }
-                }
+                });
             };
 
             const startResize = (event, colId) => {
@@ -1476,6 +1394,7 @@
                 placeAccountNotes();
                 setupResizers();
                 applyRowFilters();
+                requestAnimationFrame(applyWidths);
             };
 
             const bindFilterInput = (input) => {

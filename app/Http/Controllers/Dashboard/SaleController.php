@@ -213,6 +213,7 @@ class SaleController extends Controller
             ->get();
 
         $variationExpiryLookup = $this->getVariationExpiryLookup();
+        $dynamicVariationNames = $this->getDynamicVariationNames();
         $productStockLookup = Product::query()
             ->select('name', 'is_in_stock')
             ->get()
@@ -256,6 +257,29 @@ class SaleController extends Controller
 
             return $sale;
         });
+
+        if ($dynamicVariationNames->isNotEmpty()) {
+            $seenDynamic = [];
+            $transformedSales = $transformedSales->filter(function (Sale $sale) use ($dynamicVariationNames, &$seenDynamic) {
+                $productName = mb_strtolower(trim((string) ($sale->product_name ?? '')));
+                if ($productName === '' || !$dynamicVariationNames->has($productName)) {
+                    return true;
+                }
+
+                $phone = preg_replace('/\D+/', '', (string) ($sale->phone ?? ''));
+                $email = mb_strtolower(trim((string) ($sale->email ?? '')));
+                if ($phone === '' && $email === '') {
+                    return true;
+                }
+
+                $key = implode('|', [$productName, $phone, $email]);
+                if (isset($seenDynamic[$key])) {
+                    return false;
+                }
+                $seenDynamic[$key] = true;
+                return true;
+            })->values();
+        }
 
         $filteredSales = $transformedSales->filter(function (Sale $sale) use ($mode, $normalizedSearch, $digitsSearch, $startsWithTm, $isEmailSearch) {
             $status = strtolower((string) ($sale->status ?? ''));
@@ -1025,6 +1049,28 @@ class SaleController extends Controller
             ->all();
 
         return $this->variationExpiryLookup;
+    }
+
+    private function getDynamicVariationNames(): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('product_variations') || !Schema::hasColumn('product_variations', 'is_dynamic')) {
+            return collect();
+        }
+
+        return DB::table('product_variations')
+            ->join('products', 'product_variations.product_id', '=', 'products.id')
+            ->where('product_variations.is_dynamic', true)
+            ->select(['products.name as product_name', 'product_variations.name as variation_name'])
+            ->get()
+            ->mapWithKeys(function ($row) {
+                $product = trim((string) ($row->product_name ?? ''));
+                $variation = trim((string) ($row->variation_name ?? ''));
+                if ($product === '' || $variation === '') {
+                    return [];
+                }
+                $full = mb_strtolower($product . ' - ' . $variation);
+                return [$full => true];
+            });
     }
 
     private function createRecordEntryFromSale(Sale $sale): void
