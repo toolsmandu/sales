@@ -673,6 +673,7 @@
                 productLinks: initialProductLinks,
                 selectedProductId: null,
                 records: [],
+                edits: {},
                 visibleLimit: 50,
                 loading: false,
                 columnOrder: baseOrder,
@@ -1210,6 +1211,7 @@
                     }
                     const payload = await response.json();
                     state.records = (payload.records ?? []).map(formatRecord);
+                    state.edits = {};
                     state.visibleLimit = 50;
                     renderRecords();
                     setStatus('Records ready', true);
@@ -1435,6 +1437,10 @@
             const renderRecords = () => {
                 tableBody.innerHTML = '';
                 const visible = getVisibleColumns();
+                const mergeEdits = (record) => ({
+                    ...record,
+                    ...(state.edits?.[record.id] ?? {}),
+                });
 
                 if (!state.records.length && !state.newRow) {
                     const row = document.createElement('tr');
@@ -1484,7 +1490,7 @@
                     renderRowCells(state.newRow, 'new', 'New', true);
                 }
 
-                const filteredRecords = state.records.filter((record) => {
+                const filteredRecords = state.records.map(mergeEdits).filter((record) => {
                     const phone = (record.phone ?? '').toLowerCase();
                     const phoneSanitized = sanitizePhoneSearch(phone);
                     const emailPrimary = (record.email ?? '').toLowerCase();
@@ -1944,6 +1950,7 @@
                         const index = state.records.findIndex((r) => String(r.id) === String(recordId));
                         if (index !== -1) {
                             state.records[index] = formatRecord(result.record);
+                            delete state.edits[recordId];
                             renderRecords();
                         }
                     }
@@ -1990,14 +1997,11 @@
                     renderRecords();
                     return;
                 }
-                const localIndex = state.records.findIndex((r) => String(r.id) === String(recordId));
-                if (localIndex !== -1) {
-                    state.records[localIndex] = {
-                        ...state.records[localIndex],
-                        [field]: value,
-                    };
-                    renderRecords();
-                }
+                state.edits[recordId] = {
+                    ...(state.edits[recordId] ?? {}),
+                    [field]: value,
+                };
+                renderRecords();
             };
 
             const handleTableBlur = (event) => {
