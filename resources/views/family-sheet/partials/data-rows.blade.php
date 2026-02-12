@@ -37,6 +37,9 @@
             <td data-col-id="order">
                 <input type="text" name="order_id" form="family-member-{{ $member->id }}" value="{{ $member->order_id }}" style="width: 100%;">
             </td>
+            <td data-col-id="product">
+                <input type="text" name="product" form="family-member-{{ $member->id }}" value="{{ $member->order_product_name ?? $member->product ?? '' }}" style="width: 100%;">
+            </td>
             <td data-col-id="email">
                 <form method="POST" action="{{ route('family-sheet.members.update', $member->id) }}" id="family-member-{{ $member->id }}">
                     @csrf
@@ -47,6 +50,9 @@
             </td>
             <td data-col-id="phone">
                 <input type="text" name="phone" form="family-member-{{ $member->id }}" value="{{ $member->phone }}" style="width: 100%;">
+            </td>
+            <td data-col-id="amount">
+                <input type="number" name="sales_amount" form="family-member-{{ $member->id }}" value="{{ $member->sales_amount }}" min="0" step="1" style="width: 100%;">
             </td>
             <td data-col-id="purchase">
                 <input type="date" name="purchase_date" form="family-member-{{ $member->id }}" value="{{ $purchaseAt ? $purchaseAt->format('Y-m-d') : '' }}" style="width: 100%;">

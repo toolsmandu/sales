@@ -174,8 +174,25 @@ class FamilySheetController extends Controller
             $allowedProductNames = $allowedProductNames->filter()->unique()->values();
 
             $membersQuery = DB::table('family_members')
+                ->select('family_members.*')
                 ->orderByDesc('purchase_date')
                 ->orderByDesc('id');
+
+            if (Schema::hasTable('sales')
+                && Schema::hasColumn('sales', 'serial_number')
+                && Schema::hasColumn('sales', 'product_name')) {
+                $membersQuery->leftJoin('sales', 'family_members.order_id', '=', 'sales.serial_number')
+                    ->addSelect('sales.product_name as order_product_name');
+
+                if (Schema::hasTable('products')
+                    && Schema::hasColumn('products', 'name')
+                    && Schema::hasColumn('products', 'id')) {
+                    $membersQuery->leftJoin('products', function ($join) {
+                        $join->on(DB::raw('LOWER(products.name)'), '=', DB::raw('LOWER(sales.product_name)'));
+                    })
+                        ->addSelect('products.id as order_product_id');
+                }
+            }
 
             if ($hasMemberAccountId && $accountIds->isNotEmpty()) {
                 $membersQuery->whereIn('family_account_id', $accountIds)
@@ -207,8 +224,10 @@ class FamilySheetController extends Controller
                 ['id' => 'account', 'label' => 'Main Account'],
                 ['id' => 'family_name', 'label' => 'Family Name'],
                 ['id' => 'order', 'label' => 'Order ID'],
+                ['id' => 'product', 'label' => 'Product'],
                 ['id' => 'email', 'label' => 'Email'],
                 ['id' => 'phone', 'label' => 'Phone'],
+                ['id' => 'amount', 'label' => 'Amount'],
                 ['id' => 'purchase', 'label' => 'Purchase Date'],
                 ['id' => 'period', 'label' => 'Period'],
                 ['id' => 'remaining', 'label' => 'Remaining Days'],

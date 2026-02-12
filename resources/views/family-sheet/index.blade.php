@@ -428,9 +428,9 @@
         ['id' => 'account', 'label' => 'Main Account'],
         ['id' => 'family_name', 'label' => 'Family Name'],
         ['id' => 'order', 'label' => 'Order ID'],
+        ['id' => 'product', 'label' => 'Product'],
         ['id' => 'email', 'label' => 'Email'],
         ['id' => 'phone', 'label' => 'Phone'],
-        ['id' => 'product', 'label' => 'Product'],
         ['id' => 'amount', 'label' => 'Amount'],
         ['id' => 'purchase', 'label' => 'Purchase Date'],
         ['id' => 'period', 'label' => 'Period'],
@@ -1083,9 +1083,12 @@
 
             const columns = [
                 { id: 'account', label: 'Main Account' },
+                { id: 'family_name', label: 'Family Name' },
                 { id: 'order', label: 'Order ID' },
+                { id: 'product', label: 'Product' },
                 { id: 'email', label: 'Email' },
                 { id: 'phone', label: 'Phone' },
+                { id: 'amount', label: 'Amount' },
                 { id: 'purchase', label: 'Purchase Date' },
                 { id: 'period', label: 'Period' },
                 { id: 'remaining', label: 'Remaining Days' },
