@@ -31,9 +31,6 @@
                     @endif
                 @endif
             </td>
-            <td data-col-id="family_name">
-                <input type="text" name="family_name" form="family-member-{{ $member->id }}" value="{{ $member->family_name ?? $account->name }}" style="width: 100%;">
-            </td>
             <td data-col-id="order">
                 <input type="text" name="order_id" form="family-member-{{ $member->id }}" value="{{ $member->order_id }}" style="width: 100%;">
             </td>
@@ -47,9 +44,6 @@
                     <input type="hidden" name="family_account_id" value="{{ $member->family_account_id }}">
                 </form>
                 <input type="email" name="email" form="family-member-{{ $member->id }}" value="{{ $member->email }}" style="width: 100%;">
-            </td>
-            <td data-col-id="phone">
-                <input type="text" name="phone" form="family-member-{{ $member->id }}" value="{{ $member->phone }}" style="width: 100%;">
             </td>
             <td data-col-id="amount">
                 <input type="number" name="sales_amount" form="family-member-{{ $member->id }}" value="{{ $member->sales_amount }}" min="0" step="1" style="width: 100%;">

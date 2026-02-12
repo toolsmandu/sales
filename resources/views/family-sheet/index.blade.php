@@ -426,11 +426,9 @@
 @php
     $familyColumns = [
         ['id' => 'account', 'label' => 'Main Account'],
-        ['id' => 'family_name', 'label' => 'Family Name'],
         ['id' => 'order', 'label' => 'Order ID'],
         ['id' => 'product', 'label' => 'Product'],
         ['id' => 'email', 'label' => 'Email'],
-        ['id' => 'phone', 'label' => 'Phone'],
         ['id' => 'amount', 'label' => 'Amount'],
         ['id' => 'purchase', 'label' => 'Purchase Date'],
         ['id' => 'period', 'label' => 'Period'],
@@ -1083,11 +1081,9 @@
 
             const columns = [
                 { id: 'account', label: 'Main Account' },
-                { id: 'family_name', label: 'Family Name' },
                 { id: 'order', label: 'Order ID' },
                 { id: 'product', label: 'Product' },
                 { id: 'email', label: 'Email' },
-                { id: 'phone', label: 'Phone' },
                 { id: 'amount', label: 'Amount' },
                 { id: 'purchase', label: 'Purchase Date' },
                 { id: 'period', label: 'Period' },
@@ -1100,7 +1096,19 @@
             const sanitizeOrder = (order) => {
                 const base = Array.isArray(order) ? order.filter((id) => defaultOrder.includes(id)) : [];
                 const missing = defaultOrder.filter((id) => !base.includes(id));
-                return [...base, ...missing];
+                const merged = [...base, ...missing];
+                const orderIndex = merged.indexOf('order');
+                const productIndex = merged.indexOf('product');
+                if (orderIndex === -1 || productIndex === -1) {
+                    return merged;
+                }
+                if (productIndex === orderIndex + 1) {
+                    return merged;
+                }
+                merged.splice(productIndex, 1);
+                const nextOrderIndex = merged.indexOf('order');
+                merged.splice(nextOrderIndex + 1, 0, 'product');
+                return merged;
             };
 
             const prefs = serverTablePreferences || {};
@@ -1207,19 +1215,53 @@
                 const wrapperWidth = tableWrapper.clientWidth;
                 if (!wrapperWidth) return;
 
-                // Force equal-width columns to eliminate right-side gaps.
-                const equalWidth = Math.floor(wrapperWidth / visibleIds.length);
-                table.style.width = `${wrapperWidth}px`;
-                table.style.minWidth = `${wrapperWidth}px`;
+                const widths = {};
+                let fixedTotal = 0;
+                const flexibleIds = [];
+                const hasCustom = visibleIds.some((id) => Number.isFinite(state.widths[id]));
+
+                visibleIds.forEach((id) => {
+                    const width = Number(state.widths[id]);
+                    if (Number.isFinite(width) && width > 0) {
+                        widths[id] = width;
+                        fixedTotal += width;
+                    } else {
+                        flexibleIds.push(id);
+                    }
+                });
+
+                let tableWidth = wrapperWidth;
+                if (!hasCustom) {
+                    const equalWidth = Math.floor(wrapperWidth / visibleIds.length);
+                    visibleIds.forEach((id) => {
+                        widths[id] = equalWidth;
+                    });
+                } else if (fixedTotal < wrapperWidth && flexibleIds.length) {
+                    const flexWidth = Math.floor((wrapperWidth - fixedTotal) / flexibleIds.length);
+                    flexibleIds.forEach((id) => {
+                        widths[id] = Math.max(80, flexWidth);
+                    });
+                } else if (flexibleIds.length) {
+                    const fallbackWidth = Math.max(80, Math.floor(wrapperWidth / visibleIds.length));
+                    flexibleIds.forEach((id) => {
+                        widths[id] = fallbackWidth;
+                    });
+                }
+
+                const totalWidth = visibleIds.reduce((sum, id) => sum + (widths[id] ?? 0), 0);
+                tableWidth = hasCustom ? Math.max(wrapperWidth, totalWidth) : wrapperWidth;
+                table.style.width = `${tableWidth}px`;
+                table.style.minWidth = `${tableWidth}px`;
 
                 visibleIds.forEach((id) => {
                     const col = colgroup.querySelector(`col[data-col-id="${id}"]`);
                     const header = headerRow.querySelector(`th[data-col-id="${id}"]`);
-                    if (col) {
-                        col.style.width = `${equalWidth}px`;
+                    const width = widths[id];
+                    if (col && width) {
+                        col.style.width = `${width}px`;
                     }
-                    if (header) {
-                        header.style.width = `${equalWidth}px`;
+                    if (header && width) {
+                        header.style.width = `${width}px`;
                     }
                 });
             };
