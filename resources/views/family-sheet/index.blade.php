@@ -427,10 +427,11 @@
     $familyColumns = [
         ['id' => 'account', 'label' => 'Main Account'],
         ['id' => 'order', 'label' => 'Order ID'],
+        ['id' => 'purchase', 'label' => 'Purchase Date'],
         ['id' => 'product', 'label' => 'Product'],
         ['id' => 'email', 'label' => 'Email'],
+        ['id' => 'phone', 'label' => 'Phone'],
         ['id' => 'amount', 'label' => 'Amount'],
-        ['id' => 'purchase', 'label' => 'Purchase Date'],
         ['id' => 'period', 'label' => 'Period'],
         ['id' => 'remaining', 'label' => 'Remaining Days'],
         ['id' => 'remarks', 'label' => 'Remarks'],
@@ -1082,10 +1083,11 @@
             const columns = [
                 { id: 'account', label: 'Main Account' },
                 { id: 'order', label: 'Order ID' },
+                { id: 'purchase', label: 'Purchase Date' },
                 { id: 'product', label: 'Product' },
                 { id: 'email', label: 'Email' },
+                { id: 'phone', label: 'Phone' },
                 { id: 'amount', label: 'Amount' },
-                { id: 'purchase', label: 'Purchase Date' },
                 { id: 'period', label: 'Period' },
                 { id: 'remaining', label: 'Remaining Days' },
                 { id: 'remarks', label: 'Remarks' },
@@ -1315,6 +1317,9 @@
                 [order[idx], order[target]] = [order[target], order[idx]];
                 state.order = order;
                 render();
+                if (columnControls && columnControls.style.display === 'flex') {
+                    renderColumnControls();
+                }
                 schedulePersistTablePreferences();
             };
 
@@ -1348,8 +1353,23 @@
                     labelEl.textContent = col.id === 'remarks'
                         ? 'Remarks / Actions'
                         : (col.label || col.id);
+                    const index = state.order.indexOf(col.id);
+                    const leftButton = document.createElement('button');
+                    leftButton.type = 'button';
+                    leftButton.textContent = 'Left';
+                    leftButton.disabled = index <= 0;
+                    leftButton.setAttribute('aria-label', `Move ${col.label || col.id} left`);
+                    leftButton.addEventListener('click', () => moveColumn(col.id, -1));
+                    const rightButton = document.createElement('button');
+                    rightButton.type = 'button';
+                    rightButton.textContent = 'Right';
+                    rightButton.disabled = index === -1 || index >= state.order.length - 1;
+                    rightButton.setAttribute('aria-label', `Move ${col.label || col.id} right`);
+                    rightButton.addEventListener('click', () => moveColumn(col.id, 1));
                     control.appendChild(checkbox);
                     control.appendChild(labelEl);
+                    control.appendChild(leftButton);
+                    control.appendChild(rightButton);
                     columnControls.appendChild(control);
                 });
             };

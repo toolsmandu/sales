@@ -34,6 +34,9 @@
             <td data-col-id="order">
                 <input type="text" name="order_id" form="family-member-{{ $member->id }}" value="{{ $member->order_id }}" style="width: 100%;">
             </td>
+            <td data-col-id="purchase">
+                <input type="date" name="purchase_date" form="family-member-{{ $member->id }}" value="{{ $purchaseAt ? $purchaseAt->format('Y-m-d') : '' }}" style="width: 100%;">
+            </td>
             <td data-col-id="product">
                 <input type="text" name="product" form="family-member-{{ $member->id }}" value="{{ $member->order_product_name ?? $member->product ?? '' }}" style="width: 100%;">
             </td>
@@ -45,11 +48,11 @@
                 </form>
                 <input type="email" name="email" form="family-member-{{ $member->id }}" value="{{ $member->email }}" style="width: 100%;">
             </td>
+            <td data-col-id="phone">
+                <input type="text" name="phone" form="family-member-{{ $member->id }}" value="{{ $member->phone }}" style="width: 100%;">
+            </td>
             <td data-col-id="amount">
                 <input type="number" name="sales_amount" form="family-member-{{ $member->id }}" value="{{ $member->sales_amount }}" min="0" step="1" style="width: 100%;">
-            </td>
-            <td data-col-id="purchase">
-                <input type="date" name="purchase_date" form="family-member-{{ $member->id }}" value="{{ $purchaseAt ? $purchaseAt->format('Y-m-d') : '' }}" style="width: 100%;">
             </td>
             <td data-col-id="period">
                 <input type="number" name="expiry" form="family-member-{{ $member->id }}" value="{{ $member->expiry }}" style="width: 100%;">
