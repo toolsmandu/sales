@@ -1276,11 +1276,15 @@ class SaleController extends Controller
             return array_values($unique);
         };
 
+        $recordHasLinkedProductsColumn = Schema::hasColumn('record_products', 'linked_products');
+
         // Pull record products with linked site product names.
         $recordLinks = RecordProduct::query()
-            ->where(function ($query): void {
-                $query->whereNotNull('linked_product_id')
-                    ->orWhereNotNull('linked_products');
+            ->where(function ($query) use ($recordHasLinkedProductsColumn): void {
+                $query->whereNotNull('linked_product_id');
+                if ($recordHasLinkedProductsColumn) {
+                    $query->orWhereNotNull('linked_products');
+                }
             })
             ->get()
             ->map(function (RecordProduct $recordProduct) use ($siteProducts, $normalizeLinkedEntries) {
@@ -1467,10 +1471,14 @@ class SaleController extends Controller
             return array_values($unique);
         };
 
+        $stockHasLinkedProductsColumn = Schema::hasColumn('stock_products', 'linked_products');
+
         $stockLinks = StockProduct::query()
-            ->where(function ($query): void {
-                $query->whereNotNull('linked_product_id')
-                    ->orWhereNotNull('linked_products');
+            ->where(function ($query) use ($stockHasLinkedProductsColumn): void {
+                $query->whereNotNull('linked_product_id');
+                if ($stockHasLinkedProductsColumn) {
+                    $query->orWhereNotNull('linked_products');
+                }
             })
             ->get()
             ->map(function (StockProduct $stockProduct) use ($siteProducts, $normalizeLinkedEntries) {
