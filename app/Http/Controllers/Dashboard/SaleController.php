@@ -1231,25 +1231,73 @@ class SaleController extends Controller
 
         // Cache site products and variations.
         $siteProducts = DB::table('products')->select('id', 'name')->get()->keyBy('id');
-        $siteVariations = DB::table('product_variations')
-            ->select('id', 'product_id', 'name')
-            ->get()
-            ->keyBy('id');
+        $normalizeLinkedEntries = function (RecordProduct $recordProduct): array {
+            $linkedProducts = $recordProduct->linked_products ?? [];
+            $entries = [];
+
+            if (!empty($linkedProducts)) {
+                foreach ($linkedProducts as $item) {
+                    if (!is_array($item) || empty($item['product_id'])) {
+                        continue;
+                    }
+                    $entries[] = [
+                        'product_id' => (int) $item['product_id'],
+                        'variation_id' => isset($item['variation_id']) && $item['variation_id'] !== null
+                            ? (int) $item['variation_id']
+                            : null,
+                    ];
+                }
+            } elseif (!empty($recordProduct->linked_product_id)) {
+                $productId = (int) $recordProduct->linked_product_id;
+                $variationIds = array_map(static fn ($v) => (int) $v, $recordProduct->linked_variation_ids ?: []);
+                if (!empty($variationIds)) {
+                    foreach ($variationIds as $variationId) {
+                        $entries[] = [
+                            'product_id' => $productId,
+                            'variation_id' => $variationId,
+                        ];
+                    }
+                } else {
+                    $entries[] = [
+                        'product_id' => $productId,
+                        'variation_id' => null,
+                    ];
+                }
+            }
+
+            $unique = [];
+            foreach ($entries as $entry) {
+                $key = $entry['product_id'] . ':' . ($entry['variation_id'] ?? 'none');
+                if (!isset($unique[$key])) {
+                    $unique[$key] = $entry;
+                }
+            }
+
+            return array_values($unique);
+        };
 
         // Pull record products with linked site product names.
         $recordLinks = RecordProduct::query()
-            ->whereNotNull('linked_product_id')
+            ->where(function ($query): void {
+                $query->whereNotNull('linked_product_id')
+                    ->orWhereNotNull('linked_products');
+            })
             ->get()
-            ->map(function (RecordProduct $recordProduct) use ($siteProducts) {
+            ->map(function (RecordProduct $recordProduct) use ($siteProducts, $normalizeLinkedEntries) {
                 $recordProduct->site_product_name = $recordProduct->linked_product_id
                     ? ($siteProducts[$recordProduct->linked_product_id]->name ?? null)
                     : null;
                 $raw = $recordProduct->linked_variation_ids;
                 $recordProduct->linked_variation_ids = $raw
-                ? (is_string($raw) ? json_decode($raw, true) : $raw)
-                : [];
-            return $recordProduct;
-        });
+                    ? (is_string($raw) ? json_decode($raw, true) : $raw)
+                    : [];
+                $rawLinkedProducts = $recordProduct->linked_products;
+                $recordProduct->linked_products = $rawLinkedProducts
+                    ? (is_string($rawLinkedProducts) ? json_decode($rawLinkedProducts, true) : $rawLinkedProducts)
+                    : [];
+                $recordProduct->linked_entries = $normalizeLinkedEntries($recordProduct);
+                return $recordProduct;
+            });
 
         // Try to resolve the site product / variation id from the order name.
         $variationRow = DB::table('product_variations')
@@ -1269,32 +1317,53 @@ class SaleController extends Controller
             })?->id;
 
         // Helper to evaluate a record product against the order name.
-        $matchesOrder = function (RecordProduct $recordProduct) use ($normalized, $baseName, $variationId, $siteProducts, $siteVariations) {
-            $linkedIds = array_map(static fn ($v) => (int) $v, $recordProduct->linked_variation_ids ?: []);
-
-            // Require explicit site-product link.
-            if (!$recordProduct->linked_product_id) return false;
-            // If variations are selected, enforce them strictly.
-            if (!empty($linkedIds)) {
-                if (!$variationId) return false;
-                if (!in_array((int) $variationId, $linkedIds, true)) return false;
-            } else {
-                // No variations selected: skip syncing entirely.
+        $matchesOrder = function (RecordProduct $recordProduct) use ($normalized, $baseName, $variationId, $productIdFromName, $siteProducts) {
+            $linkedEntries = $recordProduct->linked_entries ?? [];
+            if (empty($linkedEntries)) {
                 return false;
             }
 
-            $siteNameNorm = $recordProduct->site_product_name ? $this->normalizeName($recordProduct->site_product_name) : null;
             $recordNameNorm = $this->normalizeName($recordProduct->name);
 
-            // With variation permitted, accept if names align.
-            if ($recordNameNorm === $normalized || $recordNameNorm === $baseName) return true;
-            if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) return true;
+            foreach ($linkedEntries as $entry) {
+                $entryProductId = (int) ($entry['product_id'] ?? 0);
+                $entryVariationId = $entry['variation_id'] ?? null;
+
+                if ($entryVariationId !== null) {
+                    if (!$variationId || (int) $variationId !== (int) $entryVariationId) {
+                        continue;
+                    }
+                } else {
+                    if (!$productIdFromName || (int) $productIdFromName !== $entryProductId) {
+                        continue;
+                    }
+                }
+
+                $siteName = $siteProducts[$entryProductId]->name ?? null;
+                $siteNameNorm = $siteName ? $this->normalizeName($siteName) : null;
+
+                if ($recordNameNorm === $normalized || $recordNameNorm === $baseName) {
+                    return true;
+                }
+                if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) {
+                    return true;
+                }
+            }
+
             return false;
         };
 
         // Priority 1: linked by site product id (and variation if present).
         if ($productIdFromName) {
-            $linkedForProduct = $recordLinks->filter(fn ($rp) => (int) $rp->linked_product_id === (int) $productIdFromName);
+            $linkedForProduct = $recordLinks->filter(function (RecordProduct $rp) use ($productIdFromName) {
+                $entries = $rp->linked_entries ?? [];
+                foreach ($entries as $entry) {
+                    if ((int) ($entry['product_id'] ?? 0) === (int) $productIdFromName) {
+                        return true;
+                    }
+                }
+                return false;
+            });
 
             if ($linkedForProduct->isNotEmpty()) {
                 // Variation-aware filter.
@@ -1353,10 +1422,58 @@ class SaleController extends Controller
 
         $siteProducts = DB::table('products')->select('id', 'name')->get()->keyBy('id');
 
+        $normalizeLinkedEntries = function (StockProduct $stockProduct): array {
+            $linkedProducts = $stockProduct->linked_products ?? [];
+            $entries = [];
+
+            if (!empty($linkedProducts)) {
+                foreach ($linkedProducts as $item) {
+                    if (!is_array($item) || empty($item['product_id'])) {
+                        continue;
+                    }
+                    $entries[] = [
+                        'product_id' => (int) $item['product_id'],
+                        'variation_id' => isset($item['variation_id']) && $item['variation_id'] !== null
+                            ? (int) $item['variation_id']
+                            : null,
+                    ];
+                }
+            } elseif (!empty($stockProduct->linked_product_id)) {
+                $productId = (int) $stockProduct->linked_product_id;
+                $variationIds = array_map(static fn ($v) => (int) $v, $stockProduct->linked_variation_ids ?: []);
+                if (!empty($variationIds)) {
+                    foreach ($variationIds as $variationId) {
+                        $entries[] = [
+                            'product_id' => $productId,
+                            'variation_id' => $variationId,
+                        ];
+                    }
+                } else {
+                    $entries[] = [
+                        'product_id' => $productId,
+                        'variation_id' => null,
+                    ];
+                }
+            }
+
+            $unique = [];
+            foreach ($entries as $entry) {
+                $key = $entry['product_id'] . ':' . ($entry['variation_id'] ?? 'none');
+                if (!isset($unique[$key])) {
+                    $unique[$key] = $entry;
+                }
+            }
+
+            return array_values($unique);
+        };
+
         $stockLinks = StockProduct::query()
-            ->whereNotNull('linked_product_id')
+            ->where(function ($query): void {
+                $query->whereNotNull('linked_product_id')
+                    ->orWhereNotNull('linked_products');
+            })
             ->get()
-            ->map(function (StockProduct $stockProduct) use ($siteProducts) {
+            ->map(function (StockProduct $stockProduct) use ($siteProducts, $normalizeLinkedEntries) {
                 $stockProduct->site_product_name = $stockProduct->linked_product_id
                     ? ($siteProducts[$stockProduct->linked_product_id]->name ?? null)
                     : null;
@@ -1364,6 +1481,11 @@ class SaleController extends Controller
                 $stockProduct->linked_variation_ids = $raw
                     ? (is_string($raw) ? json_decode($raw, true) : $raw)
                     : [];
+                $rawLinkedProducts = $stockProduct->linked_products;
+                $stockProduct->linked_products = $rawLinkedProducts
+                    ? (is_string($rawLinkedProducts) ? json_decode($rawLinkedProducts, true) : $rawLinkedProducts)
+                    : [];
+                $stockProduct->linked_entries = $normalizeLinkedEntries($stockProduct);
                 return $stockProduct;
             });
 
@@ -1383,29 +1505,48 @@ class SaleController extends Controller
                 return $name === $normalized || $name === $baseName;
             })?->id;
 
-        $matchesOrder = function (StockProduct $stockProduct) use ($normalized, $baseName, $variationId) {
-            $linkedIds = array_map(static fn ($v) => (int) $v, $stockProduct->linked_variation_ids ?: []);
-
-            if (!$stockProduct->linked_product_id) {
-                return false;
-            }
-            if (!empty($linkedIds)) {
-                if (!$variationId) return false;
-                if (!in_array((int) $variationId, $linkedIds, true)) return false;
-            } else {
+        $matchesOrder = function (StockProduct $stockProduct) use ($normalized, $baseName, $variationId, $productIdFromName, $siteProducts) {
+            $linkedEntries = $stockProduct->linked_entries ?? [];
+            if (empty($linkedEntries)) {
                 return false;
             }
 
-            $siteNameNorm = $stockProduct->site_product_name ? $this->normalizeName($stockProduct->site_product_name) : null;
             $stockNameNorm = $this->normalizeName($stockProduct->name);
 
-            if ($stockNameNorm === $normalized || $stockNameNorm === $baseName) return true;
-            if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) return true;
+            foreach ($linkedEntries as $entry) {
+                $entryProductId = (int) ($entry['product_id'] ?? 0);
+                $entryVariationId = $entry['variation_id'] ?? null;
+
+                if ($entryVariationId !== null) {
+                    if (!$variationId || (int) $variationId !== (int) $entryVariationId) {
+                        continue;
+                    }
+                } else {
+                    if (!$productIdFromName || (int) $productIdFromName !== $entryProductId) {
+                        continue;
+                    }
+                }
+
+                $siteName = $siteProducts[$entryProductId]->name ?? null;
+                $siteNameNorm = $siteName ? $this->normalizeName($siteName) : null;
+
+                if ($stockNameNorm === $normalized || $stockNameNorm === $baseName) return true;
+                if ($siteNameNorm && ($siteNameNorm === $normalized || $siteNameNorm === $baseName || str_contains($normalized, $siteNameNorm) || str_contains($siteNameNorm, $baseName))) return true;
+            }
+
             return false;
         };
 
         if ($productIdFromName) {
-            $linkedForProduct = $stockLinks->filter(fn ($sp) => (int) $sp->linked_product_id === (int) $productIdFromName);
+            $linkedForProduct = $stockLinks->filter(function (StockProduct $sp) use ($productIdFromName) {
+                $entries = $sp->linked_entries ?? [];
+                foreach ($entries as $entry) {
+                    if ((int) ($entry['product_id'] ?? 0) === (int) $productIdFromName) {
+                        return true;
+                    }
+                }
+                return false;
+            });
 
             if ($linkedForProduct->isNotEmpty()) {
                 $matched = $linkedForProduct->first(function (StockProduct $sp) use ($matchesOrder) {

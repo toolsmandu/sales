@@ -10,10 +10,17 @@
                 ? json_decode($product->linked_variation_ids, true) ?: []
                 : (is_array($product->linked_variation_ids) ? $product->linked_variation_ids : []);
         }
+        $linkedProducts = [];
+        if (!empty($product->linked_products)) {
+            $linkedProducts = is_string($product->linked_products)
+                ? json_decode($product->linked_products, true) ?: []
+                : (is_array($product->linked_products) ? $product->linked_products : []);
+        }
         return [
             $product->id => [
                 'linked_product_id' => $product->linked_product_id ?? null,
                 'linked_variation_ids' => $decoded,
+                'linked_products' => $linkedProducts,
             ],
         ];
     });
@@ -415,9 +422,9 @@
                             </select>
                         </label>
                         <label style="min-width: 320px;">
-                            <span class="muted" style="display:block;">Website product (choose product + variation)</span>
-                            <select id="records-link-site-product">
-                                <option value="">-- Select website product/variation --</option>
+                            <span class="muted" style="display:block;">Website products (select multiple)</span>
+                            <select id="records-link-site-product" multiple size="6" style="min-height: 9.5rem;">
+                                <option value="" disabled>-- Select website product/variation --</option>
                                 @foreach ($siteProducts as $siteProduct)
                                     @php
                                         $productVariations = $variations[$siteProduct->id] ?? collect();
@@ -721,7 +728,7 @@
             };
 
             const getLinkForProduct = (productId) => {
-                return state.productLinks?.[productId] ?? { linked_product_id: null, linked_variation_ids: [] };
+                return state.productLinks?.[productId] ?? { linked_product_id: null, linked_variation_ids: [], linked_products: [] };
             };
 
             const applyLinkFormValues = (productId) => {
@@ -735,19 +742,39 @@
                     linkRecordProductSelect.value = String(productId);
                 }
                 if (linkSiteProductSelect) {
-                    let optionValue = '';
-                    const variationId = Array.isArray(link.linked_variation_ids) && link.linked_variation_ids.length
-                        ? String(link.linked_variation_ids[0])
-                        : '';
-                    if (link.linked_product_id) {
-                        optionValue = variationId
-                            ? `variation:${link.linked_product_id}:${variationId}`
-                            : `product:${link.linked_product_id}`;
+                    const selectedValues = [];
+                    if (Array.isArray(link.linked_products) && link.linked_products.length) {
+                        link.linked_products.forEach((item) => {
+                            const productId = item?.product_id;
+                            if (!productId) return;
+                            const variationId = item?.variation_id;
+                            selectedValues.push(
+                                variationId
+                                    ? `variation:${productId}:${variationId}`
+                                    : `product:${productId}`
+                            );
+                        });
+                    } else if (link.linked_product_id) {
+                        const variationIds = Array.isArray(link.linked_variation_ids) ? link.linked_variation_ids : [];
+                        if (variationIds.length) {
+                            variationIds.forEach((variationId) => {
+                                selectedValues.push(`variation:${link.linked_product_id}:${variationId}`);
+                            });
+                        } else {
+                            selectedValues.push(`product:${link.linked_product_id}`);
+                        }
                     }
-                    linkSiteProductSelect.value = optionValue;
+
+                    const valueSet = new Set(selectedValues.map(String));
+                    Array.from(linkSiteProductSelect.options).forEach((option) => {
+                        option.selected = valueSet.has(option.value);
+                    });
                 }
-                const statusText = link.linked_product_id ? 'Linked' : 'Not linked';
-                setLinkStatus(statusText, Boolean(link.linked_product_id));
+                const linkedCount = Array.isArray(link.linked_products) && link.linked_products.length
+                    ? link.linked_products.length
+                    : (Array.isArray(link.linked_variation_ids) ? link.linked_variation_ids.length : 0) || (link.linked_product_id ? 1 : 0);
+                const statusText = linkedCount ? `Linked (${linkedCount})` : 'Not linked';
+                setLinkStatus(statusText, Boolean(linkedCount));
             };
 
             const syncLinkProductOptions = () => {
@@ -1162,6 +1189,7 @@
                         state.productLinks[product.id] = {
                             linked_product_id: product.linked_product_id ?? null,
                             linked_variation_ids: [],
+                            linked_products: [],
                         };
                         if (newProductInput) newProductInput.value = '';
                         selectProduct(product);
@@ -1199,10 +1227,18 @@
                     alert('Select a record product to link.');
                     return;
                 }
-                const selectedOption = linkSiteProductSelect?.selectedOptions?.[0];
-                const linkedProductId = selectedOption?.dataset?.productId || null;
-                const linkedVariationId = selectedOption?.dataset?.variationId || null;
-                const linkedVariationIds = linkedVariationId ? [linkedVariationId] : [];
+                const selectedOptions = Array.from(linkSiteProductSelect?.selectedOptions || []);
+                const linkedProducts = selectedOptions
+                    .map((option) => {
+                        const productId = option?.dataset?.productId;
+                        if (!productId) return null;
+                        const variationId = option?.dataset?.variationId || null;
+                        return {
+                            product_id: Number(productId),
+                            variation_id: variationId ? Number(variationId) : null,
+                        };
+                    })
+                    .filter(Boolean);
 
                 try {
                     setLinkStatus('Saving...');
@@ -1215,8 +1251,7 @@
                         },
                         body: JSON.stringify({
                             record_product_id: recordProductId,
-                            linked_product_id: linkedProductId || null,
-                            linked_variation_ids: linkedVariationIds,
+                            linked_products: linkedProducts,
                         }),
                     });
                     if (!response.ok) {
@@ -1230,6 +1265,9 @@
                             linked_product_id: product.linked_product_id,
                             linked_variation_ids: product.linked_variation_ids
                                 ? (Array.isArray(product.linked_variation_ids) ? product.linked_variation_ids : JSON.parse(product.linked_variation_ids || '[]'))
+                                : [],
+                            linked_products: product.linked_products
+                                ? (Array.isArray(product.linked_products) ? product.linked_products : JSON.parse(product.linked_products || '[]'))
                                 : [],
                         };
                         setLinkStatus('Link saved', true);
@@ -2062,7 +2100,11 @@
             });
             linkSaveButton?.addEventListener('click', saveLink);
             linkClearButton?.addEventListener('click', () => {
-                if (linkSiteProductSelect) linkSiteProductSelect.value = '';
+                if (linkSiteProductSelect) {
+                    Array.from(linkSiteProductSelect.options).forEach((option) => {
+                        option.selected = false;
+                    });
+                }
                 setLinkStatus('Not linked');
             });
             createProductButton?.addEventListener('click', () => createProduct());

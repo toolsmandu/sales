@@ -54,8 +54,11 @@ class RecordController extends Controller
         $rules = [
             'name' => ['required', 'string', 'max:190'],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
-            'linked_variation_ids' => ['array', 'max:1'],
+            'linked_variation_ids' => ['array'],
             'linked_variation_ids.*' => ['integer'],
+            'linked_products' => ['array'],
+            'linked_products.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'linked_products.*.variation_id' => ['nullable', 'integer'],
         ];
         if ($this->isStockContext()) {
             $rules['expiry_days'] = ['nullable', 'integer', 'min:0'];
@@ -86,7 +89,10 @@ class RecordController extends Controller
             'table_name' => $tableName,
             'linked_product_id' => $validated['linked_product_id'] ?? null,
             'linked_variation_ids' => !empty($validated['linked_variation_ids'])
-                ? array_slice($validated['linked_variation_ids'], 0, 1)
+                ? array_values($validated['linked_variation_ids'])
+                : null,
+            'linked_products' => !empty($validated['linked_products'])
+                ? $this->normalizeLinkedProducts($validated['linked_products'])
                 : null,
         ];
         if ($this->isStockContext()) {
@@ -334,8 +340,11 @@ class RecordController extends Controller
         $data = $request->validate([
             'record_product_id' => ['required', 'integer', "exists:{$tableName},id"],
             'linked_product_id' => ['nullable', 'integer', 'exists:products,id'],
-            'linked_variation_ids' => ['array', 'max:1'],
+            'linked_variation_ids' => ['array'],
             'linked_variation_ids.*' => ['integer'],
+            'linked_products' => ['array'],
+            'linked_products.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'linked_products.*.variation_id' => ['nullable', 'integer'],
             'stock_account_note' => ['nullable', 'string', 'max:5000'],
         ]);
         if ($this->isStockContext() && !empty($data['stock_account_note'])) {
@@ -349,12 +358,27 @@ class RecordController extends Controller
         }
 
         $product = $this->findProduct((string) $data['record_product_id']);
+        $linkedProducts = $this->normalizeLinkedProducts($data['linked_products'] ?? []);
         $variationIds = !empty($data['linked_variation_ids'])
-            ? array_slice($data['linked_variation_ids'], 0, 1)
+            ? array_values($data['linked_variation_ids'])
             : [];
+        $linkedProductId = $data['linked_product_id'] ?? null;
+
+        if (!empty($linkedProducts)) {
+            $uniqueProductIds = array_values(array_unique(array_map(static fn ($item) => (int) $item['product_id'], $linkedProducts)));
+            if (count($uniqueProductIds) === 1) {
+                $linkedProductId = $uniqueProductIds[0];
+                $variationIds = array_values(array_filter(array_map(static fn ($item) => $item['variation_id'] ?? null, $linkedProducts), static fn ($value) => $value !== null));
+            } else {
+                $linkedProductId = null;
+                $variationIds = [];
+            }
+        }
+
         $payload = [
-            'linked_product_id' => $data['linked_product_id'] ?? null,
+            'linked_product_id' => $linkedProductId,
             'linked_variation_ids' => !empty($variationIds) ? $variationIds : null,
+            'linked_products' => !empty($linkedProducts) ? $linkedProducts : null,
         ];
         if ($this->isStockContext()) {
             $payload['stock_account_note'] = $data['stock_account_note'] ?? null;
@@ -868,6 +892,38 @@ class RecordController extends Controller
         }
     }
 
+    private function normalizeLinkedProducts(array $items): array
+    {
+        $normalized = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $productId = $item['product_id'] ?? null;
+            if ($productId === null || $productId === '') {
+                continue;
+            }
+            $variationId = $item['variation_id'] ?? null;
+            if ($variationId === '') {
+                $variationId = null;
+            }
+            $normalized[] = [
+                'product_id' => (int) $productId,
+                'variation_id' => $variationId !== null ? (int) $variationId : null,
+            ];
+        }
+
+        $unique = [];
+        foreach ($normalized as $entry) {
+            $key = $entry['product_id'] . ':' . ($entry['variation_id'] ?? 'none');
+            if (!isset($unique[$key])) {
+                $unique[$key] = $entry;
+            }
+        }
+
+        return array_values($unique);
+    }
+
     private function ensureLinkColumns(): void
     {
         $tableName = $this->productTableName();
@@ -887,9 +943,15 @@ class RecordController extends Controller
             });
         }
 
+        if (!Schema::hasColumn($tableName, 'linked_products')) {
+            Schema::table($tableName, function (Blueprint $table): void {
+                $table->json('linked_products')->nullable()->after('linked_variation_ids');
+            });
+        }
+
         if ($this->isStockContext() && !Schema::hasColumn($tableName, 'stock_account_note')) {
             Schema::table($tableName, function (Blueprint $table): void {
-                $table->string('stock_account_note')->nullable()->after('linked_variation_ids');
+                $table->string('stock_account_note')->nullable()->after('linked_products');
             });
         }
 
